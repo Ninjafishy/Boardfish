@@ -33,9 +33,7 @@ var StartupDebug = DEBUG_TOOLS_ENABLED ? (() => {
   let lastResult = null;
   let lastJson = '';
 
-  function round(value) {
-    return typeof value === 'number' ? Math.round(value * 100) / 100 : value;
-  }
+  const round = round2;
 
   function colorToRgb(value) {
     const probe = document.createElement('span');
@@ -757,7 +755,7 @@ const BoardfishDebugConsole = (() => {
     }
     if (typeof spec !== 'object') return { calls, options };
     for (const key of ['label', 'filename', 'download']) {
-      if (Object.prototype.hasOwnProperty.call(spec, key)) options[key] = spec[key];
+      if (Object.hasOwn(spec, key)) options[key] = spec[key];
     }
     for (const item of spec.calls || []) normalizeCallEntry(item, calls);
     for (const item of spec.commands || []) normalizeCallEntry(item, calls);

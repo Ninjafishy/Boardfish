@@ -28,6 +28,21 @@
       : { ...rest, ...other };
   }
 
+  function debugEventTimestampMs(event = null) {
+    const timestamp = Number(event?.timeStamp);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return performance.now();
+    return timestamp > performance.timeOrigin ? timestamp - performance.timeOrigin : timestamp;
+  }
+
+  function debugEventTargetLabel(target) {
+    if (!target) return '';
+    const id = target.id ? `#${target.id}` : '';
+    const className = typeof target.className === 'string'
+      ? target.className.trim().split(/\s+/).filter(Boolean).slice(0, 3).map(name => `.${name}`).join('')
+      : '';
+    return `${String(target.tagName || target.nodeName || '').toLowerCase()}${id}${className}`;
+  }
+
   function createDebugRecorder({
     maxEvents = 300,
     label = 'Boardfish',
@@ -120,6 +135,8 @@
     };
   }
 
+  root.debugEventTimestampMs = debugEventTimestampMs;
+  root.debugEventTargetLabel = debugEventTargetLabel;
   root.flattenDebugEvent = flattenDebugEvent;
   root.createDebugRecorder = createDebugRecorder;
   root.round2 = round2;

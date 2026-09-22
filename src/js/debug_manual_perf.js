@@ -924,21 +924,6 @@ var ManualPerfDebug = (() => {
     };
   }
 
-  function eventTimestampMs(event = null) {
-    const timestamp = Number(event?.timeStamp);
-    if (!Number.isFinite(timestamp) || timestamp <= 0) return performance.now();
-    return timestamp > performance.timeOrigin ? timestamp - performance.timeOrigin : timestamp;
-  }
-
-  function eventTargetLabel(target) {
-    if (!target) return '';
-    const id = target.id ? `#${target.id}` : '';
-    const className = typeof target.className === 'string'
-      ? target.className.trim().split(/\s+/).filter(Boolean).slice(0, 3).map(name => `.${name}`).join('')
-      : '';
-    return `${String(target.tagName || target.nodeName || '').toLowerCase()}${id}${className}`;
-  }
-
   function textEditShortcutFromEvent(event = null) {
     const type = event?.type || '';
     if (type !== 'keydown' && type !== 'keyup') return '';
@@ -993,7 +978,7 @@ var ManualPerfDebug = (() => {
   }
 
   function textEditEventMeta(event) {
-    const eventAt = eventTimestampMs(event);
+    const eventAt = debugEventTimestampMs(event);
     const now = performance.now();
     const id = typeof editingId !== 'undefined' ? (editingId || '') : '';
     const obj = id && typeof objectsMap !== 'undefined' ? objectsMap.get(id) : null;
@@ -1022,7 +1007,7 @@ var ManualPerfDebug = (() => {
       ctrlKey: !!event?.ctrlKey,
       metaKey: !!event?.metaKey,
       defaultPrevented: !!event?.defaultPrevented,
-      target: eventTargetLabel(event?.target),
+      target: debugEventTargetLabel(event?.target),
       valueLength: logicalValueLength,
       domValueLength,
       domValueStale: !!_editEl?._boardfishDomValueStale,

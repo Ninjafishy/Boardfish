@@ -4,9 +4,6 @@
   const IMAGE_EDGE_OVERDRAW_DEVICE_PX = 1;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const TEXT_DRAW_STATS_DISABLED = Object.freeze({ collectStats: false });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const SLOW_TEXT_LINE_DRAW_THRESHOLD_MS = 0.25;
   const MAX_SLOW_TEXT_LINE_DRAWS = 16;
   const imageSourceDrawnSet = new WeakSet();

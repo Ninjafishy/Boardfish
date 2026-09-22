@@ -176,9 +176,6 @@ const getOpenImageRuntimeDebugMetrics = (dbg = null) => {
 const getImageStoreOpenDebugSampleIfEnabled = (dbg = null) => {
   return isOpenDebugActive(dbg) ? getImageStoreOpenDebugSample() : [];
 };
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 function scheduleSaveFrameProbe(dbg, label) {
   if (!SaveDebug.enabled) return null;
   const scheduledAt = performance.now();
@@ -263,16 +260,12 @@ function scheduleOpenFrameProbe(dbg, label) {
 }
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-function getVisibleWorldBounds() {
-  return viewportWorldRect();
-}
-
 const isOpenHydratableImageSource = (source) => {
   return typeof source === 'string' || isWebImageRef(source);
 };
 
 function getVisibleImageKeys(limit = Infinity) {
-  const b = getVisibleWorldBounds();
+  const b = viewportWorldRect();
   const keys = [];
   const seen = new Set();
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -553,8 +546,6 @@ async function finishOpenedBoard(
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const openMetrics = getBoardOpenDebugMetrics(dbg, data);
   PillDebug.log('open:finishOpenedBoard:start', openMetrics);
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const hydrateStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const visibleKeys = getVisibleImageKeys(Infinity);
@@ -732,9 +723,6 @@ function applyBoardData(data
   BoardfishEditorState.setViewport(data.viewport);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   OpenDebug.step(dbg, 'restore-counters-viewport', { ms: performance.now() - countersStart, panX, panY, zoom });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const historyStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   snapshot();

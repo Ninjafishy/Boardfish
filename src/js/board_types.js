@@ -47,6 +47,10 @@
     return typeof src;
   }
 
+  function dataUrlMime(dataUrl) {
+    return /^data:([^;,]+);base64,/i.exec(String(dataUrl || ''))?.[1] || 'image/png';
+  }
+
   function extForMime(mime = '') {
     const value = String(mime || '').toLowerCase();
     if (value === 'image/jpeg' || value === 'image/jpg') return 'jpg';
@@ -73,6 +77,7 @@
     BOARD_VERSION_CONTAINER,
     OBJECT_TYPES,
     clampZoom,
+    dataUrlMime,
     extForMime,
     finiteNumber,
     imageRefKind,

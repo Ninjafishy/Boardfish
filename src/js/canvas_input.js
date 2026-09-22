@@ -337,8 +337,6 @@ function startMousePan(e) {
     const collectDebug = ViewportDebug.isEnabled();
     const handlerStart = collectDebug ? canvasInputNow() : 0;
     try {
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
       const panXBefore = panX;
       const panYBefore = panY;
       /* BOARDFISH_DEV_DIAGNOSTICS_END */

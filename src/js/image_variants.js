@@ -766,7 +766,7 @@ function viewportPerfModeSummary(modeKey = null) {
   let activeKey = '';
   let activeMode = null;
   for (const key in VIEWPORT_PERF_MODES) {
-    if (!Object.prototype.hasOwnProperty.call(VIEWPORT_PERF_MODES, key)) continue;
+    if (!Object.hasOwn(VIEWPORT_PERF_MODES, key)) continue;
     const mode = VIEWPORT_PERF_MODES[key];
     if (mode.culling === viewportCullingEnabled && mode.scaling === viewportImageScalingEnabled) {
       activeKey = key;

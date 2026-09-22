@@ -1,7 +1,7 @@
 'use strict';
 
 (function initExportUtils(root) {
-  const { extForMime, mimeForExt: mimeForImageExt } = root.BoardfishBoardTypes ||
+  const { dataUrlMime, extForMime, mimeForExt: mimeForImageExt } = root.BoardfishBoardTypes ||
     (typeof require === 'function' ? require('./board_types.js') : null);
   function guessImageExtFromDataUrl(dataUrl) {
     return extForMime(dataUrlMime(dataUrl));
@@ -595,10 +595,6 @@
     }
     root.BoardfishRuntime.downloadBlob(data instanceof Blob && data.type === type ? data : new Blob([data], { type }), fallbackName);
     return false;
-  }
-
-  function dataUrlMime(dataUrl) {
-    return /^data:([^;,]+);base64,/i.exec(String(dataUrl || ''))?.[1] || 'image/png';
   }
 
   function withImageExtension(name, ext) {

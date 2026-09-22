@@ -353,9 +353,6 @@ function cacheImage(key, src
     ViewportDebug.count('imageDecodes');
     ViewportDebug.step(vpDbg, 'decode', { skipped: true, reason: 'createImageBitmap-source' });
     OpenDebug.step(dbg, 'cache-image:decode', { imgKey: key, skipped: true, reason: 'createImageBitmap-source' });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const bitmapStart = performance.now();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     let same;
@@ -392,8 +389,6 @@ function cacheImage(key, src
           queued: variantQueue?.queued === true,
           skipped: variantQueue?.skipped || '',
         });
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
         ViewportDebug.count('imageBitmaps');
         ViewportDebug.max('maxImageBitmapMs', bitmapMs);
         ViewportDebug.step(vpDbg, 'createImageBitmap', { ms: bitmapMs, bitmapOnly: true });

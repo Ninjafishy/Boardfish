@@ -4,9 +4,7 @@ var InsertDebug = (() => {
   const MAX_EVENTS = 5000;
   const BREAKDOWN_LIMIT = 200;
 
-  function round(value) {
-    return round2(value);
-  }
+  const round = round2;
 
   function sanitize(meta = {}) {
     return sanitizeDebugMeta(meta);

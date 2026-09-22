@@ -2,7 +2,7 @@
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 (function initBoardfishWebEnv(root) {
-  if (Object.prototype.hasOwnProperty.call(root, '__BOARDFISH_DEBUG_TOOLS_ENABLED__')) return;
+  if (Object.hasOwn(root, '__BOARDFISH_DEBUG_TOOLS_ENABLED__')) return;
   Object.defineProperty(root, '__BOARDFISH_DEBUG_TOOLS_ENABLED__', {
     value: false,
   });

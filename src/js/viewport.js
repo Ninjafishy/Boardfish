@@ -494,8 +494,6 @@ function drawEditingTextOverlay(
       stats.editVisibleLines = layout.length;
       stats.editCulledLines = Math.max(0, stats.editLayoutLines - layout.length);
     }
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const selectionStart = collectDebug ? performance.now() : 0;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const selection = selStart === selEnd ? null : collectTextSelectionRuns(obj, layout, selStart, selEnd);
@@ -818,12 +816,8 @@ var _activeRenderSource = 'direct';
 var _lastDrawBoardMeta = null;
 var _frameInputAt = 0;
 var _frameInputSource = '';
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 var _lastVisibleTextLayoutPrewarm = null;
 var _visibleTextLayoutPrewarmHistory = [];
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 var _textDrawWarmupCanvas = null;
 var _textDrawWarmupCtx = null;
 const TEXT_DRAW_WARMUP_CANVAS_MAX_W = 2048;
@@ -880,18 +874,12 @@ finishMotionViewportRenderFrame = (source, meta = {}) => {
     ...meta,
   });
 };
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 function textPrewarmLogicalLineCount(content) {
   const text = typeof normalizeTextContent === 'function'
     ? normalizeTextContent(content)
     : String(content ?? '').replace(/\r\n?/g, '\n');
   return text ? text.split('\n').length : 1;
 }
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 function textDrawWarmupContext() {
   if (_textDrawWarmupCtx) return _textDrawWarmupCtx;
   if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
@@ -1408,14 +1396,6 @@ function getBestVisibleTextLayoutPrewarm() {
 }
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-function viewportEventTime(event = null) {
-  const timestamp = Number(event?.timeStamp);
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return performance.now();
-  return timestamp > performance.timeOrigin ? timestamp - performance.timeOrigin : timestamp;
-}
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 function scheduleFrame(
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   source = null
@@ -1583,7 +1563,7 @@ function scheduleTransform(
   if (changed === false && !editingId) return;
   if (typeof BOARDFISH_PRODUCTION === 'undefined') {
     if (source == null) source = 'transform';
-    const eventAt = viewportEventTime(inputEvent);
+    const eventAt = debugEventTimestampMs(inputEvent);
     if (ViewportDebug.isEnabled()) {
       ViewportDebug.recordPanZoom?.('transform-scheduled', {
         mode: source.includes('zoom') ? 'zoom' : source.includes('pan') ? 'pan' : 'transform',

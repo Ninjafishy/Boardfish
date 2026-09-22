@@ -3,15 +3,9 @@
 (function initBoardDocument(root) {
   const BoardTypes = root.BoardfishBoardTypes ||
     (typeof require === 'function' ? require('./board_types.js') : null);
-  const { mimeForExt, normalizeImageExt } = BoardTypes;
+  const { dataUrlMime, mimeForExt, normalizeImageExt } = BoardTypes;
 
-  function defaultImageRefKind(src) {
-    return BoardTypes.imageRefKind(src);
-  }
-
-  function mimeFromDataUrl(dataUrl = '') {
-    return /^data:([^;,]+);base64,/i.exec(String(dataUrl || ''))?.[1] || 'image/png';
-  }
+  const defaultImageRefKind = BoardTypes.imageRefKind;
 
   function imageMetaForBoardFile(imgKey, src = '', deps = {}) {
     const guessImageExtFromDataUrl = deps.guessImageExtFromDataUrl || (() => 'png');
@@ -23,7 +17,7 @@
     }
     const comma = typeof src === 'string' ? src.indexOf(',') : -1;
     const ext = guessImageExtFromDataUrl(src);
-    const mime = comma > 0 ? mimeFromDataUrl(src) : mimeForExt(ext);
+    const mime = comma > 0 ? dataUrlMime(src) : mimeForExt(ext);
     return { path: `images/${imgKey}.${ext}`, mime, ext };
   }
 
@@ -66,7 +60,7 @@
     let bitmapFailures = 0;
     const imageStore = store || {};
     for (const key in imageStore) {
-      if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+      if (!Object.hasOwn(imageStore, key)) continue;
       const src = imageStore[key];
       imageCount++;
       const bytes = imageStoreBytesEstimate(src);
@@ -100,7 +94,7 @@
     let total = 0;
     const imageStore = store || {};
     for (const key in imageStore) {
-      if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+      if (!Object.hasOwn(imageStore, key)) continue;
       total += imageStoreBytesEstimate(imageStore[key]);
     }
     return total;
@@ -140,7 +134,7 @@
     for (const obj of objectsList || []) {
       if (obj?.type !== 'text') continue;
       for (const key in obj) {
-        if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+        if (!Object.hasOwn(obj, key)) continue;
         if (key.startsWith('_')) runtimeTextPrivateFields++;
       }
       if (Array.isArray(obj._layoutCache)) {
@@ -206,7 +200,7 @@
     const imageRefKind = deps.imageRefKind || defaultImageRefKind;
     const imageStore = store || {};
     for (const key in imageStore) {
-      if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+      if (!Object.hasOwn(imageStore, key)) continue;
       const src = imageStore[key];
       rows.push({
         key,

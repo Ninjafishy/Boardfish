@@ -62,9 +62,6 @@ const textEditorTextStats = (value) => {
     textBytes,
   };
 };
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 const textEditorSelectionDebugStats = (selection = {}, value = '') => {
   const text = String(value ?? '');
   const start = Math.max(0, Math.min(selection.start ?? 0, text.length));
@@ -1129,8 +1126,6 @@ const replaceTextEditSelectionWithPayload = (id, proxy, payload, options = {}) =
   };
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   inputState.debug = dbg;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const historyStartedAt = textEditorDebugNow();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   beginTextEditHistoryAction(id, inputState);
@@ -1167,8 +1162,6 @@ const replaceTextEditSelectionWithPayload = (id, proxy, payload, options = {}) =
     dispatchMs: Math.round((textEditorDebugNow() - dispatchStartedAt) * 100) / 100,
     inputType,
   });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
   logStep('paste:text-edit-replace-end', {
     inputType,
     proxyChars: textEditProxyValue(proxy).length,

@@ -529,8 +529,6 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
             moveMs: selectionResizeDebugRound(selectionResizeDebugNow() - moveStartedAt),
           });
         }
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
         const applyStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
         const beforeX = obj.x;
         const beforeY = obj.y;

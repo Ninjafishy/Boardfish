@@ -1522,9 +1522,8 @@ function layoutHitTestCaret(layout, wx, wy, obj, legacyScalar = false) {
   }
   const line = layout[lo];
   if (!line.text.length) return { index: line.startIndex, lineStartIndex: line.startIndex };
-  const pw = line.prefixWidths;
   const offset = lineHitOffsetForX(line, wx, obj, !legacyScalar);
   const hitIndex = line.startIndex + offset;
-  TextSelDebug._logHit(wx, wy, obj, line, hitIndex, pw);
+  TextSelDebug._logHit(wx, wy, obj, line, hitIndex, line.prefixWidths);
   return { index: hitIndex, lineStartIndex: line.startIndex };
 }

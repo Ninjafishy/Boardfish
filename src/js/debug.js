@@ -3,9 +3,7 @@ var ClipDebug = (() => {
 
   const MAX_EVENTS = 2000;
 
-  function sanitize(value) {
-    return sanitizeDebugMeta(value);
-  }
+  const sanitize = sanitizeDebugMeta;
 
   const core = createDebugRecorder({
     maxEvents: MAX_EVENTS,
@@ -529,6 +527,16 @@ var ClipDebug = (() => {
     return { summary: out, rows: run.map(e => debugRow(e, { includeId: true, includeSkipped: true })) };
   }
 
+  function latestMetaValue(run, names) {
+    for (const event of [...run].reverse()) {
+      for (const name of names) {
+        const value = event.meta?.[name];
+        if (value !== undefined && value !== '') return value;
+      }
+    }
+    return '';
+  }
+
   function textPasteLagReport(options = {}) {
     const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
     const pasteStarts = events.filter(e => e.op === 'pasteTextEditSelection' && e.step === 'start');
@@ -542,15 +550,6 @@ var ClipDebug = (() => {
     const run = events.filter(e => e.id === pasteStart.id && e.op === pasteStart.op);
     const latest = (stepName) => [...run].reverse().find(e => e.step === stepName);
     const first = (stepName) => run.find(e => e.step === stepName);
-    const latestMetaValue = (names) => {
-      for (const event of [...run].reverse()) {
-        for (const name of names) {
-          const value = event.meta?.[name];
-          if (value !== undefined && value !== '') return value;
-        }
-      }
-      return '';
-    };
     const summarizePasteRun = (start) => {
       const runEvents = events.filter(e => e.id === start.id && e.op === start.op);
       const runLatest = (stepName) => [...runEvents].reverse().find(e => e.step === stepName);
@@ -701,20 +700,20 @@ var ClipDebug = (() => {
       maxLongTaskMs: round(maxLongTaskMs),
       oldChars: replacement?.meta?.oldChars ?? '',
       nextChars: replacement?.meta?.nextChars ?? '',
-      insertedChars: latestMetaValue(['insertedChars', 'textLen', 'fallbackTextChars', 'textCharCount']),
-      selectedChars: latestMetaValue(['selectedChars']),
-      textBytes: latestMetaValue(['textBytes']),
-      textLineCount: latestMetaValue(['textLineCount']),
-      largestLineChars: latestMetaValue(['largestLineChars']),
+      insertedChars: latestMetaValue(run, ['insertedChars', 'textLen', 'fallbackTextChars', 'textCharCount']),
+      selectedChars: latestMetaValue(run, ['selectedChars']),
+      textBytes: latestMetaValue(run, ['textBytes']),
+      textLineCount: latestMetaValue(run, ['textLineCount']),
+      largestLineChars: latestMetaValue(run, ['largestLineChars']),
       layoutPatched: layoutPatch?.meta?.layoutPatched ?? '',
       layoutPatchMs: layoutPatch?.dt ?? '',
       layoutPatchLineDelta: layoutPatch?.meta?.layoutPatchLineDelta ?? '',
       layoutPatchLogicalLineDelta: layoutPatch?.meta?.layoutPatchLogicalLineDelta ?? '',
       layoutPatchReason: layoutPatch?.meta?.layoutPatchReason || '',
-      objectWidth: latestMetaValue(['objectWidth']),
-      objectHeight: latestMetaValue(['objectHeight']),
-      layoutCachePresent: latestMetaValue(['layoutCachePresent']),
-      layoutCacheLines: latestMetaValue(['layoutCacheLines']),
+      objectWidth: latestMetaValue(run, ['objectWidth']),
+      objectHeight: latestMetaValue(run, ['objectHeight']),
+      layoutCachePresent: latestMetaValue(run, ['layoutCachePresent']),
+      layoutCacheLines: latestMetaValue(run, ['layoutCacheLines']),
       rawInputs: rawInputRows.length,
       frames: frameRows.length,
       slowFramesOver16ms: frameRows.filter(row => Number(row.frameMs) > 16.7).length,
@@ -751,15 +750,6 @@ var ClipDebug = (() => {
     };
     const copy = latestRun(['copyTextEditSelection', 'copySelected']);
     const paste = latestRun(['pasteTextEditSelection', 'pasteAtPos']);
-    const latestMetaValue = (run, names) => {
-      for (const event of [...run].reverse()) {
-        for (const name of names) {
-          const value = event.meta?.[name];
-          if (value !== undefined && value !== '') return value;
-        }
-      }
-      return '';
-    };
     const stepTotal = (run, name) => [...run].reverse().find(e => e.step === name)?.total ?? '';
     const summary = {
       copyRuns: events.filter(e => (e.op === 'copySelected' || e.op === 'copyTextEditSelection') && e.step === 'start').length,
@@ -874,9 +864,7 @@ var HistoryDebug = (() => {
     maxCloneObjectsMs: 0,
   };
 
-  function round(value) {
-    return round2(value);
-  }
+  const round = round2;
 
   function sanitize(value) {
     return sanitizeDebugMeta(value, { redactPattern: null, roundNumbers: true });
@@ -1359,21 +1347,6 @@ var ViewportDebug = (() => {
     longTaskObserver = null;
   }
 
-  function eventTimestampMs(event = null) {
-    const timestamp = Number(event?.timeStamp);
-    if (!Number.isFinite(timestamp) || timestamp <= 0) return performance.now();
-    return timestamp > performance.timeOrigin ? timestamp - performance.timeOrigin : timestamp;
-  }
-
-  function eventTargetLabel(target) {
-    if (!target) return '';
-    const id = target.id ? `#${target.id}` : '';
-    const className = typeof target.className === 'string'
-      ? target.className.trim().split(/\s+/).filter(Boolean).slice(0, 3).map(name => `.${name}`).join('')
-      : '';
-    return `${String(target.tagName || target.nodeName || '').toLowerCase()}${id}${className}`;
-  }
-
   function round(value, places = 2) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return value;
@@ -1448,7 +1421,7 @@ var ViewportDebug = (() => {
   }
 
   function inputEventMeta(event, extra = {}) {
-    const eventAt = eventTimestampMs(event);
+    const eventAt = debugEventTimestampMs(event);
     return sanitize({
       source: extra.source || '',
       eventType: event?.type || '',
@@ -1479,7 +1452,7 @@ var ViewportDebug = (() => {
       altKey: !!event?.altKey,
       defaultPrevented: !!event?.defaultPrevented,
       cancelable: !!event?.cancelable,
-      target: eventTargetLabel(event?.target),
+      target: debugEventTargetLabel(event?.target),
       ...inputShieldState(),
       ...extra,
     });

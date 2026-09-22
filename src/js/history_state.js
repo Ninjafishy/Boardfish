@@ -109,7 +109,7 @@ function prefixHistoryDebugMetrics(prefix, metrics = {}) {
   if (!prefix) return metrics;
   const out = {};
   for (const key in metrics) {
-    if (!Object.prototype.hasOwnProperty.call(metrics, key)) continue;
+    if (!Object.hasOwn(metrics, key)) continue;
     const value = metrics[key];
     out[`${prefix}${key[0].toUpperCase()}${key.slice(1)}`] = value;
   }
@@ -384,8 +384,6 @@ function restoreSnapshot(s, editStateOverride) {
   }
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   HistoryDebug.step(dbg, 'clear-editing', clearEditMeta);
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const cloneObjectsStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const clonedSnapshotObjects = cloneObjectsForHistoryRestore(snapshotObjects);
