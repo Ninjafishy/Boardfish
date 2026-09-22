@@ -339,7 +339,7 @@ var OpenDebug = (() => {
     const limit = Math.max(1, Math.min(200, Math.floor(Number(options.limit) || 40)));
     const rows = latestOpenEvents();
     const findStep = (step) => rows.find(e => e.step === step) || null;
-    const findLastStep = (step) => [...rows].reverse().find(e => e.step === step) || null;
+    const findLastStep = (step) => debugLast(rows, e => e.step === step) || null;
     const fileDialog = rows.find(e => e.step === 'invoke:ok' && /web_open_file_dialog/.test(e.meta?.command || '')) || null;
     const readStart = rows.find(e => e.step === 'invoke:start' && /web_read_board/.test(e.meta?.command || '')) || null;
     const read = rows.find(e => e.step === 'invoke:ok' && /web_read_board/.test(e.meta?.command || '')) || null;
@@ -485,7 +485,7 @@ var OpenDebug = (() => {
   function report() {
     const rows = latestOpenEvents();
     const findStep = (step) => rows.find(e => e.step === step) || null;
-    const findLastStep = (step) => [...rows].reverse().find(e => e.step === step) || null;
+    const findLastStep = (step) => debugLast(rows, e => e.step === step) || null;
     const initialPolicy = findStep('hydrate-initial-policy');
     const initialRender = findStep('initial-applyTransform');
     const endEvent = findLastStep('end');

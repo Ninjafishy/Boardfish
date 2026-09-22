@@ -210,7 +210,7 @@ var ClipDebug = (() => {
     }
 
     const run = events.filter(e => e.id === copyStart.id);
-    const latest = (stepName) => [...run].reverse().find(e => e.step === stepName);
+    const latest = (stepName) => debugLast(run, e => e.step === stepName);
     const copyEnd = latest('end');
     const copyDoneAt = copyEnd?.at ?? run[run.length - 1]?.at ?? copyStart.at;
     const copyWindowRows = events.filter(e => e.at >= copyStart.at && e.at <= copyDoneAt + 1);
@@ -413,7 +413,7 @@ var ClipDebug = (() => {
     }
     const run = events.filter(e => e.id === pasteStart.id);
     const stepNames = new Set(run.map(e => e.step));
-    const latest = (stepName) => [...run].reverse().find(e => e.step === stepName);
+    const latest = (stepName) => debugLast(run, e => e.step === stepName);
     const firstError = run.find(e => /(?:error|miss|empty)$/i.test(e.step) || e.meta?.error);
     const blobEvent = latest('event-image-blob') || latest('browser-image-blob');
     const webInsertEnd = latest('web-paste-event:insert-end') || latest('web-paste-browser:insert-end');
@@ -479,7 +479,7 @@ var ClipDebug = (() => {
       return empty;
     }
     const run = events.filter(e => e.id === pasteStart.id);
-    const latest = (stepName) => [...run].reverse().find(e => e.step === stepName);
+    const latest = (stepName) => debugLast(run, e => e.step === stepName);
     const first = (stepName) => run.find(e => e.step === stepName);
     const blobEvent = latest('event-image-blob') || latest('browser-image-blob');
     const objectAdd = latest('paste:objects-add-start');
@@ -548,11 +548,11 @@ var ClipDebug = (() => {
     }
 
     const run = events.filter(e => e.id === pasteStart.id && e.op === pasteStart.op);
-    const latest = (stepName) => [...run].reverse().find(e => e.step === stepName);
+    const latest = (stepName) => debugLast(run, e => e.step === stepName);
     const first = (stepName) => run.find(e => e.step === stepName);
     const summarizePasteRun = (start) => {
       const runEvents = events.filter(e => e.id === start.id && e.op === start.op);
-      const runLatest = (stepName) => [...runEvents].reverse().find(e => e.step === stepName);
+      const runLatest = (stepName) => debugLast(runEvents, e => e.step === stepName);
       const nativeAllowed = runLatest('paste:text-edit-native-textarea-allowed');
       const end = runLatest('end');
       const last = end || runEvents[runEvents.length - 1] || start;
@@ -745,12 +745,12 @@ var ClipDebug = (() => {
       const start = starts[starts.length - 1];
       if (!start) return { start: null, run: [], end: null };
       const run = events.filter(e => e.id === start.id && e.op === start.op);
-      const end = [...run].reverse().find(e => e.step === 'end') || null;
+      const end = debugLast(run, e => e.step === 'end') || null;
       return { start, run, end };
     };
     const copy = latestRun(['copyTextEditSelection', 'copySelected']);
     const paste = latestRun(['pasteTextEditSelection', 'pasteAtPos']);
-    const stepTotal = (run, name) => [...run].reverse().find(e => e.step === name)?.total ?? '';
+    const stepTotal = (run, name) => debugLast(run, e => e.step === name)?.total ?? '';
     const summary = {
       copyRuns: events.filter(e => (e.op === 'copySelected' || e.op === 'copyTextEditSelection') && e.step === 'start').length,
       pasteRuns: events.filter(e => (e.op === 'pasteAtPos' || e.op === 'pasteTextEditSelection') && e.step === 'start').length,
@@ -789,9 +789,9 @@ var ClipDebug = (() => {
 
   function status() {
     const last = events[events.length - 1];
-    const latest = (stepName) => [...events].reverse().find(e => e.step === stepName);
-    const copyEnd = [...events].reverse().find(e => (e.op === 'copySelected' || e.op === 'copyTextEditSelection') && e.step === 'end');
-    const pasteEnd = [...events].reverse().find(e => (e.op === 'pasteAtPos' || e.op === 'pasteTextEditSelection') && e.step === 'end');
+    const latest = (stepName) => debugLast(events, e => e.step === stepName);
+    const copyEnd = debugLast(events, e => (e.op === 'copySelected' || e.op === 'copyTextEditSelection') && e.step === 'end');
+    const pasteEnd = debugLast(events, e => (e.op === 'pasteAtPos' || e.op === 'pasteTextEditSelection') && e.step === 'end');
     const copyProgress = latest('copy:multi-progress');
     const pasteProgress = latest('paste:objects-add-progress');
     const out = {

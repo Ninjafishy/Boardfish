@@ -1,6 +1,12 @@
 'use strict';
 
 (function initDebugCore(root) {
+  function debugLast(items, predicate) {
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (predicate(items[i])) return items[i];
+    }
+  }
+
   function round2(value) {
     return typeof value === 'number' ? Math.round(value * 100) / 100 : value;
   }
@@ -140,5 +146,6 @@
   root.flattenDebugEvent = flattenDebugEvent;
   root.createDebugRecorder = createDebugRecorder;
   root.round2 = round2;
+  root.debugLast = debugLast;
   root.sanitizeDebugMeta = sanitizeDebugMeta;
 })(typeof window !== 'undefined' ? window : globalThis);

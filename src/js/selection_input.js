@@ -266,12 +266,7 @@ function hideMultiSelectionOverlay() {
 }
 
 function updateSelectionOverlay() {
-  if (isBoardInputBlocked() && !shouldKeepSelectionOverlayWhileBlocked()) {
-    selOverlay.classList.toggle('visible', false);
-    hideMultiSelectionOverlay();
-    return;
-  }
-  if (!hasSelection()) {
+  if ((isBoardInputBlocked() && !shouldKeepSelectionOverlayWhileBlocked()) || !hasSelection()) {
     selOverlay.classList.toggle('visible', false);
     hideMultiSelectionOverlay();
     return;

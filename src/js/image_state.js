@@ -572,7 +572,7 @@ function clearImageStore() {
   _imageStoreGeneration++;
   imageStore = {};
   for (const k in imageBitmapCache) {
-    if (!Object.prototype.hasOwnProperty.call(imageBitmapCache, k)) continue;
+    if (!Object.hasOwn(imageBitmapCache, k)) continue;
     try { imageBitmapCache[k].close(); } catch (_) {}
   }
   imageBitmapCache = {};

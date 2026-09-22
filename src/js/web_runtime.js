@@ -328,7 +328,7 @@
     const rawImageStore = options.imageStore || root.imageStore || {};
     const validateBoardPayload = root.BoardfishWebLimits?.validateBoardPayload;
     const writesExistingHandle = ref?.kind === 'web-file-handle';
-    const sourceTargetSameEntry = writesExistingHandle && Object.prototype.hasOwnProperty.call(options, 'sourceFileRef')
+    const sourceTargetSameEntry = writesExistingHandle && Object.hasOwn(options, 'sourceFileRef')
       ? await fileRefsAreSameEntry(ref, options.sourceFileRef)
       : null;
     const stabilizeImageSources = root.BoardfishWebBoardContainer.stabilizeVolatileImageRefs;

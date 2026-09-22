@@ -70,7 +70,7 @@
     });
     const sourceImageStore = isObject(data.imageStore) ? data.imageStore : {};
     if (!skipImageValidation) for (const key in sourceImageStore) {
-      if (!Object.prototype.hasOwnProperty.call(sourceImageStore, key)) continue;
+      if (!Object.hasOwn(sourceImageStore, key)) continue;
       const value = sourceImageStore[key];
       if (!key) throw new Error('Invalid Image Key');
       if (typeof value !== 'string' && !isObject(value)) {
@@ -83,7 +83,7 @@
       if (obj.type === OBJECT_TYPES.TEXT && !/[^\s\u200B-\u200D\uFEFF]/.test(obj.data.content)) continue;
       if (obj.type === OBJECT_TYPES.IMAGE) {
         const key = obj.data.imgKey;
-        if (key === '__proto__' || !Object.prototype.hasOwnProperty.call(sourceImageStore, key)) {
+        if (key === '__proto__' || !Object.hasOwn(sourceImageStore, key)) {
           throw new Error(`Missing Image: ${obj.data.imgKey}`);
         }
         imageStore[key] = sourceImageStore[key];

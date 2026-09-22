@@ -798,10 +798,6 @@ function buildWrappedLines(obj, options = {}, content = obj.data.content) {
           }
         }
 
-        if (lineEnd <= lineStart) {
-          lineEnd = Math.min(lineStart + 1, paraEnd);
-          nextStart = lineEnd;
-        }
         pushParagraphLine(lineStart, lineEnd, nextStart, caretEnd);
         lineStart = nextStart;
       }
@@ -1348,7 +1344,6 @@ function lineCaretXAtOffset(line, obj, offset) {
 
   const previousChar = text[clamped - 1];
   const nextChar = text[clamped];
-  if (!previousChar || !nextChar) return logicalX;
   if (/\s/.test(previousChar) || /\s/.test(nextChar)) return logicalX;
 
   const previousMetrics = measureTextGlyphMetricsWithFont(previousChar, FONT);

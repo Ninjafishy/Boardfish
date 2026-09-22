@@ -343,8 +343,7 @@ const textEditLineStartAt = (value, index) => {
   const text = String(value ?? '');
   const clamped = Math.max(0, Math.min(index ?? 0, text.length));
   if (clamped <= 0) return 0;
-  const newlineAt = text.lastIndexOf('\n', clamped - 1);
-  return newlineAt === -1 ? 0 : newlineAt + 1;
+  return text.lastIndexOf('\n', clamped - 1) + 1;
 };
 
 const textEditLineIndentAt = (value, index) => {

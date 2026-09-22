@@ -675,7 +675,7 @@ canvas.addEventListener('contextmenu', (e) => {
 });
 
 for (const id in MENU_COMMANDS) {
-  if (!Object.prototype.hasOwnProperty.call(MENU_COMMANDS, id)) continue;
+  if (!Object.hasOwn(MENU_COMMANDS, id)) continue;
   document.getElementById(id)?.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();

@@ -77,7 +77,7 @@ var InsertDebug = (() => {
     return events().filter(e => e.id === id);
   }
   function lastStep(run, stepName) {
-    return [...run].reverse().find(e => e.step === stepName);
+    return debugLast(run, e => e.step === stepName);
   }
   function firstStepAfter(at, stepName, op = 'insertImage') {
     return events().find(e => e.op === op && e.step === stepName && e.at >= at);

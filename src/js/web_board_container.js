@@ -681,7 +681,7 @@
     let bytes = 0;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     for (const key in imageStore) {
-      if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+      if (!Object.hasOwn(imageStore, key)) continue;
       const source = rawImageStore[key];
       if (!source?.__blobVolatile || !isBlobLike(source.__blob)) continue;
       const sourceBlob = source.__blob;
@@ -847,7 +847,7 @@
     const imageStore = board?.imageStore || {};
     const replacements = [];
     for (const key in imageStore) {
-      if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+      if (!Object.hasOwn(imageStore, key)) continue;
       const source = rawImageStore[key];
       if (!source?.__blobVolatile || !isBlobLike(source.__blob)) continue;
       const manifest = manifestEntryForKey(board, key);
@@ -949,7 +949,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const imageStore = board?.imageStore || {};
     for (const key in imageStore) {
-      if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+      if (!Object.hasOwn(imageStore, key)) continue;
       const manifest = manifestEntryForKey(board, key);
       const source = rawImageStore[key];
       const sourceBlob = isWebImageRef(source) && isNativeBlobPart(source.__blob)
@@ -1151,7 +1151,7 @@
       const tasks = [];
       const seen = new Set();
       for (const key in imageStore) {
-        if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+        if (!Object.hasOwn(imageStore, key)) continue;
         const record = resolve(key, imageStore[key]);
         records.push(record);
         if (record.entry.method !== ZIP_METHOD_STORED || seen.has(record.path)) continue;
@@ -1172,7 +1172,7 @@
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
     for (const key in imageStore) {
-      if (!Object.prototype.hasOwnProperty.call(imageStore, key)) continue;
+      if (!Object.hasOwn(imageStore, key)) continue;
       const { path, entry: imageEntry, size: advertisedImageBytes, ext, mime } = records?.[recordIndex++] || resolve(key, imageStore[key]);
       if (path.includes('\0')) throw new Error('Invalid Image Path');
       if (typeof mime !== 'string' || !/^image\/(?:png|jpe?g|webp|gif)$/.test(mime.toLowerCase())) {

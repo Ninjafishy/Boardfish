@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -8,14 +8,13 @@ const sourceDirs = ['src', 'scripts', 'test', 'test-support'];
 const extensions = new Set(['.js', '.mjs']);
 
 function collectFiles(dir, out = []) {
-  for (const entry of readdirSync(dir)) {
-    const fullPath = path.join(dir, entry);
-    const info = statSync(fullPath);
-    if (info.isDirectory()) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
       collectFiles(fullPath, out);
       continue;
     }
-    if (extensions.has(path.extname(entry))) out.push(fullPath);
+    if (extensions.has(path.extname(entry.name))) out.push(fullPath);
   }
   return out;
 }

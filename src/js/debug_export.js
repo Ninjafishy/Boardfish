@@ -587,8 +587,8 @@ var ExportDebug = (() => {
 
   function status() {
     const last = events[events.length - 1];
-    const done = [...events].reverse().find(e => e.step === 'end');
-    const watch = [...events].reverse().find(e => e.step === 'watch:tick' || e.step === 'watch:start' || e.step === 'watch:end');
+    const done = debugLast(events, e => e.step === 'end');
+    const watch = debugLast(events, e => e.step === 'watch:tick' || e.step === 'watch:start' || e.step === 'watch:end');
     const out = {
       lastStep: last?.step || '',
       totalMs: last?.total ?? '',

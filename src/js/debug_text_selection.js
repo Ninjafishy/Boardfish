@@ -515,8 +515,8 @@ var TextSelDebug = (() => {
   }
 
   function performanceSummary() {
-    const latestSelection = [...events].reverse().find((e) => e.type === 'selection') || null;
-    const latestDraw = [...events].reverse().find((e) => e.type === 'draw-summary') || null;
+    const latestSelection = debugLast(events, (e) => e.type === 'selection') || null;
+    const latestDraw = debugLast(events, (e) => e.type === 'draw-summary') || null;
     const out = {
       events: events.length,
       hits: stats.hits,
@@ -558,7 +558,7 @@ var TextSelDebug = (() => {
         (evt.type === 'edit' && /^input-/.test(evt.label || ''))
       ))
       .map(eventRow);
-    const latest = [...rows].reverse().find(Boolean);
+    const latest = debugLast(rows, Boolean);
     const summary = {
       events: rows.length,
       latestLabel: latest?.label || '',
@@ -604,10 +604,10 @@ var TextSelDebug = (() => {
     }, 0);
     const isEnter = (row) => String(row.label || '').startsWith('enter-');
     const isClickToEdit = (row) => String(row.label || '').startsWith('click-to-edit-');
-    const latest = [...rows].reverse().find(Boolean);
-    const latestEnter = [...rows].reverse().find(isEnter);
-    const latestClick = [...rows].reverse().find(isClickToEdit);
-    const latestRoute = [...rows].reverse().find((row) => row.label === 'canvas-mousedown-route');
+    const latest = debugLast(rows, Boolean);
+    const latestEnter = debugLast(rows, isEnter);
+    const latestClick = debugLast(rows, isClickToEdit);
+    const latestRoute = debugLast(rows, (row) => row.label === 'canvas-mousedown-route');
     const summary = {
       events: rows.length,
       enterEvents: rows.filter(isEnter).length,
@@ -644,7 +644,7 @@ var TextSelDebug = (() => {
       .filter((evt) => evt.type === 'edit' && String(evt.label || '').startsWith('exit-'))
       .map(eventRow);
     const max = (field) => rows.reduce((value, row) => Math.max(value, Number(row[field]) || 0), 0);
-    const latest = [...rows].reverse().find(Boolean);
+    const latest = debugLast(rows, Boolean);
     const summary = {
       exitEvents: rows.length,
       latestLabel: latest?.label || '',
@@ -667,7 +667,7 @@ var TextSelDebug = (() => {
       maxWindowSelectionClearMs: max('windowSelectionClearMs'),
       sizeSyncEvents: rows.filter((row) => row.label === 'exit-size-sync').length,
       sizeSyncSkippedEvents: rows.filter((row) => row.label === 'exit-size-sync-skipped').length,
-      latestSizeSyncReason: [...rows].reverse().find((row) => row.sizeSyncReason)?.sizeSyncReason || '',
+      latestSizeSyncReason: debugLast(rows, (row) => row.sizeSyncReason)?.sizeSyncReason || '',
       contentChangedExits: rows.filter((row) => row.contentChanged === true).length,
       heightChangedExits: rows.filter((row) => row.heightChanged === true).length,
       widthChangedExits: rows.filter((row) => row.widthChanged === true).length,
