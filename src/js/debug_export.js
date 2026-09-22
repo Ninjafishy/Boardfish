@@ -30,14 +30,14 @@ var ExportDebug = (() => {
   const step = core.step;
   const end = core.end;
 
-  function pushTop(list, row, scoreKey, limit = MAX_MASSIVE_SAMPLES) {
+  function pushTop(list, row, scoreKey) {
     list.push(row);
     list.sort((a, b) => Number(b[scoreKey] || 0) - Number(a[scoreKey] || 0));
-    if (list.length > limit) list.length = limit;
+    if (list.length > MAX_MASSIVE_SAMPLES) list.length = MAX_MASSIVE_SAMPLES;
   }
 
-  function pushSample(list, row, limit = MAX_MASSIVE_SAMPLES) {
-    if (list.length < limit) list.push(row);
+  function pushSample(list, row) {
+    if (list.length < MAX_MASSIVE_SAMPLES) list.push(row);
   }
 
   function startMassive(op, imageObjs = []) {

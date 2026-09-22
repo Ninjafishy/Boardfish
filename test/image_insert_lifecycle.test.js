@@ -1,16 +1,15 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 const WebContainer = require('../src/js/web_board_container.js');
 
 function loadWebImageSourceHarness({ boardContainer = null } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/image_insert.js'), 'utf8');
+  const source = readSource('src/js/image_insert.js');
   const start = source.indexOf('const webImageExtForFile =');
   const end = source.indexOf('\nconst rollbackImageInsertSource =', start);
   assert.ok(start >= 0 && end > start, 'web image source helpers are missing');
@@ -38,7 +37,7 @@ function loadWebImageSourceHarness({ boardContainer = null } = {}) {
 }
 
 function loadAddImageHarness({ width = 1200, height = 300 } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/image_insert.js'), 'utf8');
+  const source = readSource('src/js/image_insert.js');
   const calls = {
     histories: [],
     objects: [],
@@ -96,7 +95,7 @@ function loadAddImageHarness({ width = 1200, height = 300 } = {}) {
 }
 
 function loadEditorStateBoundaryHarness() {
-  const source = fs.readFileSync(path.join(root, 'src/js/editor_state_boundary.js'), 'utf8');
+  const source = readSource('src/js/editor_state_boundary.js');
   const obj1 = { id: 'obj-1', type: 'image', z: 1 };
   const obj2 = { id: 'obj-2', type: 'rect', z: 2 };
   const textLayoutCacheClears = [];
@@ -306,7 +305,7 @@ test('board object replacement retains content-keyed caches while reset clears t
 });
 
 test('failed web image inserts roll back their adopted source once', () => {
-  const source = fs.readFileSync(path.join(root, 'src/js/image_insert.js'), 'utf8');
+  const source = readSource('src/js/image_insert.js');
 
   assert.match(source, /const rollbackImageInsertSource = \(imgKey, source, hadPreviousSource = false, previousSource\) =>/);
   assert.match(source, /if \(!\(naturalW > 0 && naturalH > 0\)\) \{\s*rollbackSource\(\);/);
@@ -315,7 +314,7 @@ test('failed web image inserts roll back their adopted source once', () => {
 });
 
 test('web image insert rejects a whole supported batch that would exceed object limit', () => {
-  const source = fs.readFileSync(path.join(root, 'src/js/image_insert.js'), 'utf8');
+  const source = readSource('src/js/image_insert.js');
 
   assert.match(source, /const supportedFiles = \[\];/);
   assert.match(source, /supportedFiles\.push\(file\);/);
@@ -327,7 +326,7 @@ test('web image insert rejects a whole supported batch that would exceed object 
 });
 
 test('file picker image insertion freezes the command point before files are chosen', () => {
-  const source = fs.readFileSync(path.join(root, 'src/js/image_insert.js'), 'utf8');
+  const source = readSource('src/js/image_insert.js');
 
   assert.match(source, /var _pendingImageInsertPoint = null;/);
   assert.match(source, /_pendingImageInsertPoint = \{ x, y \};[\s\S]*fileInput\.click\(\);/);

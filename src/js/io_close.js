@@ -101,7 +101,6 @@ const endOpeningFreeze = () => {
 function boardDocumentDeps() {
   return {
     imageStoreBytesEstimate,
-    imageRefKind,
     rawImageStore: imageStore,
     rawObjects: objects,
     historyLength: boardHistory.length,
@@ -155,10 +154,6 @@ const getBoardOpenDebugMetrics = (dbg, data) => {
   return shouldCollectOpenBoardMetrics(dbg) ? getBoardOpenMetrics(data) : {};
 };
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-function imageRefKind(src) {
-  return BoardfishBoardDocument.defaultImageRefKind(src);
-}
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 function getImageStoreOpenDebugSample(limit = 12) {
@@ -427,7 +422,7 @@ async function hydrateImageKeysWithLimit(keys
       OpenDebug.step(dbg, `${label}:error`, { imgKey: key, error: String(err) });
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
-  }, false);
+  });
   if (anyHydrated) invalidateOffscreen();
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   OpenDebug.step(dbg, `${label}:end`, { count: keys.length, hydrated, concurrency, ms: performance.now() - t0, ...getOpenImageRuntimeDebugMetrics(dbg) });
@@ -526,16 +521,8 @@ async function hydrateTextDrawCachesForOpen(
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
-function queueVisibleImageHydration(limit = 3
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  , dbg = null
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-) {
-  for (const key of getVisibleImageKeys(limit)) queueImageHydration(key
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    , dbg
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  );
+function queueVisibleImageHydration(limit = 3) {
+  for (const key of getVisibleImageKeys(limit)) queueImageHydration(key);
 }
 
 async function finishOpenedBoard(

@@ -1,9 +1,7 @@
 'use strict';
 
-const fs = require('node:fs');
-const path = require('node:path');
+const { readSource } = require('./source.js');
 const vm = require('node:vm');
-const root = path.join(__dirname, '..');
 
 function loadLiveTextEditResizeHarness() {
   const obj = {
@@ -128,9 +126,9 @@ function loadLiveTextEditResizeHarness() {
   context.BoardfishBoardTypes = require('../src/js/board_types.js');
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(root, 'src/js/text_layout.js'), 'utf8') +
+    readSource('src/js/text_layout.js') +
       '\n' +
-      fs.readFileSync(path.join(root, 'src/js/text_editor.js'), 'utf8') +
+      readSource('src/js/text_editor.js') +
       '\nglobalThis.enterEdit = enterEdit;\n' +
       'globalThis.exitEdit = exitEdit;\n' +
       'globalThis.getTextLayout = getTextLayout;\n' +

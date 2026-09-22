@@ -1,12 +1,10 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 
 function cloneObject(obj, runtimeTextCache = false) {
   const cloned = JSON.parse(JSON.stringify(obj));
@@ -200,7 +198,7 @@ function loadHistoryHarness() {
 
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(root, 'src/js/history_state.js'), 'utf8'),
+    readSource('src/js/history_state.js'),
     context,
     { filename: 'history_state.js' },
   );
@@ -208,7 +206,7 @@ function loadHistoryHarness() {
 }
 
 function loadTextEditHistoryStateHarness() {
-  const source = fs.readFileSync(path.join(root, 'src/js/selection_input.js'), 'utf8');
+  const source = readSource('src/js/selection_input.js');
   const start = source.indexOf('const normalizeTextEditHistoryState');
   const end = source.indexOf('const consumeTextEditHistoryActionStartState', start);
   const context = {

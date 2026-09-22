@@ -1,15 +1,13 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 
 function loadDuplicateHarness({ realLimits = false } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/object_commands.js'), 'utf8');
+  const source = readSource('src/js/object_commands.js');
   const sourceObjects = [
     { id: 'text-1', type: 'text', x: 10, y: 20, w: 20, h: 10, z: 1, data: { content: 'text' } },
     { id: 'image-1', type: 'image', x: 50, y: 60, w: 10, h: 20, z: 2, data: { imgKey: 'img-1' } },
@@ -72,7 +70,7 @@ function loadDuplicateHarness({ realLimits = false } = {}) {
       TextEncoder,
       showIslandMsg(message, duration) { calls.messages.push({ message, duration }); },
     });
-    vm.runInContext(fs.readFileSync(path.join(root, 'src/js/board_limits.js'), 'utf8'), limitsContext);
+    vm.runInContext(readSource('src/js/board_limits.js'), limitsContext);
     context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
   }
   vm.createContext(context);

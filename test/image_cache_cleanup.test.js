@@ -1,9 +1,8 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
 function noopDebugApi() {
@@ -80,7 +79,7 @@ function loadImageState(createImageBitmap) {
 
   vm.createContext(context);
   vm.runInContext(
-    `${fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'image_state.js'), 'utf8')}\n` +
+    `${readSource('src/js/image_state.js')}\n` +
       'globalThis.removeImageRuntimeCachesForKey = removeImageRuntimeCachesForKey;\n' +
       'globalThis.newImgKey = newImgKey;\n' +
       'globalThis.bitmapSourceFromImageSource = bitmapSourceFromImageSource;\n' +

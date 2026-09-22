@@ -1,15 +1,13 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 
 function loadDirtyStateHarness() {
-  const source = fs.readFileSync(path.join(root, 'src/js/io_close.js'), 'utf8');
+  const source = readSource('src/js/io_close.js');
   const end = source.indexOf('// ─── Unsaved changes dialog');
   const context = {
     boardHistory: [],

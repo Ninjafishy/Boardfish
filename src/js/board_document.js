@@ -5,8 +5,6 @@
     (typeof require === 'function' ? require('./board_types.js') : null);
   const { dataUrlMime, mimeForExt, normalizeImageExt } = BoardTypes;
 
-  const defaultImageRefKind = BoardTypes.imageRefKind;
-
   function imageMetaForBoardFile(imgKey, src = '', deps = {}) {
     const guessImageExtFromDataUrl = deps.guessImageExtFromDataUrl || (() => 'png');
     if (src && typeof src === 'object' && (src.path || src.mime || src.ext)) {
@@ -47,7 +45,7 @@
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   function summarizeImageStore(store = {}, deps = {}, { includeRuntime = false } = {}) {
     const imageStoreBytesEstimate = deps.imageStoreBytesEstimate || (() => 0);
-    const imageRefKind = deps.imageRefKind || defaultImageRefKind;
+    const imageRefKind = deps.imageRefKind || BoardTypes.imageRefKind;
     const runtime = deps.runtime || {};
     let imageCount = 0;
     let imageStoreBytes = 0;
@@ -197,7 +195,7 @@
   function getImageStoreDebugSample(store = {}, deps = {}, limit = 12) {
     const rows = [];
     const runtime = deps.runtime || {};
-    const imageRefKind = deps.imageRefKind || defaultImageRefKind;
+    const imageRefKind = deps.imageRefKind || BoardTypes.imageRefKind;
     const imageStore = store || {};
     for (const key in imageStore) {
       if (!Object.hasOwn(imageStore, key)) continue;
@@ -232,7 +230,6 @@
 
   const api = {
     createBoardDataForSave,
-    defaultImageRefKind,
     referencedImageKeys,
   };
   if (typeof BOARDFISH_PRODUCTION === 'undefined') {

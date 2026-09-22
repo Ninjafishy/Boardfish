@@ -1,12 +1,10 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 
 function createElement(id = 'el') {
   const attrs = new Map();
@@ -55,7 +53,7 @@ function createElement(id = 'el') {
 }
 
 function loadViewportPillHarness() {
-  const source = fs.readFileSync(path.join(root, 'src', 'js', 'viewport.js'), 'utf8');
+  const source = readSource('src/js/viewport.js');
   const prefixEnd = source.indexOf('var _offscreen = document.createElement');
   assert.ok(prefixEnd > 0, 'viewport pill bootstrap section is missing');
   const island = createElement('island');
@@ -90,7 +88,7 @@ function loadViewportPillHarness() {
 }
 
 function loadViewportRenderSchedulerHarness({ selected = false, overlayVisible = false } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src', 'js', 'viewport.js'), 'utf8');
+  const source = readSource('src/js/viewport.js');
   const functionStart = source.indexOf('function scheduleRender(');
   assert.ok(functionStart > 0, 'scheduleRender is missing');
   const functionEnd = source.indexOf('\n}', functionStart);
@@ -130,8 +128,8 @@ function loadViewportCanvasSizeHarness({
   innerHeight = 1030,
   dpr = 2,
 } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src', 'js', 'viewport.js'), 'utf8');
-  const geometrySource = fs.readFileSync(path.join(root, 'src', 'js', 'geometry.js'), 'utf8');
+  const source = readSource('src/js/viewport.js');
+  const geometrySource = readSource('src/js/geometry.js');
   const sectionStart = source.indexOf('var _canvasResizeObserver = null;');
   assert.ok(sectionStart > 0, 'canvas size tracking state is missing');
   const viewportRectEnd = source.indexOf('\nconst collectTextSelectionRuns', sectionStart);
@@ -234,7 +232,7 @@ function loadViewportCanvasSizeHarness({
 }
 
 test('status and zoom pill preserve their shared visual motion surface', () => {
-  const styles = fs.readFileSync(path.join(root, 'src', 'styles.css'), 'utf8');
+  const styles = readSource('src/styles.css');
 
   assert.match(styles, /--pill-radius:\s*999px;/);
   assert.match(styles, /--menu-item-radius:\s*var\(--pill-radius\);/);
@@ -323,7 +321,7 @@ test('automatic board refreshes sync active overlays while explicit false opts o
 });
 
 test('viewport frames stay on the native-quality renderer without settle redraws', () => {
-  const source = fs.readFileSync(path.join(root, 'src', 'js', 'viewport.js'), 'utf8');
+  const source = readSource('src/js/viewport.js');
 
   assert.doesNotMatch(source, /scheduleViewportInputSettleRender|restoreBoardCanvasQualityIfSettled/);
   assert.doesNotMatch(source, /_lastBoardFrameLowLatency|low-latency-frame-settled/);

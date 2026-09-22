@@ -1,9 +1,8 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -24,7 +23,7 @@ function loadStateCloneHarness() {
   };
   vm.createContext(context);
   vm.runInContext(
-    `${fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'state.js'), 'utf8')}\n` +
+    `${readSource('src/js/state.js')}\n` +
       'globalThis.__stateClone = { cloneObject, newId };\n',
     context,
     { filename: 'state.js' },

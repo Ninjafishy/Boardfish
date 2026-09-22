@@ -1,12 +1,11 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 const { loadLiveTextEditResizeHarness } = require('../test-support/text_editor.js');
 const TEST_LINE_H = 24;
 const TEST_TEXT_PAD = 16;
@@ -19,7 +18,7 @@ function loadTextEditorHelpers() {
   const context = { console };
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(root, 'src/js/text_editor.js'), 'utf8') +
+    readSource('src/js/text_editor.js') +
       '\nglobalThis.applyTextEditLineIndent = applyTextEditLineIndent;\n' +
       'globalThis.applyTextEditLineBreakIndent = applyTextEditLineBreakIndent;\n',
     context,
@@ -70,9 +69,9 @@ function loadTextEditorIntegrationHelpers() {
   };
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(root, 'src/js/text_layout.js'), 'utf8') +
+    readSource('src/js/text_layout.js') +
       '\n' +
-      fs.readFileSync(path.join(root, 'src/js/text_editor.js'), 'utf8') +
+      readSource('src/js/text_editor.js') +
       'globalThis.createTextSelectionClipboardPayload = createTextSelectionClipboardPayload;\n' +
       'globalThis.textSelectionPayloadFromBoardfishClipboardValue = textSelectionPayloadFromBoardfishClipboardValue;\n' +
       'globalThis.syncFreshTextEditWidth = syncFreshTextEditWidth;\n' +
@@ -88,7 +87,7 @@ function loadTextEditorIntegrationHelpers() {
 }
 
 function loadTextClipboardFreshnessHarness({ maybeStale = false } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/text_editor.js'), 'utf8');
+  const source = readSource('src/js/text_editor.js');
   const start = source.indexOf('const boardfishTextClipboardStillCurrent');
   const end = source.indexOf('const readBoardfishTextClipboardPayloadForPaste', start);
   assert.ok(start >= 0 && end > start, 'Boardfish text clipboard freshness helper is missing');
@@ -217,9 +216,9 @@ function loadExitEditHarness() {
   };
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(root, 'src/js/text_layout.js'), 'utf8') +
+    readSource('src/js/text_layout.js') +
       '\n' +
-      fs.readFileSync(path.join(root, 'src/js/text_editor.js'), 'utf8') +
+      readSource('src/js/text_editor.js') +
       '\nglobalThis.exitEdit = exitEdit;\n',
     context,
     { filename: 'text_editor_exit_harness.js' },
@@ -1379,7 +1378,7 @@ function loadLimitedTextEditor(content = 'abc', otherContent = 'x'.repeat(24990)
   const notifications = [];
   const limitsContext = { objects: context.objects, showIslandMsg: (message, duration) => notifications.push({ message, duration }), long_message: 4500 };
   vm.createContext(limitsContext);
-  vm.runInContext(fs.readFileSync(path.join(root, 'src/js/board_limits.js'), 'utf8'), limitsContext);
+  vm.runInContext(readSource('src/js/board_limits.js'), limitsContext);
   context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
   context.notifications = notifications;
   context.enterEdit(context.obj.id, { history: false });
@@ -1465,7 +1464,7 @@ test('context-menu paste rejects over-limit replacement before changing selectio
   const context = loadLimitedTextEditor('abcdefghij');
   context.proxy.setSelectionRange(2, 4, 'backward');
   context.getTextEditSelectionState = () => ({ start: 2, end: 4, direction: 'backward', hasSelection: true });
-  const source = fs.readFileSync(path.join(root, 'src/js/context_menu.js'), 'utf8');
+  const source = readSource('src/js/context_menu.js');
   vm.runInContext(source.slice(source.indexOf('const replaceTextEditSelection ='), source.indexOf('const copyTextEditSelection =')) +
     '\nglobalThis.menuReplace = replaceTextEditSelection;', context);
   assert.equal(context.menuReplace('TOOLONG', { immediateHistory: true, inputType: 'insertFromPaste' }), false);

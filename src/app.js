@@ -59,10 +59,10 @@ function logStartupStep(step, detail = {}) {
 }
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-function normalizeAppTheme(value, fallback = DEFAULT_APP_THEME) {
+function normalizeAppTheme(value) {
   const theme = String(value || '').toLowerCase();
   if (theme === 'dark' || theme === 'light') return theme;
-  return fallback;
+  return DEFAULT_APP_THEME;
 }
 
 function loadStoredAppTheme() {
@@ -109,14 +109,13 @@ function applyAppTheme(theme, {
   logStartupStep('body-theme-applied', StartupDebug.sample('body-theme-applied'));
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   if (render && (changed || dirty)) {
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const repaintMode = repaintBoardForThemeChange();
-      logStartupStep('theme-canvas-repaint', { theme: appTheme, mode: repaintMode });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    } else {
+    /* BOARDFISH_DEV_DIAGNOSTICS_START */
+    const repaintMode =
+    /* BOARDFISH_DEV_DIAGNOSTICS_END */
       repaintBoardForThemeChange();
-    }
+    /* BOARDFISH_DEV_DIAGNOSTICS_START */
+    logStartupStep('theme-canvas-repaint', { theme: appTheme, mode: repaintMode });
+    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
   if (dirty) storeAppTheme();
 }

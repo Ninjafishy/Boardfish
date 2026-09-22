@@ -1,11 +1,11 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 
 const TouchInput = require('../src/js/touch_input.js');
-const touchInputSource = fs.readFileSync(require.resolve('../src/js/touch_input.js'), 'utf8');
+const touchInputSource = readSource('src/js/touch_input.js');
 
 function makeGestureHarness(overrides = {}) {
   let clock = 0;

@@ -202,9 +202,9 @@
     return Math.round((Number(value) || 0) * 100) / 100;
   }
 
-  function textLineSample(text, limit = 80) {
+  function textLineSample(text) {
     const value = String(text ?? '').replace(/\s+/g, ' ').trim();
-    return value.length > limit ? `${value.slice(0, limit)}...` : value;
+    return value.length > 80 ? `${value.slice(0, 80)}...` : value;
   }
 
   function insertBoundedSlowCounterRow(counters, key, row, limit) {

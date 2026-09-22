@@ -591,7 +591,7 @@ function textWrappedLineIndexEntryForVisual(cache, visualLineIndex) {
     if ((entries[mid]?.visualStart || 0) <= target) lo = mid;
     else hi = mid - 1;
   }
-  return { entry: entries[lo] };
+  return entries[lo];
 }
 
 function prewarmTextObjectLayoutRuntimeCaches(obj, options = {}) {
@@ -823,9 +823,9 @@ function getWrappedLineCount(obj, text) {
   return wrapped.lineCount;
 }
 
-function textLayoutLogicalLineIndexAtContentIndex(layout, index, fallback = 0) {
+function textLayoutLogicalLineIndexAtContentIndex(layout, index) {
   const lines = Array.isArray(layout) ? layout : [];
-  if (!lines.length) return fallback;
+  if (!lines.length) return 0;
   const pos = Math.max(0, Math.trunc(Number(index)) || 0);
   let lo = 0;
   let hi = lines.length - 1;
@@ -1199,7 +1199,7 @@ function buildTextViewportLayoutRangeFromLineIndex(obj, content, first, last, li
   const actualLast = Math.min(last, totalLines - 1);
   const firstEntry = textWrappedLineIndexEntryForVisual(lineIndexCache, first);
   const lastEntry = textWrappedLineIndexEntryForVisual(lineIndexCache, actualLast);
-  const wrappedSourceLines = wrapTextLogicalLineRange(obj, firstEntry.entry.logicalLineIndex, lastEntry.entry.logicalLineIndex, {
+  const wrappedSourceLines = wrapTextLogicalLineRange(obj, firstEntry.logicalLineIndex, lastEntry.logicalLineIndex, {
     lineIndexEntries: lineIndexCache.entries,
     firstLineIndex: first,
     lastLineIndex: actualLast,

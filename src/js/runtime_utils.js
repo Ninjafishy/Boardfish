@@ -13,16 +13,13 @@ function setOpenHydrationConcurrency(value) {
   return next;
 }
 
-async function mapWithConcurrency(items, limit, worker, collectResults = true) {
-  const out = collectResults ? new Array(items.length) : null;
+async function mapWithConcurrency(items, limit, worker) {
   let next = 0;
   const workerCount = Math.min(Math.max(1, Number(limit) || 1), items.length);
   await Promise.all(Array.from({ length: workerCount }, async () => {
     while (next < items.length) {
       const index = next++;
-      const result = await worker(items[index], index);
-      if (collectResults) out[index] = result;
+      await worker(items[index], index);
     }
   }));
-  return out;
 }

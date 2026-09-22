@@ -1,14 +1,14 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const WebContainer = require('../src/js/web_board_container.js');
 
 function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'web_runtime.js'), 'utf8');
+  const source = readSource('src/js/web_runtime.js');
   const timers = [];
   const rootListeners = new Map();
   const inputListeners = new Map();

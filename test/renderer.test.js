@@ -1,15 +1,14 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
 function loadRenderer(overrides = {}) {
   const context = { console, ...overrides };
   vm.createContext(context);
-  let source = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'renderer.js'), 'utf8');
+  let source = readSource('src/js/renderer.js');
   if (overrides.BOARDFISH_PRODUCTION) source = source.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '');
   vm.runInContext(
     source,
@@ -44,7 +43,7 @@ function loadMotion(overrides = {}) {
   };
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'motion.js'), 'utf8'),
+    readSource('src/js/motion.js'),
     context,
     { filename: 'motion.js' },
   );
@@ -1129,7 +1128,7 @@ test('editing preserves image jiggles and layer order while caching static image
       getTextLayoutForViewport: () => [{ text: 'overlapping text' }],
       drawTextLineRange(_ctx, _line, obj) { calls.push(obj.id); },
     }));
-    let source = fs.readFileSync(path.join(__dirname, '..', 'src/js/viewport.js'), 'utf8')
+    let source = readSource('src/js/viewport.js')
       .match(/function (?:_rebuildOffscreen|drawBoard)\([\s\S]*?\n\}/g).join('\n');
     if (production) source = source.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '');
     vm.runInContext(source, context);
@@ -1659,7 +1658,7 @@ function loadCopyDeselectFrame({ emptySelection = false } = {}) {
       draws.push(lines[0].text.slice(selection.start, selection.end));
     },
   });
-  const source = fs.readFileSync(path.join(__dirname, '..', 'src/js/viewport.js'), 'utf8');
+  const source = readSource('src/js/viewport.js');
   vm.runInContext(
     source.slice(source.indexOf('const drawTextLayoutStatic ='), source.indexOf('function drawTextSelectionHighlight(')) +
     source.slice(source.indexOf('const drawTextSelectionJelloOverlays ='), source.indexOf('function drawCaret(')) +

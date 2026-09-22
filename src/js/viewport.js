@@ -74,9 +74,9 @@ function startIslandBusyMsg(text) {
       setPillMessageText(nextText);
       PillDebug.log('busyIslandMsg:update', { text: nextText });
     },
-    done(finalMsg = null, duration = short_message, onRestore = null) {
+    done(finalMsg = null, duration = short_message) {
       if (token !== _islMsgToken) return;
-      if (finalMsg) return showIslandMsg(finalMsg, duration, onRestore);
+      if (finalMsg) return showIslandMsg(finalMsg, duration);
       return hideIsland('busy-done');
     },
   };
@@ -84,10 +84,8 @@ function startIslandBusyMsg(text) {
 
 function startPillTask({
   message = null,
-  beforeStart = null,
   progress = false,
 } = {}) {
-  if (beforeStart) beforeStart();
   if (!message) return null;
   return progress ? startIslandBusyMsg(message) : showIslandMsg(message);
 }
@@ -109,7 +107,7 @@ function finishPillTask({
   return hideIsland('pill-finished');
 }
 
-function showIslandMsg(msg, duration = 0, onRestore = null) {
+function showIslandMsg(msg, duration = 0) {
   const token = ++_islMsgToken;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   PillDebug.log('showIslandMsg:start', { msg, duration });
@@ -125,16 +123,11 @@ function showIslandMsg(msg, duration = 0, onRestore = null) {
     _islMsgTimer = setTimeout(() => {
       if (token !== _islMsgToken) return;
       _islMsgTimer = null;
-      if (typeof BOARDFISH_PRODUCTION !== 'undefined') {
+      /* BOARDFISH_DEV_DIAGNOSTICS_START */
+      const hideReason =
+      /* BOARDFISH_DEV_DIAGNOSTICS_END */
         hideIsland('message-timeout');
-        if (onRestore) onRestore();
-      } else {
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const hideReason = hideIsland('message-timeout');
-        if (onRestore) onRestore();
-        PillDebug.log('showIslandMsg:onHide', { msg, hideReason });
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      }
+      PillDebug.log('showIslandMsg:onHide', { msg, hideReason });
     }, duration);
   }
   return 'shown';
@@ -1535,13 +1528,11 @@ function scheduleFrame(
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
     if (doBoard) {
-      if (typeof BOARDFISH_PRODUCTION !== 'undefined') {
-        finishMotionViewportRenderFrame();
-      } else {
+      finishMotionViewportRenderFrame(
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        finishMotionViewportRenderFrame(sourceLabel || 'board', { doTransform, doBoard, doOverlay });
+        sourceLabel || 'board', { doTransform, doBoard, doOverlay }
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      }
+      );
     }
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     if (collectDebug) {

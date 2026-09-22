@@ -1,9 +1,8 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
 function loadTextLayout() {
@@ -39,7 +38,7 @@ function loadTextLayout() {
   };
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'text_layout.js'), 'utf8'),
+    readSource('src/js/text_layout.js'),
     context,
     { filename: 'text_layout.js' },
   );

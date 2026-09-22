@@ -1,9 +1,8 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 
 require('../src/js/web_board_container.js');
 const WebLimits = require('../src/js/board_limits.js');
@@ -185,7 +184,7 @@ test('web board content limit carries a short user-facing message', () => {
 });
 
 test('board JSON estimate uses UTF-8 byte length rather than UTF-16 string length', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'src/js/board_limits.js'), 'utf8');
+  const source = readSource('src/js/board_limits.js');
 
   assert.match(source, /return total \+ textByteLength\(json\) \+ 1024;/);
   assert.doesNotMatch(source, /JSON\.stringify\(\{[\s\S]*\}\)\.length \+ 1024/);

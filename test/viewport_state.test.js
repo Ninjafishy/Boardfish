@@ -1,12 +1,10 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 
 test('viewport panning accepts large offsets in every direction', () => {
   const zoom = 2;
@@ -34,7 +32,7 @@ function loadViewportStateHarness({
   panY = 0,
   zoom = 1,
 } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/viewport_state.js'), 'utf8');
+  const source = readSource('src/js/viewport_state.js');
   const context = { console };
   vm.createContext(context);
   vm.runInContext(
@@ -71,8 +69,8 @@ test('zooming around a client point keeps its world-space anchor fixed', () => {
 });
 
 test('viewport rendering uses one native-quality branch on every platform', () => {
-  const viewportSource = fs.readFileSync(path.join(root, 'src/js/viewport.js'), 'utf8');
-  const styles = fs.readFileSync(path.join(root, 'src/styles.css'), 'utf8');
+  const viewportSource = readSource('src/js/viewport.js');
+  const styles = readSource('src/styles.css');
 
   assert.doesNotMatch(viewportSource, /BoardfishViewportPreview|viewportTransformPreview|touch-pinch-preview/);
   assert.doesNotMatch(styles, /viewport-transform-preview/);

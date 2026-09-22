@@ -1,15 +1,11 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const keyboardSource = fs.readFileSync(
-  path.join(__dirname, '..', 'src/js/keyboard.js'),
-  'utf8',
-);
+const keyboardSource = readSource('src/js/keyboard.js');
 
 function keyEvent(overrides = {}) {
   return {

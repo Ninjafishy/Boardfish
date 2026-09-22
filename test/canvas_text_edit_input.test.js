@@ -1,9 +1,8 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
 function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
@@ -173,13 +172,13 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
 
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'canvas_input.js'), 'utf8'),
+    readSource('src/js/canvas_input.js'),
     context,
     { filename: 'canvas_input.js' },
   );
   if (touchInput) {
     vm.runInContext(
-      fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'touch_input.js'), 'utf8'),
+      readSource('src/js/touch_input.js'),
       context,
       { filename: 'touch_input.js' },
     );
@@ -281,7 +280,7 @@ function loadRubberBandHarness() {
 
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'canvas_input.js'), 'utf8'),
+    readSource('src/js/canvas_input.js'),
     context,
     { filename: 'canvas_input.js' },
   );

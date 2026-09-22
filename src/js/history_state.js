@@ -514,15 +514,9 @@ function restoreSnapshot(s, editStateOverride) {
   const start = Math.max(0, Math.min(editState.selectionStart ?? max, max));
   const end = Math.max(0, Math.min(editState.selectionEnd ?? max, max));
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let proxyDomSync;
+  const proxyDomSync =
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (typeof BOARDFISH_PRODUCTION !== 'undefined') {
     syncHistoryEditProxyDomValueForSelection(_editEl, start, end);
-  } else {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    proxyDomSync = syncHistoryEditProxyDomValueForSelection(_editEl, start, end);
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  }
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const setSelectionRangeStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -624,15 +618,9 @@ function undo() {
     ...getHistoryTextDebugMetrics(objects),
   });
   const flushStart = performance.now();
-  let flushedCheckpoint = false;
+  const flushedCheckpoint = !!
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (typeof BOARDFISH_PRODUCTION !== 'undefined') {
     flushEditHistoryCheckpoint();
-  } else {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    flushedCheckpoint = !!flushEditHistoryCheckpoint();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  }
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   HistoryDebug.step(dbg, 'flush-edit-history', {
     flushedCheckpoint,

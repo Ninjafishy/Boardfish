@@ -1695,7 +1695,7 @@ var ViewportDebug = (() => {
       { metric: 'cullingEnabled', value: viewportCullingEnabled },
       { metric: 'imageScalingSupported', value: VIEWPORT_IMAGE_SCALING_SUPPORTED },
       { metric: 'imageScalingEnabled', value: viewportImageScalingEnabled },
-      { metric: 'imageScaleLevels', value: IMAGE_SCALE_LEVELS.join(',') },
+      { metric: 'imageScaleLevels', value: String(IMAGE_SCALE) },
       { metric: 'wheelPan', value: stats.wheelPan },
       { metric: 'wheelZoom', value: stats.wheelZoom },
       { metric: 'mousePanMoves', value: stats.mousePanMoves },
@@ -2342,7 +2342,7 @@ var ViewportDebug = (() => {
   function imageScaleCacheSummary(options = {}) {
     const variantCount = imageScaledBitmapCache.size;
     const rows = variantCount ? [{
-      scale: IMAGE_SCALE_LEVELS[0],
+      scale: IMAGE_SCALE,
       count: variantCount,
       mb: Math.round(imageScaledBitmapBytes / 1024 / 1024 * 100) / 100,
     }] : [];
@@ -2394,7 +2394,7 @@ var ViewportDebug = (() => {
       drawWarmupFullImageWarmed: drawableBitmapWarmupWarmedByKind.fullImage || 0,
       drawWarmupScaledVariantQueued: drawableBitmapWarmupQueuedByKind.scaledVariant || 0,
       drawWarmupScaledVariantWarmed: drawableBitmapWarmupWarmedByKind.scaledVariant || 0,
-      levels: IMAGE_SCALE_LEVELS.join(','),
+      levels: String(IMAGE_SCALE),
       supported: VIEWPORT_IMAGE_SCALING_SUPPORTED,
       enabled: viewportImageScalingEnabled,
     };

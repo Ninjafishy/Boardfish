@@ -343,7 +343,7 @@ async function insertImageFiles(files, x, y
           InsertDebug.end(fileDbg, { source, fileName: file.name, fileSize: file.size, fileType: file.type, error: String(err) });
         }
       }
-    }, false);
+    });
   } finally {
     if (bulk) {
       const ids = addedIds.filter(Boolean);

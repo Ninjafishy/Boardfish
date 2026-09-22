@@ -1,17 +1,15 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
-const root = path.join(__dirname, '..');
 const { loadLiveTextEditResizeHarness } = require('../test-support/text_editor.js');
 
 function loadNavigationHarness() {
   const context = loadLiveTextEditResizeHarness();
   const obj = context.obj;
-  const viewport = fs.readFileSync(path.join(root, 'src/js/viewport.js'), 'utf8');
+  const viewport = readSource('src/js/viewport.js');
   vm.runInContext(viewport.slice(viewport.indexOf('function drawCaret('), viewport.indexOf('function drawEditingTextOverlay(')), context);
   context.press = (key, extra = {}) => {
     const event = { type: 'keydown', key, prevented: false, preventDefault() { this.prevented = true; }, ...extra };

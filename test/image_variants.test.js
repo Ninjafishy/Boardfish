@@ -1,9 +1,8 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
 function loadImageVariants() {
@@ -23,7 +22,7 @@ function loadImageVariants() {
   vm.createContext(context);
   vm.runInContext('globalThis.window = globalThis; window.devicePixelRatio = 1;', context);
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'image_variants.js'), 'utf8'),
+    readSource('src/js/image_variants.js'),
     context,
     { filename: 'image_variants.js' },
   );
@@ -58,7 +57,7 @@ function loadImageVariantsWithBitmap(supportsCreateImageBitmap = true) {
   vm.createContext(context);
   vm.runInContext('globalThis.window = globalThis; window.devicePixelRatio = 1;', context);
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'image_variants.js'), 'utf8'),
+    readSource('src/js/image_variants.js'),
     context,
     { filename: 'image_variants.js' },
   );
@@ -139,7 +138,7 @@ test('scaled bitmap cache closes replacements and tracks their bytes', () => {
 test('chooses the smallest scaled variant that preserves display-pixel detail', () => {
   const context = loadImageVariants();
 
-  assert.deepEqual(Array.from(context.IMAGE_SCALE_LEVELS), [0.25]);
+  assert.equal(context.IMAGE_SCALE, 0.25);
   assert.equal(scaleFor(context, { sourceW: 400, sourceH: 200, objW: 100, objH: 50, zoom: 1, dpr: 1 }), 0.25);
   assert.equal(scaleFor(context, { sourceW: 400, sourceH: 200, objW: 100.01, objH: 50, zoom: 1, dpr: 1 }), 1);
   assert.equal(scaleFor(context, { sourceW: 400, sourceH: 200, objW: 100, objH: 50.01, zoom: 1, dpr: 1 }), 1);
@@ -773,7 +772,7 @@ test('scaled image variant skips do not create empty cache groups', () => {
 });
 
 test('image bitmap queue does not wait for animation frames during board open', () => {
-  const imageStateSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'image_state.js'), 'utf8');
+  const imageStateSource = readSource('src/js/image_state.js');
 
   assert.match(imageStateSource, /if \(typeof _boardOpening !== 'undefined' && _boardOpening\) \{/);
   assert.match(imageStateSource, /setTimeout\(processImageDecodeQueue, 0\);/);
@@ -781,8 +780,8 @@ test('image bitmap queue does not wait for animation frames during board open', 
 });
 
 test('undo-history lifecycle prunes image caches to current board, history, and clipboard keys', () => {
-  const historySource = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'history_state.js'), 'utf8');
-  const imageStateSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'image_state.js'), 'utf8');
+  const historySource = readSource('src/js/history_state.js');
+  const imageStateSource = readSource('src/js/image_state.js');
 
   assert.match(imageStateSource, /const pruneImageCachesToKeys = \(retainedKeys = new Set\(\)\) =>/);
   assert.match(imageStateSource, /delete imageStore\[key\];/);
@@ -796,7 +795,7 @@ test('undo-history lifecycle prunes image caches to current board, history, and 
 });
 
 test('async image cache writes use generation guards', () => {
-  const imageStateSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'image_state.js'), 'utf8');
+  const imageStateSource = readSource('src/js/image_state.js');
 
   assert.match(imageStateSource, /generation === _imageStoreGeneration && imageStore\[key\] === source/);
   assert.match(imageStateSource, /same = isImageDisplayCacheRequestCurrent\(key, src, generation\);/);
@@ -804,8 +803,8 @@ test('async image cache writes use generation guards', () => {
 });
 
 test('low-zoom active navigation records visible full-size fallbacks until scaled variants are ready', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'image_variants.js'), 'utf8');
-  const rendererSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'renderer.js'), 'utf8');
+  const source = readSource('src/js/image_variants.js');
+  const rendererSource = readSource('src/js/renderer.js');
 
   assert.match(source, /IMAGE_VARIANT_ACTIVE_INPUT_PRIORITY_MS/);
   assert.match(source, /IMAGE_VARIANT_ACTIVE_OVERSCALE_LIMIT/);

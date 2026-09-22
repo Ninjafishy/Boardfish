@@ -1,20 +1,18 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 const DEFAULT_TEXT_BOX_MIN_LINES = 1;
 const DEFAULT_TEXT_BOX_LINE_H = 24;
 const DEFAULT_TEXT_BOX_PAD = 16;
 const DEFAULT_TEXT_BOX_HEIGHT = DEFAULT_TEXT_BOX_MIN_LINES * DEFAULT_TEXT_BOX_LINE_H + DEFAULT_TEXT_BOX_PAD * 2;
 
 function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
-  const textLayoutSource = fs.readFileSync(path.join(root, 'src/js/text_layout.js'), 'utf8') + '\n';
-  const source = fs.readFileSync(path.join(root, 'src/js/object_commands.js'), 'utf8');
+  const textLayoutSource = readSource('src/js/text_layout.js') + '\n';
+  const source = readSource('src/js/object_commands.js');
   let idCounter = 1;
   const context = {
     console,
@@ -115,7 +113,7 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
       TextEncoder,
       showIslandMsg(message, duration) { context.messages.push({ message, duration }); },
     });
-    vm.runInContext(fs.readFileSync(path.join(root, 'src/js/board_limits.js'), 'utf8'), limitsContext);
+    vm.runInContext(readSource('src/js/board_limits.js'), limitsContext);
     context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
   }
   vm.createContext(context);
@@ -126,7 +124,7 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
 }
 
 function loadPasteHarness({ browserText = '', normalizeExternalText = (value) => value } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/clipboard_export_init.js'), 'utf8');
+  const source = readSource('src/js/clipboard_export_init.js');
   const calls = { addText: [] };
   const context = {
     console,

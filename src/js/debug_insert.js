@@ -22,18 +22,10 @@ var InsertDebug = (() => {
     },
   });
 
-  function events() {
-    return recorder._events;
-  }
+  const events = recorder._events;
 
-  function enable(options = {}) {
-    recorder.enable(options);
-  }
-  function disable() {
-    recorder.disable();
-  }
   function rows(filterStart = false) {
-    return events()
+    return events
       .filter(e => !filterStart || e.step !== 'start')
       .map(e => ({
         id: e.id,
@@ -69,26 +61,26 @@ var InsertDebug = (() => {
     return out;
   }
   function dump() {
-    const flat = events().map(({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
+    const flat = events.map(({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
     console.table(flat);
-    return events().slice();
+    return events.slice();
   }
   function eventsForId(id) {
-    return events().filter(e => e.id === id);
+    return events.filter(e => e.id === id);
   }
   function lastStep(run, stepName) {
     return debugLast(run, e => e.step === stepName);
   }
-  function firstStepAfter(at, stepName, op = 'insertImage') {
-    return events().find(e => e.op === op && e.step === stepName && e.at >= at);
+  function firstStepAfter(at, stepName) {
+    return events.find(e => e.op === 'insertImage' && e.step === stepName && e.at >= at);
   }
   function sumStepMs(source, stepName) {
-    return events()
+    return events
       .filter(e => e.step === stepName && (!source || e.meta?.source === source))
       .reduce((n, e) => n + (Number(e.meta?.ms ?? e.dt) || 0), 0);
   }
   function imageBreakdownRows(limit = BREAKDOWN_LIMIT) {
-    return events()
+    return events
       .filter(e => e.op === 'insertImage' && e.step === 'end')
       .map((end) => {
         const run = eventsForId(end.id);
@@ -124,7 +116,7 @@ var InsertDebug = (() => {
     return rows;
   }
   function report() {
-    const insertEnds = events().filter(e => e.op === 'insertImages' && e.step === 'end');
+    const insertEnds = events.filter(e => e.op === 'insertImages' && e.step === 'end');
     const last = insertEnds[insertEnds.length - 1];
     if (!last) {
       const empty = { runs: 0 };
@@ -132,11 +124,11 @@ var InsertDebug = (() => {
       return empty;
     }
     const id = last.id;
-    const run = events().filter(e => e.id === id);
+    const run = events.filter(e => e.id === id);
     const findStep = (stepName) => run.find(e => e.step === stepName);
     const start = findStep('start');
-    const imageEnds = events().filter(e => e.op === 'insertImage' && e.step === 'end' && e.meta?.source === last.meta?.source);
-    const readEnds = events().filter(e => e.op === 'insertImage' && e.step === 'read:end' && e.meta?.source === last.meta?.source);
+    const imageEnds = events.filter(e => e.op === 'insertImage' && e.step === 'end' && e.meta?.source === last.meta?.source);
+    const readEnds = events.filter(e => e.op === 'insertImage' && e.step === 'read:end' && e.meta?.source === last.meta?.source);
     const objectAdd = start ? firstStepAfter(start.at, 'object:add') : null;
     const concurrencyStep = findStep('bulk:start');
     const maxReadMs = readEnds.reduce((n, e) => Math.max(n, Number(e.dt) || 0), 0);
@@ -163,8 +155,8 @@ var InsertDebug = (() => {
   }
 
   return {
-    enable,
-    disable,
+    enable: recorder.enable,
+    disable: recorder.disable,
     setVerbose: recorder.setVerbose,
     start: recorder.start,
     step: recorder.step,
@@ -176,7 +168,7 @@ var InsertDebug = (() => {
     summary,
     dump,
     reset: recorder.reset,
-    get events() { return events().slice(); },
+    get events() { return events.slice(); },
   };
 })();
 

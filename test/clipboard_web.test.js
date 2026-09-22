@@ -1,17 +1,16 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { loadReadableImageSourceBlob, pngBytes } = require('../test-support/image_output.js');
 const WebContainer = require('../src/js/web_board_container.js');
 
-const root = path.join(__dirname, '..');
 
 function loadClipboardStateHarness() {
-  const source = fs.readFileSync(path.join(root, 'src/js/clipboard_state.js'), 'utf8');
+  const source = readSource('src/js/clipboard_state.js');
   let tokenId = 0;
   const context = {
     console,
@@ -57,7 +56,7 @@ function loadClipboardStateHarness() {
 }
 
 function loadClipboardExportHarness(options = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/clipboard_export_init.js'), 'utf8');
+  const source = readSource('src/js/clipboard_export_init.js');
   const textObject = {
     id: 'text-1',
     type: 'text',
@@ -250,7 +249,7 @@ function loadClipboardExportHarness(options = {}) {
 }
 
 function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/clipboard_export_init.js'), 'utf8');
+  const source = readSource('src/js/clipboard_export_init.js');
   const sourceTextObject = {
     id: 'text-source',
     type: 'text',
@@ -367,7 +366,7 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
       TextEncoder,
       showIslandMsg(message, duration) { calls.messages.push({ message, duration }); },
     });
-    vm.runInContext(fs.readFileSync(path.join(root, 'src/js/board_limits.js'), 'utf8'), limitsContext);
+    vm.runInContext(readSource('src/js/board_limits.js'), limitsContext);
     context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
   }
   vm.createContext(context);
@@ -378,7 +377,7 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
 }
 
 function loadTextEditCopyHarness(value, options = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/context_menu.js'), 'utf8');
+  const source = readSource('src/js/context_menu.js');
   const start = source.indexOf('const getTextEditSelectionState');
   const end = source.indexOf('const deleteTextEditSelection', start);
   assert.ok(start >= 0 && end > start, 'text edit copy helpers are missing');
@@ -445,7 +444,7 @@ function loadTextEditCopyHarness(value, options = {}) {
 
   vm.createContext(context);
   vm.runInContext(
-    fs.readFileSync(path.join(root, 'src/js/text_editor.js'), 'utf8'),
+    readSource('src/js/text_editor.js'),
     context,
     { filename: 'text_editor.js' },
   );
@@ -505,7 +504,7 @@ test('clipboard image base64 fallback preserves bytes across chunk boundaries', 
       },
     },
   });
-  vm.runInContext(fs.readFileSync(path.join(root, 'src/js/clipboard_io.js'), 'utf8'), context);
+  vm.runInContext(readSource('src/js/clipboard_io.js'), context);
 
   for (const length of [32766, 32767, 32768, 32769, 65536]) {
     const bytes = Uint8Array.from({ length }, (_, index) => index % 256);

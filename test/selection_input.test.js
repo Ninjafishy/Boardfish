@@ -1,12 +1,10 @@
 'use strict';
 
+const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.join(__dirname, '..');
 
 function createElement(id = 'el') {
   const attrs = new Map();
@@ -50,7 +48,7 @@ function objectBounds(objects) {
 }
 
 function loadSelectionInputHarness(objects, options = {}) {
-  const source = fs.readFileSync(path.join(root, 'src/js/selection_input.js'), 'utf8');
+  const source = readSource('src/js/selection_input.js');
   const byId = new Map(objects.map((obj) => [obj.id, obj]));
   const selectedIds = new Set(objects.map((obj) => obj.id));
   const documentListeners = new Map();
@@ -493,7 +491,7 @@ test('image selection overlay covers renderer edge overdraw', () => {
 });
 
 test('selection surfaces share the same outline color token', () => {
-  const styles = fs.readFileSync(path.join(root, 'src/styles.css'), 'utf8');
+  const styles = readSource('src/styles.css');
 
   assert.match(styles, /--selection-outline:\s*rgba\(10,\s*132,\s*255,\s*1\);/);
   assert.match(styles, /--text-edit-outline:\s*var\(--selection-outline\);/);
