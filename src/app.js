@@ -37,7 +37,7 @@ var textDeleteBtn    = requireAppElement('text-btn-delete');
 var textDeleteSep    = requireAppElement('text-sep-delete');
 var dialogOverlay    = document.getElementById('dialog-overlay');
 var unsavedDialog    = document.getElementById('dialog');
-var MENU_VIEWPORT_EDGE_MARGIN = 12;
+var MENU_VIEWPORT_EDGE_MARGIN = 8;
 if (/Mac/.test(navigator.platform) || /Mac/.test(navigator.userAgent)) {
   for (const item of document.querySelectorAll('[data-mac-shortcut]')) item.textContent = item.dataset.macShortcut;
 }
