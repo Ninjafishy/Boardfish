@@ -12,7 +12,7 @@ const MAX_OPEN_IMAGE_DECODE_ACTIVE = 8;
 var imageReadyPromises = new Map();
 
 function newImgKey() {
-  let key = '';
+  let key;
   do {
     key = 'img-' + (imgKeyCounter++);
   } while (Object.hasOwn(imageStore, key));
@@ -495,7 +495,7 @@ const removeImageRuntimeCachesForKey = (key) => {
   const bitmap = imageBitmapCache[key];
   if (bitmap) {
     dropDrawableBitmapWarmup(bitmap);
-    try { bitmap.close(); } catch (_) {}
+    try { bitmap.close(); } catch {}
     delete imageBitmapCache[key];
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     removed.bitmaps++;
@@ -567,7 +567,7 @@ function clearImageStore() {
   imageStore = {};
   for (const k in imageBitmapCache) {
     if (!Object.hasOwn(imageBitmapCache, k)) continue;
-    try { imageBitmapCache[k].close(); } catch (_) {}
+    try { imageBitmapCache[k].close(); } catch {}
   }
   imageBitmapCache = {};
   clearScaledImageVariants();

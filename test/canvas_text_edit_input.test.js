@@ -42,7 +42,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
     entered: [],
     enterOptions: [],
     history: [],
-    selections: [],
     renders: [],
     logs: [],
     viewportPans: [],
@@ -180,7 +179,6 @@ function addListener(listeners, type, fn) {
 }
 
 function loadRubberBandHarness() {
-  const documentListeners = new Map();
   const selectedIds = new Set();
   const objects = [{ id: 'image-1', type: 'image', x: 0, y: 0, w: 50, h: 50, data: {} }];
   const context = {
@@ -190,7 +188,7 @@ function loadRubberBandHarness() {
     canvas: { addEventListener() {}, classList: { add() {}, remove() {} } },
     boardCanvas: {},
     document: {
-      addEventListener(type, fn) { addListener(documentListeners, type, fn); },
+      addEventListener() {},
     },
     objects,
     objectsMap: new Map(objects.map((obj) => [obj.id, obj])),
@@ -250,9 +248,6 @@ function loadRubberBandHarness() {
     isMultiSelected: () => false,
     BoardObjectGeometry: { topObjectAtWorldPoint: () => null },
     toWorld: () => ({ x: 0, y: 0 }),
-  };
-  context.documentEvent = (type, event) => {
-    for (const fn of documentListeners.get(type) || []) fn(event);
   };
 
   vm.createContext(context);

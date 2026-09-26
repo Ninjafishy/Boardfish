@@ -119,7 +119,7 @@
       try {
         err.boardfishSaveTargetUncertain = true;
         if (err.boardfishSaveTargetUncertain === true) return err;
-      } catch (_) {
+      } catch {
         // Some browser-provided errors are non-extensible; wrap them below.
       }
     }
@@ -298,7 +298,7 @@
             'Aborting Save',
             FILE_ABORT_TIMEOUT_MS,
           );
-        } catch (_) {
+        } catch {
           failure = markSaveTargetUncertain(failure);
         }
       }

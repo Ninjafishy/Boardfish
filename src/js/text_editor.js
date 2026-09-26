@@ -464,17 +464,17 @@ const textEditBlankLineDeleteRange = (text = '', index, keyOrInputType = '') => 
 };
 
 const dispatchTextEditInputEvent = (proxy, inputType) => {
-  let event = null;
+  let event;
   try {
     event = typeof InputEvent === 'function'
       ? new InputEvent('input', { bubbles: true, inputType })
       : new Event('input', { bubbles: true });
-  } catch (_) {
+  } catch {
     event = document.createEvent('Event');
     event.initEvent('input', true, false);
   }
   if (event && !event.inputType) {
-    try { Object.defineProperty(event, 'inputType', { value: inputType }); } catch (_) {}
+    try { Object.defineProperty(event, 'inputType', { value: inputType }); } catch {}
   }
   proxy.dispatchEvent(event);
 };
@@ -794,7 +794,7 @@ const boardfishTextClipboardStillCurrent = async (event = null
         ms: Math.round((textEditorDebugNow() - tokenReadStartedAt) * 100) / 100,
       });
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    } catch (_) {}
+    } catch {}
   }
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const currentStartedAt = textEditorDebugNow();
@@ -1795,7 +1795,7 @@ function enterEdit(id, {
       const deleteKeyStartedAt = textEditorDebugNow();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       const selection = textEditSelectionState(proxy);
-      let deletion = null;
+      let deletion;
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       let deleteRangeMs = 0;
       /* BOARDFISH_DEV_DIAGNOSTICS_END */

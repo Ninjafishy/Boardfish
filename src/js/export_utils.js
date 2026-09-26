@@ -109,18 +109,13 @@
       if (sourceEntry) return sourceEntry;
     }
 
-    let data = null;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    let width = 0;
-    let height = 0;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const canvas = renderImageToCanvas(obj) || await renderStoredImageToCanvas(obj, source);
     if (!canvas) return null;
-    data = await canvasToPngBlob(canvas);
+    const data = await canvasToPngBlob(canvas);
     if (!data) return null;
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    width = canvas.width;
-    height = canvas.height;
+    const width = canvas.width;
+    const height = canvas.height;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
       ExportDebug.step(dbg, 'web-export:rendered-blob', {

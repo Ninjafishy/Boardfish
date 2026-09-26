@@ -29,7 +29,6 @@ function loadKeyboard(overrides = {}) {
   const listeners = [];
   const calls = [];
   const context = {
-    calls,
     document: {
       activeElement: null,
       addEventListener(type, handler, options) {
@@ -75,7 +74,6 @@ function loadKeyboard(overrides = {}) {
     undo: () => calls.push(['undo']),
     duplicateSelected: () => calls.push(['duplicateSelected']),
   };
-  context.globalThis = context;
   Object.assign(context, overrides);
   vm.createContext(context);
   vm.runInContext(keyboardSource, context, { filename: 'src/js/keyboard.js' });

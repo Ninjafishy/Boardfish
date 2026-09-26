@@ -149,7 +149,7 @@ var TextSelDebug = (() => {
     if (typeof viewportWorldRect === 'function') {
       try {
         viewportRect = viewportWorldRect(0);
-      } catch (_) {
+      } catch {
         viewportRect = null;
       }
     }
@@ -214,7 +214,7 @@ var TextSelDebug = (() => {
     if (typeof viewportWorldRect === 'function') {
       try {
         viewportRect = viewportWorldRect(0);
-      } catch (_) {
+      } catch {
         viewportRect = null;
       }
     }

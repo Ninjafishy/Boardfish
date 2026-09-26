@@ -384,12 +384,12 @@
       if (context.textAlign !== 'left') {
         context.imageSmoothingQuality = 'high';
         context.font = deps.font;
-        try { context.fontKerning = 'none'; } catch (_) {}
-        try { context.letterSpacing = '0px'; } catch (_) {}
-        try { context.fontStretch = 'normal'; } catch (_) {}
-        try { context.fontVariantCaps = 'normal'; } catch (_) {}
-        try { context.textAlign = 'left'; } catch (_) {}
-        try { context.direction = 'ltr'; } catch (_) {}
+        try { context.fontKerning = 'none'; } catch {}
+        try { context.letterSpacing = '0px'; } catch {}
+        try { context.fontStretch = 'normal'; } catch {}
+        try { context.fontVariantCaps = 'normal'; } catch {}
+        try { context.textAlign = 'left'; } catch {}
+        try { context.direction = 'ltr'; } catch {}
       }
     }
 
@@ -414,7 +414,7 @@
         if (!(img?.width > 0)) return;
         try {
           drawImageObj(context, obj, img, view, viewportRect);
-        } catch (_) {}
+        } catch {}
       } else {
       if (obj.type === 'text') {
         const layoutStart = counters && typeof performance !== 'undefined' ? performance.now() : 0;

@@ -55,7 +55,7 @@ function logStartupStep(step, detail = {}) {
   if (!DEBUG_TOOLS_ENABLED) return;
   try {
     console.info('[Boardfish startup]', step, detail);
-  } catch (_) {}
+  } catch {}
 }
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
@@ -68,7 +68,7 @@ function normalizeAppTheme(value) {
 function loadStoredAppTheme() {
   try {
     return normalizeAppTheme(localStorage.getItem(APP_THEME_STORAGE_KEY));
-  } catch (_) {
+  } catch {
     return DEFAULT_APP_THEME;
   }
 }
@@ -76,7 +76,7 @@ function loadStoredAppTheme() {
 function storeAppTheme() {
   try {
     localStorage.setItem(APP_THEME_STORAGE_KEY, appTheme);
-  } catch (_) {}
+  } catch {}
 }
 
 function repaintBoardForThemeChange() {

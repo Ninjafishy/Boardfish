@@ -47,7 +47,7 @@ function webEnvSource() {
 }
 
 async function handleRequest(req, res) {
-  let filePath = null;
+  let filePath;
   try {
     filePath = safePath(req.url || '/');
   } catch (err) {
@@ -77,7 +77,7 @@ async function handleRequest(req, res) {
       'Content-Type': types.get(ext) || 'application/octet-stream',
     });
     createReadStream(finalPath).pipe(res);
-  } catch (_) {
+  } catch {
     res.writeHead(404).end('Not Found');
   }
 }

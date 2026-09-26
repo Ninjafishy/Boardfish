@@ -74,10 +74,7 @@ function loadImageState(createImageBitmap) {
   vm.runInContext(
     `${readSource('src/js/image_state.js')}\n` +
       'globalThis.removeImageRuntimeCachesForKey = removeImageRuntimeCachesForKey;\n' +
-      'globalThis.newImgKey = newImgKey;\n' +
-      'globalThis.bitmapSourceFromImageSource = bitmapSourceFromImageSource;\n' +
-      'globalThis.scheduleImageReadyRender = scheduleImageReadyRender;\n' +
-      'globalThis.clearImageStore = clearImageStore;\n',
+      'globalThis.bitmapSourceFromImageSource = bitmapSourceFromImageSource;\n',
     context,
     { filename: 'image_state.js' },
   );

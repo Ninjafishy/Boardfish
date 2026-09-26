@@ -139,12 +139,12 @@ const textForExternalTextObjectPaste = (value) => {
 function isTextContentEmpty(value) { return !/[^\s\u200B-\u200D\uFEFF]/.test(String(value ?? '')); }
 
 function configureTextCanvasContext(context) {
-  try { context.fontKerning = TEXT_CANVAS_FONT_KERNING; } catch (_) {}
-  try { context.letterSpacing = '0px'; } catch (_) {}
-  try { context.fontStretch = 'normal'; } catch (_) {}
-  try { context.fontVariantCaps = 'normal'; } catch (_) {}
-  try { context.textAlign = 'left'; } catch (_) {}
-  try { context.direction = 'ltr'; } catch (_) {}
+  try { context.fontKerning = TEXT_CANVAS_FONT_KERNING; } catch {}
+  try { context.letterSpacing = '0px'; } catch {}
+  try { context.fontStretch = 'normal'; } catch {}
+  try { context.fontVariantCaps = 'normal'; } catch {}
+  try { context.textAlign = 'left'; } catch {}
+  try { context.direction = 'ltr'; } catch {}
 }
 
 var _measureCanvas = document.createElement('canvas');
@@ -196,7 +196,7 @@ function forEachTextSpacingUnit(text, callback, start = 0, end = null) {
         callback(segment.segment, segmentStart, segmentStart + segment.segment.length);
       }
       return;
-    } catch (_) {}
+    } catch {}
   }
 
   let index = from;
@@ -1365,7 +1365,7 @@ function isTextDrawBatchingFontReady(font) {
     const ready = fontSet.check(requestedFont, 'Boardfish');
     if (ready) _textDrawBatchingVerifiedFonts.add(requestedFont);
     return ready;
-  } catch (_) {
+  } catch {
     return false;
   }
 }

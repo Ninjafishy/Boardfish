@@ -29,7 +29,7 @@ function cssBlocksForPrelude(source, prelude) {
 }
 
 function loadCanvasWheelHarness() {
-  const listeners = { window: [], document: [], canvas: [], island: [] };
+  const listeners = { window: [], document: [], canvas: [] };
   const makeTarget = (name) => ({
     addEventListener(type, handler, options) {
       listeners[name].push({ type, handler, options });
@@ -37,7 +37,6 @@ function loadCanvasWheelHarness() {
     classList: { add() {}, remove() {} },
   });
   const context = {
-    console,
     performance: { now: () => 100 },
     window: {
       addEventListener(type, handler, options) {
@@ -51,7 +50,6 @@ function loadCanvasWheelHarness() {
     },
     canvas: makeTarget('canvas'),
     boardCanvas: {},
-    island: makeTarget('island'),
     objectsMap: new Map(),
     selectedIds: new Set(),
     editingId: null,
@@ -158,7 +156,7 @@ function loadMenuCommandHarness() {
 
   vm.createContext(context);
   vm.runInContext(
-    `${match[0].replace(/\n\nfunction contextMenuSurfaceById$/, '')}\nthis.runMenuCommand = runMenuCommand;`,
+    match[0].replace(/\n\nfunction contextMenuSurfaceById$/, ''),
     context,
   );
   return context;
@@ -197,7 +195,6 @@ function loadTextEditMenuHarness() {
     focusTextEditProxy() {
       calls.focuses++;
     },
-    closeOpenMenusExcept() {},
     openExclusiveMenuAt(...args) {
       calls.opens.push(args);
     },
@@ -228,7 +225,6 @@ function loadTextEditPasteHarness() {
     replacements: [],
   };
   const context = {
-    Promise,
     calls,
     clipboardActivation: true,
     _jsClipboardWebMaybeStale: false,
@@ -522,20 +518,16 @@ test('text edit caret honors visual line preference at wrapped line start', () =
   assert.notEqual(end, -1);
 
   const context = {
-    _caretVisible: true,
     LINE_H: 24,
     TEXT_PAD: 16,
-    TEXT_BASELINE_Y_OFFSET: 16,
     zoom: 1,
-    canvasTextColor: () => '#111',
     lineCaretXAtOffset(line, obj, offset) {
       return obj.x + context.TEXT_PAD + offset * 10;
     },
   };
   vm.createContext(context);
   vm.runInContext(
-    `${viewportSource.slice(start, end)}\n` +
-      'globalThis.drawCaret = drawCaret;\n',
+    `${viewportSource.slice(start, end)}\n`,
     context,
   );
 
@@ -570,12 +562,9 @@ test('text edit caret passes consumed soft-wrap space offsets to layout', () => 
 
   const seenOffsets = [];
   const context = {
-    _caretVisible: true,
     LINE_H: 24,
     TEXT_PAD: 16,
-    TEXT_BASELINE_Y_OFFSET: 16,
     zoom: 1,
-    canvasTextColor: () => '#111',
     lineCaretXAtOffset(line, obj, offset) {
       seenOffsets.push(offset);
       return obj.x + context.TEXT_PAD + offset * 10;
@@ -583,8 +572,7 @@ test('text edit caret passes consumed soft-wrap space offsets to layout', () => 
   };
   vm.createContext(context);
   vm.runInContext(
-    `${viewportSource.slice(start, end)}\n` +
-      'globalThis.drawCaret = drawCaret;\n',
+    `${viewportSource.slice(start, end)}\n`,
     context,
   );
 
@@ -609,20 +597,16 @@ test('text edit caret stays inside content bounds at low zoom', () => {
   assert.notEqual(end, -1);
 
   const context = {
-    _caretVisible: true,
     LINE_H: 24,
     TEXT_PAD: 16,
-    TEXT_BASELINE_Y_OFFSET: 16,
     zoom: 1,
-    canvasTextColor: () => '#111',
     lineCaretXAtOffset(line, obj, offset) {
       return obj.x + context.TEXT_PAD + offset * 10;
     },
   };
   vm.createContext(context);
   vm.runInContext(
-    `${viewportSource.slice(start, end)}\n` +
-      'globalThis.drawCaret = drawCaret;\n',
+    `${viewportSource.slice(start, end)}\n`,
     context,
   );
 
@@ -704,14 +688,12 @@ test('overlapping text selection highlight runs share one path fill', () => {
   };
   const drawCalls = [];
   const context = {
-    LINE_H: 24,
     TextSelDebug: { _logDraw() {} },
     applyTextSelectionMotionTransform() {},
   };
   vm.createContext(context);
   vm.runInContext(
-    `${viewportSource.slice(start, end)}\n` +
-      'globalThis.drawTextSelectionHighlight = drawTextSelectionHighlight;\n',
+    `${viewportSource.slice(start, end)}\n`,
     context,
   );
 

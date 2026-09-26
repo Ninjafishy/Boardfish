@@ -8,7 +8,6 @@ const { createUnitTextContext } = require('../test-support/text_editor.js');
 
 function loadTextLayout() {
   const context = {
-    console,
     navigator: { userAgent: 'Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36' },
     document: {
       fonts: {
@@ -24,7 +23,6 @@ function loadTextLayout() {
     editingId: null,
     TextSelDebug: { _logHit() {} },
     scheduleRender() {},
-    syncAllTextAutoHeights() {},
   };
   vm.createContext(context);
   vm.runInContext(

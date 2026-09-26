@@ -114,7 +114,7 @@
         objects: cleanObjects,
       });
       return total + textByteLength(json) + 1024;
-    } catch (_) {
+    } catch {
       return total + 1024;
     }
   }

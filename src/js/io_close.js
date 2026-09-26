@@ -424,7 +424,7 @@ function createOpenTextWarmupTarget() {
     canvas.height = 512;
     const context = canvas.getContext?.('2d') || null;
     return context ? { canvas, context } : null;
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -452,7 +452,7 @@ function warmOpenTextLineForDraw(target, obj, line) {
     );
     drawTextLineRange(context, line, obj);
     return true;
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -469,7 +469,7 @@ async function hydrateTextDrawCachesForOpen(
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const fontSet = typeof document !== 'undefined' ? document.fonts : null;
   if (fontSet?.ready) {
-    try { await fontSet.ready; } catch (_) {}
+    try { await fontSet.ready; } catch {}
   }
 
   const warmupTarget = createOpenTextWarmupTarget();

@@ -161,7 +161,7 @@ function warmDrawableBitmapForDrawNow(source, meta = {}) {
   const start = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   try {
-    try { ctx.imageSmoothingEnabled = false; } catch (_) {}
+    try { ctx.imageSmoothingEnabled = false; } catch {}
     ctx.drawImage(source, 0, 0, target.sourceW, target.sourceH, 0, 0, target.width, target.height);
     drawableBitmapWarmupReady.add(source);
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
@@ -535,7 +535,7 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
       scheduleDrawableBitmapWarmup(bitmap, warmupMeta);
       bitmap = null;
       scheduleScaledVariantReadyRender();
-    } catch (_) {
+    } catch {
       bitmap?.close?.();
     } finally {
       if (typeof BOARDFISH_PRODUCTION === 'undefined') {

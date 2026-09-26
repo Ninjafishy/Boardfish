@@ -436,7 +436,7 @@ const copySelected = (options = {}) => {
 
 const cutSelected = () => {
   if (!hasSelection() || editingId) return false;
-  let copyResult = false;
+  let copyResult;
   try {
     copyResult = copySelected({ animateCopy: false });
   } catch (err) {

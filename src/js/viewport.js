@@ -847,7 +847,7 @@ function textDrawWarmupContext() {
     _textDrawWarmupCanvas.width = 1;
     _textDrawWarmupCanvas.height = 1;
     _textDrawWarmupCtx = _textDrawWarmupCanvas.getContext('2d');
-  } catch (_) {
+  } catch {
     _textDrawWarmupCanvas = null;
     _textDrawWarmupCtx = null;
   }
@@ -886,7 +886,7 @@ function createBoardTextDrawWarmupSnapshot(canvas) {
     const snapshotCtx = snapshot.getContext('2d');
     snapshotCtx.drawImage(canvas, 0, 0);
     return snapshot;
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -895,16 +895,16 @@ function restoreBoardTextDrawWarmupSnapshot(context, canvas, snapshot) {
   const startedAt = performance.now();
   try {
     context.setTransform(1, 0, 0, 1, 0, 0);
-    try { context.globalAlpha = 1; } catch (_) {}
-    try { context.globalCompositeOperation = 'copy'; } catch (_) {}
+    try { context.globalAlpha = 1; } catch {}
+    try { context.globalCompositeOperation = 'copy'; } catch {}
     context.drawImage(snapshot, 0, 0);
-    try { context.globalCompositeOperation = 'source-over'; } catch (_) {}
-  } catch (_) {
+    try { context.globalCompositeOperation = 'source-over'; } catch {}
+  } catch {
     try {
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(snapshot, 0, 0);
-    } catch (_) {}
+    } catch {}
   }
   return performance.now() - startedAt;
 }
@@ -985,15 +985,15 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
         drawUnits += Number(stats?.drawUnits) || 0;
         maxLineMs = Math.max(maxLineMs, lineMs);
         warmedLines++;
-      } catch (_) {
+      } catch {
         errors++;
       } finally {
-        try { ctx.setTransform(1, 0, 0, 1, 0, 0); } catch (_) {}
+        try { ctx.setTransform(1, 0, 0, 1, 0, 0); } catch {}
       }
     }
   } finally {
     if (target.target === TEXT_DRAW_WARMUP_TARGET_BOARD && typeof ctx.restore === 'function') {
-      try { ctx.restore(); } catch (_) {}
+      try { ctx.restore(); } catch {}
     }
   }
 

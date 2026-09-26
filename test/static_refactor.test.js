@@ -152,7 +152,7 @@ test('fresh app sessions default to dark mode', () => {
   assert.equal(manifest.theme_color, '#1c1b22');
   assert.match(app, /var DEFAULT_APP_THEME = 'dark';/);
   assert.match(app, /var appTheme = DEFAULT_APP_THEME;/);
-  assert.match(app, /catch \(_\) \{\s*return DEFAULT_APP_THEME;\s*\}/);
+  assert.match(app, /catch \{\s*return DEFAULT_APP_THEME;\s*\}/);
   assert.match(app, /function repaintBoardForThemeChange\(\)[\s\S]*scheduleRender\(true, false/);
   assert.doesNotMatch(app.match(/function repaintBoardForThemeChange\(\)[\s\S]*?\n\}/)?.[0] || '', /drawBoard/);
 });

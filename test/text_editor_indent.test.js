@@ -48,7 +48,6 @@ function loadTextEditorIntegrationHelpers() {
     markDirty(obj) { context.dirty.push(obj.id); },
     pushHistory(reason) { context.histories.push(reason); },
     scheduleRender(board, overlay, reason) { context.renders.push({ board, overlay, reason }); },
-    syncAllTextAutoHeights() {},
   };
   vm.createContext(context);
   vm.runInContext(
@@ -76,9 +75,7 @@ function loadTextClipboardFreshnessHarness({ maybeStale = false } = {}) {
     currentOptions: null,
   };
   const context = {
-    Promise,
     calls,
-    jsClipboard: { type: 'text-selection', text: 'copied text' },
     _jsClipboardWebMaybeStale: maybeStale,
     BoardfishClipboardIO: {
       readBoardfishClipboardTokenFromBrowser() {
@@ -197,8 +194,7 @@ function loadExitEditHarness() {
   vm.runInContext(
     readSource('src/js/text_layout.js') +
       '\n' +
-      readSource('src/js/text_editor.js') +
-      '\nglobalThis.exitEdit = exitEdit;\n',
+      readSource('src/js/text_editor.js'),
     context,
     { filename: 'text_editor_exit_harness.js' },
   );

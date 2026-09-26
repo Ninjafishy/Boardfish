@@ -101,7 +101,6 @@ function loadSelectionInputHarness(objects, options = {}) {
     getFirstSelectedObject: () => objects[0] || null,
     isBoardInputBlocked: () => context._boardOpening || context._inputShieldStack.length > 0,
     shouldKeepSelectionOverlayWhileBlocked: () => false,
-    isUnsavedDialogOpen: () => false,
     acquireInputShield: () => () => {},
     bringObjectToFront() {},
     BoardfishEditorState: {
@@ -182,11 +181,8 @@ function loadSelectionInputHarness(objects, options = {}) {
   vm.runInContext(
     `${source}\n` +
       'globalThis.beginSelectionHandleDrag = beginSelectionHandleDrag;\n' +
-      'globalThis.updateSelectionOverlay = updateSelectionOverlay;\n' +
-      'globalThis.flushEditHistoryCheckpoint = flushEditHistoryCheckpoint;\n' +
       'globalThis.beginTextEditHistoryAction = beginTextEditHistoryAction;\n' +
-      'globalThis.recordTextEditInputHistory = recordTextEditInputHistory;\n' +
-      'globalThis.isShieldInputAllowed = isShieldInputAllowed;\n',
+      'globalThis.recordTextEditInputHistory = recordTextEditInputHistory;\n',
     context,
   );
   return context;

@@ -21,11 +21,7 @@ function loadClipboardStateHarness() {
   const source = readSource('src/js/clipboard_state.js');
   let tokenId = 0;
   const context = {
-    console,
     Date,
-    Promise,
-    Set,
-    clearTimeout,
     crypto: {
       randomUUID() {
         tokenId++;
@@ -42,16 +38,11 @@ function loadClipboardStateHarness() {
     ClipDebug: {
       step() {},
     },
-    setTimeout,
   };
   vm.createContext(context);
   vm.runInContext(
-    `${source}\n` +
-      'globalThis.setJsClipboard = setJsClipboard;\n' +
-      'globalThis.getJsClipboardWebToken = getJsClipboardWebToken;\n' +
-      'globalThis.markJsClipboardWebTokenWritten = markJsClipboardWebTokenWritten;\n' +
+    source +
       'globalThis.markJsClipboardMaybeStaleFromWebBlur = markJsClipboardMaybeStaleFromWebBlur;\n' +
-      'globalThis.jsClipboardStillCurrent = jsClipboardStillCurrent;\n' +
       'globalThis.forceJsClipboardSetAt = (value) => { _jsClipboardSetAt = value; };\n',
     context,
     { filename: 'clipboard_state.js' },
@@ -143,7 +134,6 @@ function loadClipboardExportHarness(options = {}) {
     selectedIds: new Set(selectedObjects.map((obj) => obj.id)),
     objectsMap: new Map(selectedObjects.map((obj) => [obj.id, obj])),
     textObject,
-    selectedObject,
     calls,
     BoardfishClipboardIO: {
       copyBoardfishTokenToClipboard(token) {
@@ -172,7 +162,6 @@ function loadClipboardExportHarness(options = {}) {
     BoardfishImageStore: {
       getSource() { return options.imageSource || ''; },
     },
-    BoardfishWebBoardContainer: options.BoardfishWebBoardContainer,
     BoardfishMotion: {
       applyCopyFeedback(payload = {}) {
         if (payload.textSelection) calls.jello.push({ ...payload.textSelection });
@@ -232,7 +221,7 @@ function loadClipboardExportHarness(options = {}) {
     },
   };
   vm.createContext(context);
-  vm.runInContext(`${source}\nglobalThis.copySelected = copySelected;\nglobalThis.cutSelected = cutSelected;\nglobalThis.pasteWebImageBlob = pasteWebImageBlob;\n`, context, {
+  vm.runInContext(`${source}\nglobalThis.copySelected = copySelected;\nglobalThis.cutSelected = cutSelected;\n`, context, {
     filename: 'clipboard_export_init.js',
   });
   return context;
@@ -262,13 +251,9 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
   const context = {
     console,
     Promise,
-    TextEncoder,
     document: {
       addEventListener() {},
       visibilityState: 'visible',
-    },
-    window: {
-      addEventListener() {},
     },
     performance: { now: () => 0 },
     calls,
@@ -344,7 +329,7 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
   }
   vm.createContext(context);
-  vm.runInContext(`${source}\nglobalThis.pasteAtPos = pasteAtPos;\n`, context, {
+  vm.runInContext(source, context, {
     filename: 'clipboard_export_init.js',
   });
   return { context, sourceTextObject };

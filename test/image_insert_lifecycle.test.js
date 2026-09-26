@@ -14,8 +14,6 @@ function loadWebImageSourceHarness({ boardContainer = null } = {}) {
   assert.ok(start >= 0 && end > start, 'web image source helpers are missing');
   const calls = [];
   const context = {
-    Blob,
-    File,
     BoardfishWebBoardContainer: boardContainer || {
       snapshotImageBlob: WebContainer.snapshotImageBlob,
       createWebImageRef(options) {

@@ -140,7 +140,7 @@ var PillDebug = (() => {
         }
       });
       longTaskObserver.observe({ entryTypes: ['longtask'] });
-    } catch (_) {
+    } catch {
       longTaskObserver = null;
     }
   }

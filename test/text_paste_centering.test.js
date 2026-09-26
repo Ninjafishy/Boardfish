@@ -81,7 +81,7 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
     context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
   }
   vm.createContext(context);
-  vm.runInContext(`${textLayoutSource}syncTextAutoHeight = testSyncTextAutoHeight;\n${source}\nglobalThis.addText = addText;\n`, context, {
+  vm.runInContext(`${textLayoutSource}syncTextAutoHeight = testSyncTextAutoHeight;\n${source}\n`, context, {
     filename: 'object_commands.js',
   });
   return context;
@@ -130,7 +130,7 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
     },
   };
   vm.createContext(context);
-  vm.runInContext(`${source}\nglobalThis.pasteAtPos = pasteAtPos;\n`, context, {
+  vm.runInContext(source, context, {
     filename: 'clipboard_export_init.js',
   });
   return context;

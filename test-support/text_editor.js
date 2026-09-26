@@ -147,9 +147,7 @@ function loadLiveTextEditResizeHarness() {
     readSource('src/js/text_layout.js') +
       '\n' +
       readSource('src/js/text_editor.js') +
-      '\nglobalThis.enterEdit = enterEdit;\n' +
-      'globalThis.exitEdit = exitEdit;\n' +
-      'globalThis.getTextLayout = getTextLayout;\n' +
+      '\n' +
       'globalThis.setTextEditCaretIndex = setTextEditCaretIndex;\n',
     context,
     { filename: 'live_text_edit_resize_harness.js' },

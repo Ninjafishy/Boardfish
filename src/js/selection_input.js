@@ -79,7 +79,7 @@ function scheduleTextMinWidthWarm(obj) {
     if (selectedId !== objectId || !selectedIds.has(objectId)) return;
     const current = objectsMap.get(objectId);
     if (!current || current.type !== 'text') return;
-    try { getTextMinWidth(current); } catch (_) {}
+    try { getTextMinWidth(current); } catch {}
   };
   if (typeof requestIdleCallback === 'function') {
     const handle = requestIdleCallback(run, { timeout: 1000 });

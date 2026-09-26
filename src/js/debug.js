@@ -1234,7 +1234,6 @@ var ViewportDebug = (() => {
   };
   let lastRafAt = 0;
   let eventLoopTimer = null;
-  let eventLoopLastTick = 0;
   let longTaskObserver = null;
   let rawInputMonitorActive = false;
   const EVENT_LOOP_INTERVAL_MS = 50;
@@ -1271,7 +1270,7 @@ var ViewportDebug = (() => {
     const intervalMs = Math.max(8, Number.isFinite(requestedIntervalMs) && requestedIntervalMs > 0
       ? requestedIntervalMs
       : Math.min(EVENT_LOOP_INTERVAL_MS, Math.max(8, thresholdMs / 2)));
-    eventLoopLastTick = performance.now();
+    let eventLoopLastTick = performance.now();
     eventLoopTimer = setInterval(() => {
       const now = performance.now();
       const gapMs = now - eventLoopLastTick;
@@ -1299,7 +1298,6 @@ var ViewportDebug = (() => {
     if (!eventLoopTimer) return;
     clearInterval(eventLoopTimer);
     eventLoopTimer = null;
-    eventLoopLastTick = 0;
   }
 
   function startLongTaskObserver() {
@@ -1322,7 +1320,7 @@ var ViewportDebug = (() => {
         }
       });
       longTaskObserver.observe({ entryTypes: ['longtask'] });
-    } catch (_) {
+    } catch {
       longTaskObserver = null;
     }
   }
@@ -1530,7 +1528,7 @@ var ViewportDebug = (() => {
     try {
       if (event.__boardfishViewportRawInputLogged) return;
       event.__boardfishViewportRawInputLogged = true;
-    } catch (_) {}
+    } catch {}
     recordRawInput(event, 'window-capture');
   }
 

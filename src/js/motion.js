@@ -24,7 +24,7 @@
     if (reducedMotionQuery === undefined) {
       try {
         reducedMotionQuery = root.matchMedia?.('(prefers-reduced-motion: reduce)') || null;
-      } catch (_) {
+      } catch {
         reducedMotionQuery = null;
       }
     }

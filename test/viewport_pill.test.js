@@ -56,9 +56,6 @@ function loadViewportPillHarness() {
     setTimeout() {
       return 1;
     },
-    performance: {
-      now: () => 0,
-    },
     PillDebug: {
       log() {},
     },
@@ -67,8 +64,6 @@ function loadViewportPillHarness() {
   vm.createContext(context);
   vm.runInContext(
     `${source.slice(0, prefixEnd)}\n` +
-      'globalThis.showIslandMsg = showIslandMsg;\n' +
-      'globalThis.startIslandBusyMsg = startIslandBusyMsg;\n' +
       'globalThis.syncIslandZoomDisplay = syncIslandZoomDisplay;\n',
     context,
     { filename: 'viewport.js' },
@@ -101,7 +96,6 @@ function loadViewportRenderSchedulerHarness({ selected = false, overlayVisible =
     'var _needBoardRender = false;\n' +
     'var _needOverlayRender = false;\n' +
       `${source.slice(functionStart, functionEnd + 2)}\n` +
-      'globalThis.scheduleRender = scheduleRender;\n' +
       'globalThis.renderFlags = () => ({ board: _needBoardRender, overlay: _needOverlayRender });\n',
     context,
     { filename: 'viewport-render-scheduler.js' },
@@ -210,10 +204,7 @@ function loadViewportCanvasSizeHarness({
   vm.runInContext(
     'var panX = 0, panY = 0, zoom = 1;\n' +
       `${geometrySource}\n` +
-      `${source.slice(sectionStart, viewportRectEnd)}\n` +
-      'globalThis.resizeCanvas = resizeCanvas;\n' +
-      'globalThis.syncBoardCanvasBackingStore = syncBoardCanvasBackingStore;\n' +
-      'globalThis.startCanvasSizeTracking = startCanvasSizeTracking;\n',
+      `${source.slice(sectionStart, viewportRectEnd)}\n`,
     context,
     { filename: 'viewport-canvas-size.js' },
   );

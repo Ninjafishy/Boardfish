@@ -396,13 +396,13 @@
   function captureTouchPointer(event) {
     try {
       canvas.setPointerCapture?.(event.pointerId);
-    } catch (_) {}
+    } catch {}
   }
 
   function releaseTouchPointer(event) {
     try {
       if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    } catch (_) {}
+    } catch {}
   }
 
   function onTouchPointerDown(event) {

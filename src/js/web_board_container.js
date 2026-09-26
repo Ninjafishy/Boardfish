@@ -482,13 +482,13 @@
         const chunk = value instanceof Uint8Array ? value : new Uint8Array(value || []);
         total += chunk.length;
         if (Number.isFinite(limit) && total > limit) {
-          try { await reader.cancel(); } catch (_) {}
+          try { await reader.cancel(); } catch {}
           throwEntryTooLarge(entry);
         }
         chunks.push(chunk);
       }
     } finally {
-      try { reader.releaseLock(); } catch (_) {}
+      try { reader.releaseLock(); } catch {}
     }
     const out = new Uint8Array(total);
     let offset = 0;
@@ -1057,7 +1057,7 @@
     let eagerImageRefCount = 0;
     let imageHeaderReadMs = 0;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    let lazyStoredImageBlobs = null, recordIndex = 0;
+    let lazyStoredImageBlobs, recordIndex = 0;
     const records = lazyImageRefs ? [] : null;
     const imageStore = board.imageStore || {};
     const resolve = (key, manifest) => {
@@ -1116,8 +1116,8 @@
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       const entryWarnings = [];
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      let bytes = null;
-      let imageBlob = null;
+      let bytes;
+      let imageBlob;
       const canUseLazyRef = lazyImageRefs && imageEntry.method === ZIP_METHOD_STORED;
       if (canUseLazyRef) {
         assertStoredEntrySize(imageEntry);

@@ -69,7 +69,7 @@ function loadDuplicateHarness({ realLimits = false } = {}) {
     context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
   }
   vm.createContext(context);
-  vm.runInContext(`${source}\nglobalThis.duplicateSelected = duplicateSelected;\n`, context, {
+  vm.runInContext(source, context, {
     filename: 'object_commands.js',
   });
   return context;

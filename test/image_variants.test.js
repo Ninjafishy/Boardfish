@@ -7,11 +7,9 @@ const vm = require('node:vm');
 
 function loadImageVariants() {
   const context = {
-    window: { devicePixelRatio: 1 },
     zoom: 1,
     console,
     Map,
-    Set,
     Math,
     clearTimeout() {},
     setTimeout() { return 0; },
@@ -31,11 +29,9 @@ function loadImageVariants() {
 
 function loadImageVariantsWithBitmap(supportsCreateImageBitmap = true) {
   const context = {
-    window: { devicePixelRatio: 1 },
     zoom: 1,
     console,
     Map,
-    Set,
     Math,
     clearTimeout() {},
     setTimeout() { return 0; },

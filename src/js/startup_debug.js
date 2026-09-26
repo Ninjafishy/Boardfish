@@ -577,7 +577,7 @@ const BoardfishDebugConsole = (() => {
         delete window.BoardfishDebug;
         delete window.beginDebug;
         delete window.finishDebug;
-      } catch (_) {
+      } catch {
         window.BoardfishDebug = undefined;
         window.beginDebug = undefined;
         window.finishDebug = undefined;
@@ -671,7 +671,7 @@ const BoardfishDebugConsole = (() => {
             args: args.map((arg) => serializeDebugValue(arg)),
             stack: (new Error().stack || '').split('\n').slice(2, 7),
           });
-        } catch (_) {
+        } catch {
           // Capture must never interfere with the diagnostic action being tested.
         }
         return original.apply(this, args);

@@ -54,7 +54,6 @@ function loadTextLayout({
       _logHit() {},
     },
     scheduleRender() {},
-    syncAllTextAutoHeights() {},
   };
   if (trackSegmenter) {
     const NativeSegmenter = Intl.Segmenter;
@@ -97,7 +96,6 @@ function loadTextLayout({
       drawTextLineRange,
       lineCaretXAtOffset,
       lineXAtOffset,
-      layoutHitTestCaret,
       spacingUnits(value, start = 0, end = null) {
         const units = [];
         forEachTextSpacingUnit(value, (unit, unitStart, unitEnd) => {
