@@ -33,7 +33,7 @@ function loadViewportStateHarness({
   zoom = 1,
 } = {}) {
   const source = readSource('src/js/viewport_state.js');
-  const context = { console };
+  const context = {};
   vm.createContext(context);
   vm.runInContext(
     `var panX = ${panX}; var panY = ${panY}; var zoom = ${zoom};\n` +

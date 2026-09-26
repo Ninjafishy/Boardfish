@@ -97,9 +97,7 @@ if (typeof document !== 'undefined') {
     if (document.visibilityState !== 'visible') markJsClipboardMaybeStaleFromWebBlur();
   });
 }
-if (typeof globalThis !== 'undefined') {
-  Object.assign(globalThis, {
-    getJsClipboardWebToken,
-    markJsClipboardWebTokenWritten,
-  });
-}
+Object.assign(globalThis, {
+  getJsClipboardWebToken,
+  markJsClipboardWebTokenWritten,
+});

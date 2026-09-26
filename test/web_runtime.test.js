@@ -40,7 +40,6 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
     },
   };
   const context = {
-    console,
     Blob,
     Promise,
     Uint8Array,

@@ -49,7 +49,6 @@ function loadSelectionInputHarness(objects, options = {}) {
   const selectedIds = new Set(objects.map((obj) => obj.id));
   const documentListeners = new Map();
   const context = {
-    console,
     window: { devicePixelRatio: options.devicePixelRatio ?? 1 },
     document: {
       createElement: () => createElement(),

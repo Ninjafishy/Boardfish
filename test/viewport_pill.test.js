@@ -50,7 +50,6 @@ function loadViewportPillHarness() {
   const island = createElement('island');
   const islZoom = createElement('isl-zoom');
   const context = {
-    console,
     island,
     islZoom,
     clearTimeout() {},

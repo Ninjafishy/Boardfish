@@ -20,11 +20,9 @@ function loadImageState(createImageBitmap) {
   const timers = [];
   let now = 0;
   const context = {
-    console,
     Map,
     Set,
     Promise,
-    Date,
     Error,
     Object,
     Number,

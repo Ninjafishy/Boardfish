@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const root = typeof globalThis !== 'undefined' ? globalThis : window;
+  const root = globalThis;
   const objectMotions = new Map();
   const textSelectionMotions = new Map();
   // Keep the sampled transform until the renderer samples this object again;

@@ -137,7 +137,7 @@ async function renderStoredImageToCanvas(obj, source = imageStore[obj?.data?.img
 }
 
 const bitmapSourceFromImageSource = async (source) => {
-  if (typeof isWebImageRef === 'function' && isWebImageRef(source)) {
+  if (isWebImageRef(source)) {
     const container = globalThis.BoardfishWebBoardContainer;
     const blob = container?.blobForImageSource?.(source);
     if (blob) return blob;

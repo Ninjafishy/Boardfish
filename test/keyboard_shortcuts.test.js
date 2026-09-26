@@ -29,7 +29,6 @@ function loadKeyboard(overrides = {}) {
   const listeners = [];
   const calls = [];
   const context = {
-    console,
     calls,
     document: {
       activeElement: null,
@@ -53,9 +52,6 @@ function loadKeyboard(overrides = {}) {
     pasteAtPos: (x, y) => calls.push(['pasteAtPos', x, y]),
     enterEdit: (id, options = {}) => calls.push(['enterEdit', id, options]),
     hasSelection: () => false,
-    markDirty: () => calls.push(['markDirty']),
-    scheduleRender: () => calls.push(['scheduleRender']),
-    pushHistory: () => calls.push(['pushHistory']),
     rotateSelectedImages: () => calls.push(['rotateSelectedImages']),
     flipSelectedImages: () => calls.push(['flipSelectedImages']),
     runAddImagesCommandFromShortcut: () => calls.push(['runAddImagesCommandFromShortcut']),

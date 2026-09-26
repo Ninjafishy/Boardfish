@@ -58,7 +58,7 @@ var drawableBitmapWarmupCanvas = null;
 var drawableBitmapWarmupContext = null;
 var drawableBitmapWarmupQueue = new Map();
 var drawableBitmapWarmupScheduled = false;
-var drawableBitmapWarmupReady = typeof WeakSet !== 'undefined' ? new WeakSet() : new Set();
+var drawableBitmapWarmupReady = new WeakSet();
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 var drawableBitmapWarmupQueuedCount = 0;
 var drawableBitmapWarmupWarmedCount = 0;
@@ -324,7 +324,7 @@ function clearScaledImageVariants(key = null) {
     imageScaledVariantSourceReadyNoSourceCount = 0;
   }
   drawableBitmapWarmupQueue.clear();
-  drawableBitmapWarmupReady = typeof WeakSet !== 'undefined' ? new WeakSet() : new Set();
+  drawableBitmapWarmupReady = new WeakSet();
   if (typeof BOARDFISH_PRODUCTION === 'undefined') {
     drawableBitmapWarmupQueuedCount = 0;
     drawableBitmapWarmupWarmedCount = 0;

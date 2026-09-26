@@ -59,10 +59,9 @@ function menuViewportBounds() {
   };
 }
 
-function clampMenuCoord(value, size, start, end, margin = MENU_VIEWPORT_EDGE_MARGIN) {
-  const min = start + margin;
-  const max = Math.max(min, end - size - margin);
-  return Math.max(min, Math.min(max, value));
+function clampMenuCoord(value, size, start, end) {
+  const min = start + MENU_VIEWPORT_EDGE_MARGIN;
+  return Math.max(min, Math.min(end - size - MENU_VIEWPORT_EDGE_MARGIN, value));
 }
 
 function openMenuAt(menu, x, y) {

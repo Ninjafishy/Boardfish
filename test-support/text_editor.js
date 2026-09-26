@@ -142,7 +142,6 @@ function loadLiveTextEditResizeHarness() {
     clearInterval() {},
     clearTimeout() {},
   };
-  context.BoardfishBoardTypes = require('../src/js/board_types.js');
   vm.createContext(context);
   vm.runInContext(
     readSource('src/js/text_layout.js') +

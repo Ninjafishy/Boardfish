@@ -1,19 +1,15 @@
 'use strict';
 
-function objectBounds(items, map = null) {
+function selectedBounds() {
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
-  for (const item of items) {
-    const obj = map ? map.get(item) : item;
+  for (const id of selectedIds) {
+    const obj = objectsMap.get(id);
     if (!obj) continue;
     const right = obj.x + obj.w, bottom = obj.y + obj.h;
     x1 = Math.min(x1, obj.x); y1 = Math.min(y1, obj.y);
     x2 = Math.max(x2, right); y2 = Math.max(y2, bottom);
   }
   return x1 === Infinity ? null : { x1, y1, x2, y2 };
-}
-
-function selectedBounds() {
-  return objectBounds(selectedIds, objectsMap);
 }
 
 function viewportWorldRect(padScreenPx = 0) {

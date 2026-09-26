@@ -12,7 +12,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
   const deferredTimers = [];
   const canvasListeners = new Map();
   const context = {
-    console,
     canvas: {
       addEventListener(type, listener) { addListener(canvasListeners, type, listener); },
       contains() { return true; },
@@ -127,7 +126,7 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
       context.hitPoint = { x: wx, y: wy };
       return 3;
     },
-    layoutHitTestCaret(...args) { return { index: context.layoutHitTest(...args), affinity: '' }; },
+    layoutHitTestCaret(...args) { return { index: context.layoutHitTest(...args) }; },
     setTextEditCaretIndex(target, index, lineStartIndex = null) {
       target._textEditCaretIndex = index;
       if (Number.isFinite(lineStartIndex)) target._textEditCaretLineStartIndex = lineStartIndex;
@@ -185,7 +184,6 @@ function loadRubberBandHarness() {
   const selectedIds = new Set();
   const objects = [{ id: 'image-1', type: 'image', x: 0, y: 0, w: 50, h: 50, data: {} }];
   const context = {
-    console,
     window: {
       addEventListener() {},
     },
@@ -583,7 +581,7 @@ test('text click stores visual line preference at wrapped line start', () => {
   context.editProxy.value = context.obj.data.content;
   context.editingId = context.obj.id;
   context._editEl = context.editProxy;
-  context.layoutHitTestCaret = () => ({ index: 3, affinity: '', lineStartIndex: 3 });
+  context.layoutHitTestCaret = () => ({ index: 3, lineStartIndex: 3 });
 
   context.startTextSelectionDrag({ clientX: 12, clientY: 44 }, context.obj, { x: 12, y: 44 });
 

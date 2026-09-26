@@ -51,7 +51,7 @@
     return new Error(entryName ? `Invalid File Entry: ${entryName}` : 'Invalid Board File');
   }
 
-  function ensureByteRange(bytes, offset, length, entryName = '') {
+  function ensureByteRange(bytes, offset, length) {
     const start = Number(offset);
     const size = Number(length);
     if (
@@ -61,7 +61,7 @@
       size < 0 ||
       start + size > bytes.length
     ) {
-      throw invalidContainerError(entryName);
+      throw invalidContainerError();
     }
   }
 

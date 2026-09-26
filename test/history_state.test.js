@@ -83,7 +83,6 @@ function makeEditProxy({
 function loadHistoryHarness() {
   const imagePruneCalls = [];
   const context = {
-    console,
     performance: { now: () => 0 },
     clearInterval() {},
     clearTimeout() {},

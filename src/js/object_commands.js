@@ -85,8 +85,7 @@ function addText(wx, wy, content = '', options = {}) {
   logStep('add-object-done', { objectId: obj.id, objectCountAfter: objects.length });
   selectObject(obj.id);
   logStep('render-scheduled', { objectId: obj.id });
-  const shouldEnterEdit = !content || options?.editAfterCreate === true;
-  if (!shouldEnterEdit || options?.enterEditHistory === false) {
+  if (content) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const historyStartedAt = dbg && objectCommandDebugNow();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -95,16 +94,12 @@ function addText(wx, wy, content = '', options = {}) {
       objectId: obj.id,
       historyMs: Math.round((objectCommandDebugNow() - historyStartedAt) * 100) / 100,
     }));
-  }
-  if (shouldEnterEdit) {
-    const enterEditOptions = content
-      ? { history: options?.enterEditHistory !== false, placeInitialCaret: true }
-      : {};
-    enterEdit(obj.id, enterEditOptions);
+  } else {
+    enterEdit(obj.id);
     logStep('enter-edit-done', {
       objectId: obj.id,
-      editAfterCreate: !!content,
-      enterEditHistory: enterEditOptions.history ?? true,
+      editAfterCreate: false,
+      enterEditHistory: true,
     });
   }
   logStep('end', { objectId: obj.id, objectCountAfter: objects.length });

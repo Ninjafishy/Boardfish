@@ -167,10 +167,10 @@ function isEventInsideUnsavedDialog(e) {
   return !!unsavedDialog && e.target instanceof Node && unsavedDialog.contains(e.target);
 }
 
-const _inputEventPointElementCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+const _inputEventPointElementCache = new WeakMap();
 
 function pointedElementForInputEvent(e) {
-  const cached = _inputEventPointElementCache?.get(e);
+  const cached = _inputEventPointElementCache.get(e);
   if (cached !== undefined) return cached;
   const x = Number(e?.clientX);
   const y = Number(e?.clientY);
@@ -178,7 +178,7 @@ function pointedElementForInputEvent(e) {
     ? document.elementFromPoint(x, y)
     : null;
   const element = pointed instanceof Node ? pointed : null;
-  _inputEventPointElementCache?.set(e, element);
+  _inputEventPointElementCache.set(e, element);
   return element;
 }
 
