@@ -12,4 +12,14 @@ function readJson(relativePath) {
   return JSON.parse(readSource(relativePath));
 }
 
-module.exports = { readSource, readJson };
+function listFiles(dir, predicate = () => true) {
+  const files = [];
+  for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+    const relativePath = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...listFiles(relativePath, predicate));
+    else if (predicate(relativePath)) files.push(relativePath);
+  }
+  return files;
+}
+
+module.exports = { readSource, readJson, listFiles };

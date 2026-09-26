@@ -12,6 +12,7 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
   const deferredTimers = [];
   const canvasListeners = new Map();
   const context = {
+    performance,
     canvas: {
       addEventListener(type, listener) { addListener(canvasListeners, type, listener); },
       contains() { return true; },
@@ -69,9 +70,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
     },
     beginDocumentDrag(handlers) { dragHandlers.push(handlers); },
     ViewportDebug: { start() { return {}; }, end() {} },
-    withRenderSource(_source, fn) { fn(); },
-    drawBoard() {},
-    updateSelectionOverlay() {},
     pushHistory(reason) { context.history.push(reason); },
     enterEdit(id, options = {}) {
       context.entered.push(id);
@@ -366,7 +364,7 @@ test('a selected rotated object outside selection bounds stays on the coalesced 
   context.latestDrag().up({ clientX: 210, clientY: 205 });
 
   assert.deepEqual([context.obj.x, context.obj.y, peer.x, peer.y], [20, 25, 310, 405]);
-  assert.deepEqual(context.history, ['group-drag']);
+  assert.deepEqual(context.history, ['drag']);
 });
 
 test('dragging from inside a selected region moves the selection on touch', () => {
@@ -380,7 +378,7 @@ test('dragging from inside a selected region moves the selection on touch', () =
   assert.equal(context.obj.x, 22);
   assert.equal(context.obj.y, 35);
   assert.deepEqual(context.entered, []);
-  assert.deepEqual(context.history, ['group-drag']);
+  assert.deepEqual(context.history, ['drag']);
 });
 
 test('a mobile TouchEvent sequence drags the selected object instead of the viewport', () => {
@@ -412,7 +410,7 @@ test('a mobile TouchEvent sequence drags the selected object instead of the view
 
   assert.equal(context.obj.x, 22);
   assert.equal(context.obj.y, 35);
-  assert.deepEqual(context.history, ['group-drag']);
+  assert.deepEqual(context.history, ['drag']);
   assert.deepEqual(context.viewportPans, []);
 });
 
@@ -495,7 +493,7 @@ test('selected-region touch drag commits the exact final lift position once', ()
 
   assert.equal(context.obj.x, 30);
   assert.equal(context.obj.y, 40);
-  assert.deepEqual(context.history, ['group-drag']);
+  assert.deepEqual(context.history, ['drag']);
 });
 
 test('first click on an unselected text object only selects it', () => {

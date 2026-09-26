@@ -17,11 +17,7 @@ var TextSelDebug = (() => {
   const events = [];
   let nextId = 1;
 
-  const now = () => (
-    typeof performance !== 'undefined' && typeof performance.now === 'function'
-      ? performance.now()
-      : Date.now()
-  );
+  const now = () => performance.now();
 
   const stats = {
     hits: 0,
@@ -337,7 +333,6 @@ var TextSelDebug = (() => {
       primaryId: e.primaryId || '',
       selectedIds: e.selectedIds || '',
       requestedPrimaryId: e.requestedPrimaryId || '',
-      exitEditing: e.exitEditing ?? '',
       hitObjectId: e.hitObjectId || '',
       hitObjectType: e.hitObjectType || '',
       hitObjectSelected: e.hitObjectSelected ?? '',

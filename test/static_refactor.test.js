@@ -2,24 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readSource, readJson } = require('../test-support/source.js');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const root = path.join(__dirname, '..');
-
-function listFiles(dir, predicate = () => true) {
-  const fullDir = path.join(root, dir);
-  if (!fs.existsSync(fullDir)) return [];
-  const entries = fs.readdirSync(fullDir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const relativePath = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...listFiles(relativePath, predicate));
-    else if (predicate(relativePath)) files.push(relativePath);
-  }
-  return files;
-}
+const { readSource, readJson, listFiles } = require('../test-support/source.js');
 
 test('browser tab always uses the fixed Boardfish title', () => {
   const html = readSource('src/index.html');

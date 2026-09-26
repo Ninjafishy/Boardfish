@@ -2,23 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readSource } = require('../test-support/source.js');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const root = path.join(__dirname, '..');
-
-function listFiles(dir, predicate = () => true) {
-  const fullDir = path.join(root, dir);
-  const entries = fs.readdirSync(fullDir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const relativePath = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...listFiles(relativePath, predicate));
-    else if (predicate(relativePath)) files.push(relativePath);
-  }
-  return files;
-}
+const { readSource, listFiles } = require('../test-support/source.js');
 
 test('DOM text uses the shared app font rendering defaults', () => {
   const css = readSource('src/styles.css');

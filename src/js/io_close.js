@@ -832,11 +832,8 @@ async function openBoardFileRef(fileRef) {
 async function openBoard() {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const dbg = OpenDebug.start('openBoard', { currentFilePath, objectCount: objects.length });
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-    if (!(await confirmDirtyBeforeOpen(dbg))) return;
-  } else
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (!(await confirmDirtyBeforeOpen())) return;
+  if (!(await confirmDirtyBeforeOpen(/* BOARDFISH_DEV_DIAGNOSTICS_START */ dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */))) return;
 
   try {
     const chooseFile = BoardfishRuntime.openFileDialog;

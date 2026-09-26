@@ -148,10 +148,7 @@ function aliasNamedDiagnosticCalls(source) {
 }
 
 async function compileProductionBundle(source) {
-  if (source.includes(RUNTIME_CONSOLE_SENTINEL)) {
-    throw new Error('Build Sentinel Conflict');
-  }
-  if (source.includes(DROP_DIAGNOSTIC_SENTINEL)) {
+  if (source.includes(RUNTIME_CONSOLE_SENTINEL) || source.includes(DROP_DIAGNOSTIC_SENTINEL)) {
     throw new Error('Build Sentinel Conflict');
   }
 
@@ -177,23 +174,18 @@ async function compileProductionBundle(source) {
     target: 'es2020',
   });
   const droppable = substituted.code.replaceAll(DROP_DIAGNOSTIC_SENTINEL, 'console');
-  const stripped = await esbuild.transform(droppable, {
-    drop: ['console'],
+  const minifyOptions = {
     legalComments: 'none',
     minifyIdentifiers: !readableProductionAudit,
     minifySyntax: true,
     minifyWhitespace: !readableProductionAudit,
     target: 'es2020',
     treeShaking: true,
-  });
+  };
+  const stripped = await esbuild.transform(droppable, { drop: ['console'], ...minifyOptions });
   const restored = await esbuild.transform(stripped.code, {
     define: { [RUNTIME_CONSOLE_SENTINEL]: 'console' },
-    legalComments: 'none',
-    minifyIdentifiers: !readableProductionAudit,
-    minifySyntax: true,
-    minifyWhitespace: !readableProductionAudit,
-    target: 'es2020',
-    treeShaking: true,
+    ...minifyOptions,
   });
   if (restored.code.includes(RUNTIME_CONSOLE_SENTINEL)) {
     throw new Error('Build Sentinel Restore Failed');

@@ -26,6 +26,12 @@
     return out;
   }
 
+  function debugMetaFields(event, names) {
+    const out = {};
+    for (const name of names.split(' ')) out[name] = event.meta?.[name] ?? '';
+    return out;
+  }
+
   function flattenDebugEvent({ meta, ...rest }) {
     if (!meta) return rest;
     const { rust, ...other } = meta;
@@ -153,5 +159,6 @@
   root.createDebugRecorder = createDebugRecorder;
   root.round2 = round2;
   root.debugLast = debugLast;
+  root.debugMetaFields = debugMetaFields;
   root.sanitizeDebugMeta = sanitizeDebugMeta;
 })(typeof window !== 'undefined' ? window : globalThis);

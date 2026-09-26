@@ -177,10 +177,7 @@ function scheduleImageReadyRender() {
   const intervalMs = _bulkImageInsertDepth > 0 ? BULK_IMAGE_READY_RENDER_INTERVAL_MS : IMAGE_READY_RENDER_INTERVAL_MS;
   if (now - _imageReadyLastRender <= intervalMs) return;
   _imageReadyLastRender = now;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  scheduleRender(true, null, 'image-bitmap-ready');
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (typeof BOARDFISH_PRODUCTION !== 'undefined') scheduleRender(true);
+  scheduleRender(true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , null, 'image-bitmap-ready' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
 }
 
 var _imageHydrationScheduled = false;
@@ -221,7 +218,6 @@ function processImageHydrationQueue() {
     _imageHydrationQueue.delete(key);
     const source = imageStore[key];
     if (!source || imageBitmapCache[key]) continue;
-    if (typeof source !== 'string' && !isWebImageRef(source)) continue;
     count++;
     try {
       cacheImage(key, source

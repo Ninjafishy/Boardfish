@@ -83,6 +83,7 @@ function isImageVariantDrawableSource(source) {
   return !!(source.complete && source.naturalWidth > 0) || !!(source.width > 0 && source.height > 0);
 }
 
+/* BOARDFISH_DEV_DIAGNOSTICS_START */
 function drawableBitmapWarmupKind(meta = {}) {
   const kind = String(meta.kind || '');
   if (kind === 'full-image') return 'fullImage';
@@ -90,7 +91,6 @@ function drawableBitmapWarmupKind(meta = {}) {
   return 'other';
 }
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 function countDrawableBitmapWarmupKind(target, meta = {}) {
   const kind = drawableBitmapWarmupKind(meta);
   target[kind] = (target[kind] || 0) + 1;
@@ -101,8 +101,7 @@ function drawableBitmapWarmupTargetSize(source, meta = {}) {
   const sourceW = source?.width || source?.naturalWidth || 0;
   const sourceH = source?.height || source?.naturalHeight || 0;
   if (!(sourceW > 0 && sourceH > 0)) return { sourceW, sourceH, width: 1, height: 1 };
-  const kind = drawableBitmapWarmupKind(meta);
-  const maxEdge = kind === 'scaledVariant' ? 512 : kind === 'fullImage' ? 256 : 1;
+  const maxEdge = meta.kind === 'scaled-variant' ? 512 : meta.kind === 'full-image' ? 256 : 1;
   const scale = Math.min(1, maxEdge / Math.max(sourceW, sourceH));
   return {
     sourceW,
@@ -487,14 +486,10 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
       : false;
   }
   if (imageScaledBitmapPending.has(key)) {
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const priorityBoosted = priority === true && prioritizeScaledVariantQueue(key);
-      return { key, scale, queued: false, skipped: 'pending', priorityBoosted };
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    }
-    if (priority === true) prioritizeScaledVariantQueue(key);
-    return false;
+    const priorityBoosted = priority === true && prioritizeScaledVariantQueue(key);
+    return typeof BOARDFISH_PRODUCTION === 'undefined'
+      ? { key, scale, queued: false, skipped: 'pending', priorityBoosted }
+      : false;
   }
   const sourceW = source?.width || source?.naturalWidth || 0;
   const sourceH = source?.height || source?.naturalHeight || 0;

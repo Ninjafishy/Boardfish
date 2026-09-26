@@ -17,4 +17,17 @@ function loadReadableImageSourceBlob({ container = WebContainer, decode = async 
   return context.readableImageSourceBlob;
 }
 
-module.exports = { loadReadableImageSourceBlob, pngBytes };
+function singleImageBoard() {
+  return {
+    version: 3,
+    format: 'boardfish-container',
+    imageStore: {
+      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
+    },
+    objects: [
+      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
+    ],
+  };
+}
+
+module.exports = { loadReadableImageSourceBlob, pngBytes, singleImageBoard };

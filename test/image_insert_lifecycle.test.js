@@ -223,7 +223,7 @@ test('decoded image insertion owns its size cap after image layout removal', asy
   assert.equal(context.calls.objects[0], obj);
   assert.deepEqual(context.calls.selections, [{
     ids: ['obj-paste'],
-    options: { primaryId: 'obj-paste', exitEditing: false },
+    options: { primaryId: 'obj-paste' },
   }]);
   assert.deepEqual(context.calls.renders, [[true, true]]);
   assert.deepEqual(context.calls.histories, ['add-image']);

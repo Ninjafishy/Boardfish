@@ -1,9 +1,5 @@
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-const textEditorDebugNow = () => (
-  typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-);
+const textEditorDebugNow = () => performance.now();
 
 const textEditorDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -650,17 +646,13 @@ const copyTextEditSelectionFromProxy = async (
     stepStartedAt = now;
   };
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const obj = objectsMap.get(id);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   logStep('copy:text-selection-payload-start', {
-    sourceFound: !!obj,
+    sourceFound: objectsMap.has(id),
     ...textEditorSelectionDebugStats(selection, sourceValue),
   });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const payload = obj
-    ? createTextSelectionClipboardPayload(sourceValue, selection)
-    : { type: 'text-selection', text: textSelectionForClipboard(sourceValue.slice(selection.start, selection.end)) };
-  const clipboardText = payload.text;
+  const clipboardText = createTextSelectionClipboardPayload(sourceValue, selection).text;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const textStats = textEditorTextStats(clipboardText);
   logStep('copy:text-selection-payload-ready', {
@@ -695,16 +687,9 @@ const copyTextEditSelectionFromProxy = async (
     boardfishToken: !!meta.boardfishToken,
     ...textStats,
   });
+  Object.assign(meta, textStats);
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  let writePromise;
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const clipboardOptions = { ...meta, ...textStats };
-    writePromise = BoardfishClipboardIO.copyTextToClipboard(clipboardText, dbg, clipboardOptions);
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  } else {
-    writePromise = BoardfishClipboardIO.copyTextToClipboard(clipboardText, meta);
-  }
+  const writePromise = BoardfishClipboardIO.copyTextToClipboard(clipboardText, /* BOARDFISH_DEV_DIAGNOSTICS_START */ dbg, /* BOARDFISH_DEV_DIAGNOSTICS_END */ meta);
   writePromise
     .then((result) => {
       if (result?.boardfishTokenWritten && meta.boardfishToken) {
@@ -782,9 +767,7 @@ const boardfishTextClipboardStillCurrent = async (event = null
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
   } else if (_jsClipboardWebMaybeStale) {
     try {
-      const result = typeof BOARDFISH_PRODUCTION === 'undefined'
-        ? await BoardfishClipboardIO.readBoardfishClipboardTokenFromBrowser(dbg)
-        : await BoardfishClipboardIO.readBoardfishClipboardTokenFromBrowser();
+      const result = await BoardfishClipboardIO.readBoardfishClipboardTokenFromBrowser(/* BOARDFISH_DEV_DIAGNOSTICS_START */ dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */);
       webClipboardTokenChecked = result?.checked === true;
       webClipboardToken = result?.token || '';
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -800,9 +783,7 @@ const boardfishTextClipboardStillCurrent = async (event = null
   const currentStartedAt = textEditorDebugNow();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const currentOptions = { webClipboardTokenChecked, webClipboardToken };
-  const current = typeof BOARDFISH_PRODUCTION === 'undefined'
-    ? jsClipboardStillCurrent(dbg, currentOptions)
-    : jsClipboardStillCurrent(currentOptions);
+  const current = jsClipboardStillCurrent(/* BOARDFISH_DEV_DIAGNOSTICS_START */ dbg, /* BOARDFISH_DEV_DIAGNOSTICS_END */ currentOptions);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   textEditorClipStep(dbg, 'paste:text-selection-current-check-done', {
     current,
@@ -824,9 +805,7 @@ const readBoardfishTextClipboardPayloadForPaste = async (event = null
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   textEditorClipStep(dbg, 'paste:text-selection-js-payload-candidate', textEditorTextStats(payload.text));
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const current = typeof BOARDFISH_PRODUCTION === 'undefined'
-    ? await boardfishTextClipboardStillCurrent(event, dbg)
-    : await boardfishTextClipboardStillCurrent(event);
+  const current = await boardfishTextClipboardStillCurrent(event /* BOARDFISH_DEV_DIAGNOSTICS_START */ , dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   if (!current) {
     clearJsClipboard();
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -1114,9 +1093,7 @@ const pasteBoardfishTextSelectionIntoEditSelection = async (options = {}) => {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const dbg = options.debug || null;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const payload = typeof BOARDFISH_PRODUCTION === 'undefined'
-    ? await readBoardfishTextClipboardPayloadForPaste(options.event || null, dbg)
-    : await readBoardfishTextClipboardPayloadForPaste(options.event || null);
+  const payload = await readBoardfishTextClipboardPayloadForPaste(options.event || null /* BOARDFISH_DEV_DIAGNOSTICS_START */ , dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   if (!payload) return false;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   textEditorClipStep(dbg, 'paste:text-selection-js-payload-ready', textEditorTextStats(payload.text));
@@ -1968,7 +1945,7 @@ function enterEdit(id, {
       } else if (targetIdx >= layout.length) {
         newPos = textEditProxyValue(proxy).length;
       } else {
-        newPos = layoutHitTestCaret([layout[targetIdx]], caretX, layout[targetIdx].y, obj, true).index;
+        newPos = layoutHitTestCaret([layout[targetIdx]], caretX, layout[targetIdx].y, obj).index;
       }
 
       if (e.shiftKey) {

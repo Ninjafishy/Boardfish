@@ -314,12 +314,15 @@ var ExportDebug = (() => {
     massiveStep('ui-progress', meta);
   }
 
+  function massiveReportCopy() {
+    if (massive) return JSON.parse(JSON.stringify(massive));
+    console.warn('[Boardfish Export] No Report Available. Enable Export Debug And Run An Export.');
+    return null;
+  }
+
   function massiveReport() {
-    const report = massive ? JSON.parse(JSON.stringify(massive)) : null;
-    if (!report) {
-      console.warn('[Boardfish Export] No Report Available. Enable Export Debug And Run An Export.');
-      return null;
-    }
+    const report = massiveReportCopy();
+    if (!report) return null;
     const headline = {
       op: report.op,
       imageCount: report.imageCount,
@@ -377,11 +380,8 @@ var ExportDebug = (() => {
   }
 
   function progressReport() {
-    const report = massive ? JSON.parse(JSON.stringify(massive)) : null;
-    if (!report) {
-      console.warn('[Boardfish Export] No Report Available. Enable Export Debug And Run An Export.');
-      return null;
-    }
+    const report = massiveReportCopy();
+    if (!report) return null;
     const totalMs = Number(report.totalMs) || 0;
     const phaseRows = [
       {
@@ -430,11 +430,8 @@ var ExportDebug = (() => {
   }
 
   function smoothnessReport() {
-    const report = massive ? JSON.parse(JSON.stringify(massive)) : null;
-    if (!report) {
-      console.warn('[Boardfish Export] No Report Available. Enable Export Debug And Run An Export.');
-      return null;
-    }
+    const report = massiveReportCopy();
+    if (!report) return null;
     const out = {
       eventLoopYields: report.smoothness.eventLoopYields,
       avgYieldMs: report.smoothness.eventLoopYields ? Math.round(report.smoothness.totalYieldMs / report.smoothness.eventLoopYields * 100) / 100 : 0,
@@ -487,7 +484,7 @@ var ExportDebug = (() => {
     };
   }
 
-  const dump = () => dumpDebugEvents(events, ({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
+  const dump = () => dumpDebugEvents(events);
 
   function summary() {
     const rows = events.filter(e => e.step && e.step !== 'start').map(e => ({
@@ -496,18 +493,11 @@ var ExportDebug = (() => {
       step: e.step,
       dt: e.dt,
       total: e.total,
-      imageCount: e.meta?.imageCount ?? '',
-      keyCount: e.meta?.keyCount ?? '',
-      processed: e.meta?.processed ?? '',
-      savedCount: e.meta?.savedCount ?? '',
-      failedCount: e.meta?.failedCount ?? '',
-      missingCount: e.meta?.missingCount ?? '',
+      ...debugMetaFields(e, 'imageCount keyCount processed savedCount failedCount missingCount'),
       method: e.meta?.method || '',
       cancelled: e.meta?.cancelled ?? '',
       phase: e.meta?.phase || '',
-      tick: e.meta?.tick ?? '',
-      elapsedMs: e.meta?.elapsedMs ?? '',
-      lagMs: e.meta?.lagMs ?? '',
+      ...debugMetaFields(e, 'tick elapsedMs lagMs'),
       error: e.meta?.error || '',
     }));
     console.table(rows);
@@ -521,19 +511,12 @@ var ExportDebug = (() => {
         step: e.step,
         total: e.total,
         dt: e.dt,
-        imageCount: e.meta?.imageCount ?? '',
-        keyCount: e.meta?.keyCount ?? '',
-        processed: e.meta?.processed ?? '',
-        savedCount: e.meta?.savedCount ?? '',
-        failedCount: e.meta?.failedCount ?? '',
-        missingCount: e.meta?.missingCount ?? '',
+        ...debugMetaFields(e, 'imageCount keyCount processed savedCount failedCount missingCount'),
         method: e.meta?.method || '',
         sourceKind: e.meta?.sourceKind || '',
         cancelled: e.meta?.cancelled ?? '',
         phase: e.meta?.phase || '',
-        tick: e.meta?.tick ?? '',
-        elapsedMs: e.meta?.elapsedMs ?? '',
-        lagMs: e.meta?.lagMs ?? '',
+        ...debugMetaFields(e, 'tick elapsedMs lagMs'),
         error: e.meta?.error || '',
       }));
     console.table(rows);

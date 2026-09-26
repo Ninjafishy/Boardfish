@@ -5,6 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const WebContainer = require('../src/js/web_board_container.js');
+const { singleImageBoard } = require('../test-support/image_output.js');
 
 function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
   const source = readSource('src/js/web_runtime.js');
@@ -302,16 +303,7 @@ test('distinct-target save rebuilds once from a fresh source after write-time Bl
   const harness = loadWebRuntimeHarness();
   const imageBytes = new Uint8Array(160 * 1024);
   for (let i = 0; i < imageBytes.length; i++) imageBytes[i] = (i * 41) % 251;
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'source.bf', { type: 'application/octet-stream' }),
@@ -398,16 +390,7 @@ test('same-target save recovers a stale source before container preparation', as
   const harness = loadWebRuntimeHarness();
   const imageBytes = new Uint8Array(96 * 1024);
   for (let i = 0; i < imageBytes.length; i++) imageBytes[i] = (i * 43) % 251;
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'same-target.bf', { type: 'application/octet-stream' }),
@@ -467,16 +450,7 @@ test('stale-source recovery rejects a fresh file whose image identity changed', 
   for (let i = 0; i < imageBytes.length; i++) imageBytes[i] = (i * 47) % 251;
   const changedBytes = imageBytes.slice();
   changedBytes[changedBytes.length - 1] ^= 0xff;
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const changed = await WebContainer.createBoardContainerBlob(board, { 'img-1': changedBytes });
   const opened = await WebContainer.readBoardContainer(
@@ -596,16 +570,7 @@ test('same-handle saves detach File-backed images and remain readable across rep
   const harness = loadWebRuntimeHarness();
   const imageBytes = new Uint8Array(192 * 1024);
   for (let i = 0; i < imageBytes.length; i++) imageBytes[i] = (i * 37) % 251;
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'repeated-save.bf', { type: 'application/octet-stream' }),

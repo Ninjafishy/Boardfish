@@ -30,7 +30,7 @@
     }
     return !!reducedMotionQuery?.matches;
   };
-  const now = () => root.performance?.now ? root.performance.now() : Date.now();
+  const now = () => performance.now();
   const clamp01 = (value) => Math.max(0, Math.min(1, value));
   const smootherstep = (value) => {
     const t = clamp01(value);
@@ -197,9 +197,8 @@
   };
 
   const noteObjects = (items) => {
-    const fromIds = !!items && items === root.selectedIds, ranked = [];
-    for (const item of (fromIds || Array.isArray(items) ? items : [])) {
-      const obj = fromIds ? root.objectsMap?.get?.(item) : item;
+    const ranked = [];
+    for (const obj of (Array.isArray(items) ? items : [])) {
       if (obj?.id) ranked.push(obj);
     }
     if (!ranked.length) return false;
@@ -296,16 +295,10 @@
     return false;
   };
 
-  const copySelection = () => noteObjects(root.selectedIds);
-
   const applyCopyFeedback = (payload = {}) => {
     if (prefersReducedMotion()) return false;
     if (payload.textSelection) {
       noteTextSelection(payload.textSelection);
-      return true;
-    }
-    if (payload.selection) {
-      copySelection();
       return true;
     }
     return noteObjects(payload.objects);

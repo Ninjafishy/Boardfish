@@ -100,9 +100,7 @@ function selectionInputPerfDebugApi() {
 }
 
 function selectionResizeDebugNow() {
-  return typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
+  return performance.now();
 }
 
 function selectionResizeDebugRound(value) {
@@ -259,24 +257,17 @@ const boundsCornerPoint = function boundsCornerPoint(bounds, dir) {
   };
 };
 
-function hideMultiSelectionOverlay() {
+function hideSelectionOverlay(clearSelection = false) {
+  selOverlay.classList.toggle('visible', false);
   multiSelOverlay.classList.toggle('visible', false);
+  if (clearSelection) BoardfishEditorState.clearSelection();
 }
 
 function updateSelectionOverlay() {
-  if ((isBoardInputBlocked() && !shouldKeepSelectionOverlayWhileBlocked()) || !hasSelection()) {
-    selOverlay.classList.toggle('visible', false);
-    hideMultiSelectionOverlay();
-    return;
-  }
+  if ((isBoardInputBlocked() && !shouldKeepSelectionOverlayWhileBlocked()) || !hasSelection()) return hideSelectionOverlay();
 
   const firstSelectedObj = getFirstSelectedObject();
-  if (!firstSelectedObj) {
-    selOverlay.classList.toggle('visible', false);
-    hideMultiSelectionOverlay();
-    BoardfishEditorState.clearSelection();
-    return;
-  }
+  if (!firstSelectedObj) return hideSelectionOverlay(true);
 
   const resting = selectedBounds();
   const hasMotion = BoardfishMotion.hasLastDrawnObjectMotions();
@@ -303,25 +294,15 @@ function updateSelectionOverlay() {
       };
     }
   }
-  if (!bounds) {
-    selOverlay.classList.toggle('visible', false);
-    hideMultiSelectionOverlay();
-    BoardfishEditorState.clearSelection();
-    return;
-  }
   const { width, height } = _boardSurfaceCssSizeCache || boardSurfaceCssSize();
   const screenX1 = bounds.x1 * zoom + panX, screenY1 = bounds.y1 * zoom + panY;
   const screenX2 = bounds.x2 * zoom + panX, screenY2 = bounds.y2 * zoom + panY;
-  if (!(screenX1 < width && screenX2 > 0 && screenY1 < height && screenY2 > 0)) {
-    selOverlay.classList.toggle('visible', false);
-    hideMultiSelectionOverlay();
-    return;
-  }
+  if (!(screenX1 < width && screenX2 > 0 && screenY1 < height && screenY2 > 0)) return hideSelectionOverlay();
 
   const multiSelected = isMultiSelected();
   let imageEdgePad = 0;
   if (!multiSelected) {
-    hideMultiSelectionOverlay();
+    multiSelOverlay.classList.toggle('visible', false);
   } else {
     while (_multiSelBoxes.length < selectedIds.size) {
       const box = document.createElement('div');
@@ -679,8 +660,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
 // ─── Selection ────────────────────────────────────────────────────────────────
 
 function selectObject(id) {
-  if (editingId && editingId !== id) exitEdit();
-  BoardfishEditorState.setSelection([id], { primaryId: id, exitEditing: false });
+  BoardfishEditorState.setSelection([id], { primaryId: id });
   const obj = objectsMap.get(id);
   if (obj) bringObjectToFront(obj);
   scheduleTextMinWidthWarm(obj);
@@ -699,10 +679,7 @@ function selectAllObjects() {
   cancelTextMinWidthWarm();
   const ids = new Array(objects.length);
   for (let i = 0; i < objects.length; i++) ids[i] = objects[i].id;
-  BoardfishEditorState.setSelection(ids, {
-    primaryId: objects[objects.length - 1].id,
-    exitEditing: false,
-  });
+  BoardfishEditorState.setSelection(ids, { primaryId: objects[objects.length - 1].id });
   scheduleRender(false, true);
 }
 

@@ -239,15 +239,7 @@ body {
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   -webkit-tap-highlight-color: transparent;
-}
-
-#ctx-menu {
   width: var(--context-menu-width);
-}
-
-#obj-ctx-menu,
-#text-ctx-menu {
-  width: 192px;
 }
 
 #ctx-menu.visible,

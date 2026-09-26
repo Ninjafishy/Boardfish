@@ -224,7 +224,7 @@
     if (hasSaveFileSystemAccess()) {
       try {
         const handle = await root.showSaveFilePicker({
-          suggestedName: defaultName || 'board.bf',
+          suggestedName: defaultName,
           types: BOARD_FILE_TYPES,
           excludeAcceptAllOption: false,
         });
@@ -234,7 +234,7 @@
         throw err;
       }
     }
-    return webDownloadRef(defaultName || 'board.bf');
+    return webDownloadRef(defaultName);
   }
 
   async function fileFromRef(ref) {

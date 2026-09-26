@@ -86,9 +86,7 @@
   }
 
   function nowMs() {
-    return typeof performance !== 'undefined' && typeof performance.now === 'function'
-      ? performance.now()
-      : Date.now();
+    return performance.now();
   }
 
   function yieldToEventLoop() {
@@ -451,22 +449,11 @@
     return out;
   }
 
-  function entryReadLimit(entry, maxBytes) {
-    const advertisedSize = Number(entry?.uncompressedSize);
-    const max = Number(maxBytes);
-    const hasAdvertisedSize = Number.isFinite(advertisedSize);
-    const hasMax = Number.isFinite(max);
-    if (hasAdvertisedSize && hasMax) return Math.min(Math.max(0, advertisedSize), Math.max(0, max));
-    if (hasAdvertisedSize) return Math.max(0, advertisedSize);
-    if (hasMax) return Math.max(0, max);
-    return Infinity;
-  }
-
   function throwEntryTooLarge(entry) {
     throw new Error(`File Entry Too Large: ${entry.name}`);
   }
 
-  async function inflateRaw(bytes, entry, options = {}) {
+  async function inflateRaw(bytes, entry) {
     if (typeof DecompressionStream !== 'function') {
       throw new Error('Unsupported Compression');
     }
@@ -474,14 +461,14 @@
     const reader = stream.getReader();
     const chunks = [];
     let total = 0;
-    const limit = entryReadLimit(entry, options.maxBytes);
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = value instanceof Uint8Array ? value : new Uint8Array(value || []);
         total += chunk.length;
-        if (Number.isFinite(limit) && total > limit) {
+        // readZipEntry already capped the advertised size at the caller's budget.
+        if (total > entry.uncompressedSize) {
           try { await reader.cancel(); } catch {}
           throwEntryTooLarge(entry);
         }
@@ -499,14 +486,6 @@
     return out;
   }
 
-  function assertZipEntryReadBudget(entry, maxBytes) {
-    const limit = Number(maxBytes);
-    if (!Number.isFinite(limit)) return;
-    const advertisedSize = zipEntryContentBytes(entry);
-    if (advertisedSize <= limit) return;
-    throw new Error(`File Entry Too Large: ${entry?.name || ''}`);
-  }
-
   function zipEntryContentBytes(entry) {
     const uncompressedSize = Number(entry?.uncompressedSize || 0);
     if (entry?.method === ZIP_METHOD_STORED) {
@@ -516,10 +495,6 @@
   }
 
   async function validateReadZipEntry(out, entry, options = {}) {
-    const limit = Number(options.maxBytes);
-    if (Number.isFinite(limit) && out.length > limit) {
-      throwEntryTooLarge(entry);
-    }
     if (Number(entry.uncompressedSize) !== out.length) {
       throw invalidContainerError(entry.name);
     }
@@ -545,7 +520,8 @@
   }
 
   async function readZipEntry(input, entry, options = {}) {
-    assertZipEntryReadBudget(entry, options.maxBytes);
+    // A missing budget is NaN, which never compares greater.
+    if (zipEntryContentBytes(entry) > options.maxBytes) throwEntryTooLarge(entry);
     let compressed = await compressedEntryBlob(input, entry);
     if (isBlobLike(compressed) && (entry.method === ZIP_METHOD_STORED || !isNativeBlobPart(compressed))) {
       compressed = await blobToBytes(compressed);
@@ -555,7 +531,7 @@
     }
     let out;
     if (entry.method === ZIP_METHOD_STORED) out = compressed;
-    else if (entry.method === ZIP_METHOD_DEFLATED) out = await inflateRaw(compressed, entry, options);
+    else if (entry.method === ZIP_METHOD_DEFLATED) out = await inflateRaw(compressed, entry);
     else throw new Error(`Unsupported Compression: ${entry.method} (${entry.name})`);
     return validateReadZipEntry(out, entry, options);
   }
@@ -737,7 +713,7 @@
     const entry = entries.get(path);
     if (entry) return { path, entry };
     for (const fallbackPath of [
-      `images/${key}.${normalizeImageExt(manifest.ext, manifest.mime)}`,
+      canonicalImageEntryPath(key, manifest),
       `images/${key}.png`,
       `images/${key}.jpg`,
       `images/${key}.jpeg`,
@@ -1021,13 +997,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     phaseStart = nowMs();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    const boardJsonBytes = await readZipEntry(
-      input,
-      boardEntry,
-      {
-        maxBytes: Number.isFinite(maxBoardContentBytes) ? maxBoardContentBytes : undefined,
-      },
-    );
+    const boardJsonBytes = await readZipEntry(input, boardEntry, { maxBytes: maxBoardContentBytes });
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const boardJsonReadMs = nowMs() - phaseStart;
     phaseStart = nowMs();
@@ -1110,9 +1080,6 @@
           imageBytes: imageBytes + advertisedImageBytes,
         });
       }
-      const remainingBytes = Number.isFinite(maxBoardContentBytes)
-        ? maxBoardContentBytes - boardJsonBytes.length - imageBytes
-        : undefined;
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       const entryWarnings = [];
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -1154,7 +1121,7 @@
           input,
           imageEntry,
           {
-            maxBytes: remainingBytes,
+            maxBytes: maxBoardContentBytes - boardJsonBytes.length - imageBytes,
             /* BOARDFISH_DEV_DIAGNOSTICS_START */
             onCrcMismatch(warning) {
               entryWarnings.push(warning);

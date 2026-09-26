@@ -1,11 +1,7 @@
 // ─── Add objects ─────────────────────────────────────────────────────────────
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-const objectCommandDebugNow = () => (
-  typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-);
+const objectCommandDebugNow = () => performance.now();
 
 const objectCommandTextStats = (value) => {
   const text = String(value ?? '');
@@ -105,7 +101,6 @@ function addText(wx, wy, content = '', options = {}) {
   logStep('end', { objectId: obj.id, objectCountAfter: objects.length });
 }
 var _inputShieldStack = [];
-var _inputShieldReleases = [];
 
 function updateInputShieldVisual() {
   if (isUnsavedDialogOpen()) {
@@ -144,20 +139,6 @@ function acquireInputShield(options = {}) {
       scheduleRender(false, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'input-shield-release' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     }
   };
-}
-
-function showInputShield(options = {}) {
-  _inputShieldReleases.push(acquireInputShield(options));
-}
-function hideInputShield() {
-  const release = _inputShieldReleases.pop();
-  if (release) release();
-  else {
-    updateInputShieldVisual();
-    if (!_inputShieldStack.length && !_boardOpening) {
-      scheduleRender(false, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'input-shield-release' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
-    }
-  }
 }
 
 function isBoardInputBlocked() {

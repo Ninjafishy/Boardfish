@@ -23,7 +23,6 @@ var openingShield  = requireAppElement('opening-shield');
 var objCtxMenu  = requireAppElement('obj-ctx-menu');
 var textCtxMenu = requireAppElement('text-ctx-menu');
 var saveImageBtn      = requireAppElement('obj-btn-save-image');
-var saveImagesBtn     = requireAppElement('obj-btn-save-images');
 var exportSep         = requireAppElement('obj-sep-export');
 var objectActionsSep  = requireAppElement('obj-sep-object-actions');
 var flipBtn           = requireAppElement('obj-btn-flip');

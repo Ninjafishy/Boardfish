@@ -23,6 +23,25 @@ function loadRenderer(overrides = {}) {
   };
 }
 
+function createImageRenderer(BoardfishRenderer, obj, source, overrides = {}) {
+  return BoardfishRenderer.createBoardRenderer({
+      canvasTextColor: () => '#fff',
+      currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 100, y2: 100 }),
+      dpr: () => 1,
+      imageBitmapCache: () => ({ 'img-1': source }),
+      imageStore: () => ({ 'img-1': 'source' }),
+      lineHeight: 24,
+      objectIntersectsRect: () => true,
+      objects: () => [obj],
+      panX: () => 0,
+      panY: () => 0,
+      selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
+      viewportCullingEnabled: () => true,
+      zoom: () => 1,
+    ...overrides,
+  });
+}
+
 function loadMotion(overrides = {}) {
   let currentTime = 0;
   const renderCalls = [];
@@ -188,21 +207,7 @@ test('image renderer overdraws image edges by one device pixel at the current vi
     height: 60,
   };
   const obj = { type: 'image', x: 10, y: 20, w: 40, h: 30, data: { imgKey: 'img-1' } };
-  const renderer = BoardfishRenderer.createBoardRenderer({
-    canvasTextColor: () => '#fff',
-    currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 100, y2: 100 }),
-    dpr: () => 1,
-    imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({ 'img-1': 'source' }),
-    lineHeight: 24,
-    objectIntersectsRect: () => true,
-    objects: () => [obj],
-    panX: () => 0,
-    panY: () => 0,
-    selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
-    viewportCullingEnabled: () => true,
-    zoom: () => 1,
-  });
+  const renderer = createImageRenderer(BoardfishRenderer, obj, source);
 
   renderer.drawVisibleObjects(context, BoardfishRenderer.createDrawCounters(),
     { x1: 0, y1: 0, x2: 100, y2: 100 }, undefined, undefined, undefined,
@@ -446,21 +451,9 @@ test('animated image motion draws an image that jiggles into the viewport', () =
     restore() {},
     translate() {},
   };
-  const renderer = BoardfishRenderer.createBoardRenderer({
-    canvasTextColor: () => '#fff',
-    currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 100, y2: 100 }),
-    dpr: () => 1,
-    imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({ 'img-1': 'source' }),
-    lineHeight: 24,
+  const renderer = createImageRenderer(BoardfishRenderer, obj, source, {
     objectIntersectsRect: () => false,
     objectMotionForDraw: () => ({ translateY: 10 }),
-    objects: () => [obj],
-    panX: () => 0,
-    panY: () => 0,
-    selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
-    viewportCullingEnabled: () => true,
-    zoom: () => 1,
   });
 
   const counters = BoardfishRenderer.createDrawCounters();
@@ -500,14 +493,7 @@ test('animated image cropping inverse-maps translation and non-uniform scale', (
     restore() {},
     transform() {},
   };
-  const renderer = BoardfishRenderer.createBoardRenderer({
-    canvasTextColor: () => '#fff',
-    currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 100, y2: 100 }),
-    dpr: () => 1,
-    imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({ 'img-1': 'source' }),
-    lineHeight: 24,
-    objectIntersectsRect: () => true,
+  const renderer = createImageRenderer(BoardfishRenderer, obj, source, {
     objectMotionForDraw: () => ({
       translateX: 10,
       translateY: 20,
@@ -516,12 +502,6 @@ test('animated image cropping inverse-maps translation and non-uniform scale', (
       scaleOriginX: 0.25,
       scaleOriginY: 0.75,
     }),
-    objects: () => [obj],
-    panX: () => 0,
-    panY: () => 0,
-    selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
-    viewportCullingEnabled: () => true,
-    zoom: () => 1,
   });
 
   renderer.drawVisibleObjects(
@@ -1004,21 +984,8 @@ test('renderer applies object motion translation and non-uniform scaling around 
     height: 20,
   };
   const obj = { id: 'obj-1', type: 'image', x: 10, y: 20, w: 40, h: 30, data: { imgKey: 'img-1' } };
-  const renderer = BoardfishRenderer.createBoardRenderer({
-    canvasTextColor: () => '#fff',
-    currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 100, y2: 100 }),
-    dpr: () => 1,
-    imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({ 'img-1': 'source' }),
-    lineHeight: 24,
-    objectIntersectsRect: () => true,
+  const renderer = createImageRenderer(BoardfishRenderer, obj, source, {
     objectMotionForDraw: () => ({ translateY: -3, scaleX: 1.08, scaleY: 0.94 }),
-    objects: () => [obj],
-    panX: () => 0,
-    panY: () => 0,
-    selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
-    viewportCullingEnabled: () => true,
-    zoom: () => 1,
   });
 
   renderer.drawVisibleObjects(context, BoardfishRenderer.createDrawCounters());
@@ -1051,26 +1018,13 @@ test('renderer applies motion scaling around the requested fractional object ori
     height: 20,
   };
   const obj = { id: 'obj-1', type: 'image', x: 10, y: 20, w: 40, h: 30, data: { imgKey: 'img-1' } };
-  const renderer = BoardfishRenderer.createBoardRenderer({
-    canvasTextColor: () => '#fff',
-    currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 100, y2: 100 }),
-    dpr: () => 1,
-    imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({ 'img-1': 'source' }),
-    lineHeight: 24,
-    objectIntersectsRect: () => true,
+  const renderer = createImageRenderer(BoardfishRenderer, obj, source, {
     objectMotionForDraw: () => ({
       scaleX: 1.05,
       scaleY: 1 / 1.05,
       scaleOriginX: 0.5,
       scaleOriginY: 0.12,
     }),
-    objects: () => [obj],
-    panX: () => 0,
-    panY: () => 0,
-    selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
-    viewportCullingEnabled: () => true,
-    zoom: () => 1,
   });
 
   renderer.drawVisibleObjects(context, BoardfishRenderer.createDrawCounters());
@@ -1612,17 +1566,12 @@ test('text selection copy feedback can be cancelled before the selected text cha
   assert.equal(context.BoardfishMotion.cancelTextSelectionMotion('missing'), false);
 });
 
-test('selection copy feedback resolves every selected object', () => {
+test('multi-object copy feedback animates every copied object', () => {
   const { context, setTime } = loadMotion();
   const image = { id: 'img-1', type: 'image' };
   const text = { id: 'text-1', type: 'text' };
-  context.selectedIds = new Set([image.id, text.id]);
-  context.objectsMap = new Map([
-    [image.id, image],
-    [text.id, text],
-  ]);
 
-  context.BoardfishMotion.applyCopyFeedback({ selection: true });
+  context.BoardfishMotion.applyCopyFeedback({ objects: [image, text] });
   setTime(100);
 
   assert.ok(context.BoardfishMotion.objectMotionForDraw(image));

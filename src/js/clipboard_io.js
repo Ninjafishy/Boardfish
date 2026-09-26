@@ -70,9 +70,7 @@
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   function clipboardIoNow() {
-    return typeof performance !== 'undefined' && typeof performance.now === 'function'
-      ? performance.now()
-      : Date.now();
+    return performance.now();
   }
 
   function clipboardIoElapsedMs(startedAt) {

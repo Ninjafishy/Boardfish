@@ -99,7 +99,6 @@ function openCtxMenuAt(x, y) {
   const maxActionRight = right - gap;
   const maxActionLeft = Math.max(minActionLeft, maxActionRight - actionWidth);
   let menuLeft = Math.round(clampMenuCoord(x, menuWidth, left, right));
-  if (menuLeft <= left + MENU_VIEWPORT_EDGE_MARGIN) menuLeft = minActionLeft;
   let actionLeft = menuLeft + menuWidth + gap;
 
   if (actionLeft + actionWidth > maxActionRight) {
@@ -191,8 +190,7 @@ var MENU_COMMANDS = {
   'obj-btn-move-to-back': () => { closeObjCtxMenu('command:move-to-back'); sendSelectedToBack(); },
   'obj-btn-flip': flipSelectedImages,
   'obj-btn-rotate': rotateSelectedImages,
-  'obj-btn-save-image': () => { closeObjCtxMenu('command:save-image'); saveSelectedImage(); },
-  'obj-btn-save-images': () => { closeObjCtxMenu('command:save-images'); showInputShield({ keepSelectionOverlay: true }); saveSelectedImages(); },
+  'obj-btn-save-image': () => { closeObjCtxMenu('command:save-image'); exportSelectedImages(); },
   'text-btn-copy': () => { closeTextCtxMenu('command:copy'); copyTextEditSelection(); },
   'text-btn-paste': () => { closeTextCtxMenu('command:paste'); pasteTextIntoEditSelection(); },
   'text-btn-delete': () => { closeTextCtxMenu('command:delete'); deleteTextEditSelection(); },
@@ -406,10 +404,7 @@ var SHORTCUT_MENU_COMMANDS = {
   'move-to-back': [['obj-ctx-menu', 'obj-btn-move-to-back']],
   'flip-image': [['obj-ctx-menu', 'obj-btn-flip']],
   'rotate-image': [['obj-ctx-menu', 'obj-btn-rotate']],
-  'export-image': [
-    ['obj-ctx-menu', 'obj-btn-save-image'],
-    ['obj-ctx-menu', 'obj-btn-save-images'],
-  ],
+  'export-image': [['obj-ctx-menu', 'obj-btn-save-image']],
   delete: [
     ['text-ctx-menu', 'text-btn-delete'],
     ['obj-ctx-menu', 'obj-btn-delete'],
@@ -455,36 +450,14 @@ function resetZoomToClosestObject() {
     }
   }
   const object = closestImage || closestText;
-  const targetZoom = 1;
-  if (!object) {
-    const changed = BoardfishViewportState.setZoomPan(
-      targetZoom,
-      window.innerWidth / 2 - center.x * targetZoom,
-      window.innerHeight / 2 - center.y * targetZoom,
-    );
-    scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'reset-zoom' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
-    ViewportDebug.end(dbg, {
-      mode: 'empty-board-center',
-      centerX: center.x,
-      centerY: center.y,
-      panX,
-      panY,
-      zoom,
-    });
-    return;
-  }
-  const objectCenterX = object.x + object.w / 2;
-  const objectCenterY = object.y + object.h / 2;
-  const changed = BoardfishViewportState.setZoomPan(
-    targetZoom,
-    window.innerWidth / 2 - objectCenterX * targetZoom,
-    window.innerHeight / 2 - objectCenterY * targetZoom,
-  );
+  const objectCenterX = object ? object.x + object.w / 2 : center.x;
+  const objectCenterY = object ? object.y + object.h / 2 : center.y;
+  const changed = BoardfishViewportState.setZoomPan(1, window.innerWidth / 2 - objectCenterX, window.innerHeight / 2 - objectCenterY);
   scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'reset-zoom' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   ViewportDebug.end(dbg, {
-    objectId: object.id,
-    objectType: object.type,
-    distanceSq: closestImage ? closestImageDistanceSq : closestTextDistanceSq,
+    ...(object
+      ? { objectId: object.id, objectType: object.type, distanceSq: closestImage ? closestImageDistanceSq : closestTextDistanceSq }
+      : { mode: 'empty-board-center' }),
     centerX: center.x,
     centerY: center.y,
     objectCenterX,
@@ -570,14 +543,12 @@ function updateObjMenuActions() {
   for (const id of selectedIds) {
     if (objectsMap.get(id)?.type === 'image' && ++imageCount === 2) break;
   }
-  const multiSelected = isMultiSelected();
   const showImageActions = imageCount >= 1;
   objectActionsSep.style.display = showImageActions ? 'block' : 'none';
   flipBtn.style.display = showImageActions ? '' : 'none';
   rotateBtn.style.display = showImageActions ? '' : 'none';
-  saveImageBtn.style.display = !multiSelected && imageCount === 1 ? '' : 'none';
-  saveImagesBtn.firstElementChild.textContent = imageCount === 1 ? 'Export Image' : 'Export Images';
-  saveImagesBtn.style.display = multiSelected && imageCount >= 1 ? '' : 'none';
+  saveImageBtn.style.display = showImageActions ? '' : 'none';
+  saveImageBtn.firstElementChild.textContent = imageCount > 1 ? 'Export Images' : 'Export Image';
   exportSep.style.display = showImageActions ? 'block' : 'none';
 }
 

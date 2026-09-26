@@ -130,7 +130,7 @@ async function addImage(src, cx, cy, imgKey, options = {}) {
     if (_bulkImageInsertDepth > 0) {
       _bulkImageInsertAdded++;
     } else {
-      BoardfishEditorState.setSelection([obj.id], { primaryId: obj.id, exitEditing: false });
+      BoardfishEditorState.setSelection([obj.id], { primaryId: obj.id });
       scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'add-image' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       pushHistory('add-image');
     }
@@ -255,7 +255,7 @@ async function insertImageFiles(files, x, y
   const concurrency = Math.min(WEB_IMAGE_INSERT_CONCURRENCY, accepted.length);
   const bulkZBase = bulk ? zCounter + 1 : null;
   const addedIds = new Array(accepted.length);
-  showInputShield();
+  const releaseInputShield = acquireInputShield();
   if (bulk) {
     beginBulkImageInsert();
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
@@ -335,7 +335,7 @@ async function insertImageFiles(files, x, y
     if (bulk) {
       const ids = addedIds.filter(Boolean);
       const primaryId = ids[ids.length - 1];
-      if (primaryId) BoardfishEditorState.setSelection(ids, { primaryId, exitEditing: false });
+      if (primaryId) BoardfishEditorState.setSelection(ids, { primaryId });
       if (typeof BOARDFISH_PRODUCTION === 'undefined') {
         const historyAdded = finishBulkImageInsert();
         InsertDebug.step(dbg, 'bulk:end', { source, added, historyAdded });
@@ -343,7 +343,7 @@ async function insertImageFiles(files, x, y
         finishBulkImageInsert();
       }
     }
-    hideInputShield();
+    releaseInputShield();
     if (contentLimitDropped) BoardfishWebLimits.notify(BoardfishWebLimits.boardContentLimitMessage());
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
       InsertDebug.end(dbg, { source, fileCount, acceptedFileCount: accepted.length, added, concurrency, ...dropped });

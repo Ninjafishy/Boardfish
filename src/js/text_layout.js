@@ -252,11 +252,7 @@ const trimMapCache = (map, maxEntries) => {
   while (map.size > maxEntries) map.delete(map.keys().next().value);
 };
 
-const textLayoutDebugNow = () => (
-  typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-);
+const textLayoutDebugNow = () => performance.now();
 
 const textLayoutDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -1223,14 +1219,7 @@ function getTextLayoutForLineRange(obj, first = 0, last = first) {
     });
     setCachedTextWrappedLineIndex(obj, content, wrapped.lineIndex, wrapped.lineCount);
     const layout = new Array(wrapped.lines.length);
-    for (let i = 0; i < wrapped.lines.length; i++) {
-      const line = wrapped.lines[i];
-      layout[i] = layoutLineFromWrappedLine(
-        obj,
-        line,
-        Number.isFinite(line?.visualLineIndex) ? line.visualLineIndex : first + i,
-      );
-    }
+    for (let i = 0; i < wrapped.lines.length; i++) layout[i] = layoutLineFromWrappedLine(obj, wrapped.lines[i], first + i);
     return setCachedTextViewportLayoutRange(obj, content, first, last, layout, wrapped.lineCount);
   }
   const totalLineCount = lineIndexCache.lineCount;
@@ -1273,17 +1262,15 @@ function lineXAtOffset(line, obj, offset) {
   return lineBaseX(obj) + line.prefixWidths[Math.max(0, Math.min(offset, line.text.length))];
 }
 
-function lineHitOffsetForX(line, wx, obj, nearest = false) {
-  const textLength = line.text.length;
+function lineHitOffsetForX(line, wx, obj) {
   const pw = line.prefixWidths;
   const target = wx - lineBaseX(obj);
-  let lo = 0, hi = textLength;
+  let lo = 0, hi = line.text.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (nearest ? pw[mid] < target : target >= pw[mid] + (pw[mid + 1] - pw[mid]) / 2) lo = mid + 1;
+    if (pw[mid] < target) lo = mid + 1;
     else hi = mid;
   }
-  if (!nearest) return lo;
   const left = Math.max(0, lo - 1);
   let offset = Math.abs(target - pw[left]) <= Math.abs(target - pw[lo]) ? left : lo;
   const x = pw[offset];
@@ -1436,12 +1423,7 @@ function createTextDrawPlan(line, text, start, end) {
 }
 
 function prepareTextLineForDraw(line) {
-  if (!line) return null;
-  const text = String(line.text ?? '');
-  if (!line._textDrawPlanCache) {
-    line._textDrawPlanCache = createTextDrawPlan(line, text, 0, text.length);
-  }
-  return line._textDrawPlanCache;
+  return line._textDrawPlanCache ||= createTextDrawPlan(line, line.text, 0, line.text.length);
 }
 
 const drawTextLineRange = (context, line, obj, start = 0, end = line.text.length
@@ -1451,15 +1433,10 @@ const drawTextLineRange = (context, line, obj, start = 0, end = line.text.length
 ) => {
   const text = line.text;
   const cacheable = start === 0 && end === text.length;
-  let plan = cacheable ? line._textDrawPlanCache : null;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const cacheHit = !!plan;
+  const cacheHit = cacheable && !!line._textDrawPlanCache;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (!plan) {
-    plan = cacheable
-      ? prepareTextLineForDraw(line)
-      : createTextDrawPlan(line, text, start, end);
-  }
+  const plan = cacheable ? prepareTextLineForDraw(line) : createTextDrawPlan(line, text, start, end);
   const baseX = lineBaseX(obj);
   for (const draw of plan) {
     context.fillText(draw.text, baseX + draw.x, line.textY);
@@ -1470,7 +1447,7 @@ const drawTextLineRange = (context, line, obj, start = 0, end = line.text.length
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 };
 
-function layoutHitTestCaret(layout, wx, wy, obj, legacyScalar = false) {
+function layoutHitTestCaret(layout, wx, wy, obj) {
   if (!layout.length) return { index: 0 };
   let lo = 0;
   let hi = layout.length - 1;
@@ -1481,7 +1458,7 @@ function layoutHitTestCaret(layout, wx, wy, obj, legacyScalar = false) {
   }
   const line = layout[lo];
   if (!line.text.length) return { index: line.startIndex, lineStartIndex: line.startIndex };
-  const offset = lineHitOffsetForX(line, wx, obj, !legacyScalar);
+  const offset = lineHitOffsetForX(line, wx, obj);
   const hitIndex = line.startIndex + offset;
   TextSelDebug._logHit(wx, wy, obj, line, hitIndex, line.prefixWidths);
   return { index: hitIndex, lineStartIndex: line.startIndex };

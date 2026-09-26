@@ -81,7 +81,6 @@ function loadClipboardExportHarness(options = {}) {
     pendingPngBlobResolves: [],
     pendingTextCopyResolves: [],
     pendingTokenCopyResolves: [],
-    pulses: 0,
     renderImageToCanvas: 0,
     renders: [],
     resolveNextCopiedText(result = { boardfishTokenWritten: true }) {
@@ -166,7 +165,6 @@ function loadClipboardExportHarness(options = {}) {
       applyCopyFeedback(payload = {}) {
         if (payload.textSelection) calls.jello.push({ ...payload.textSelection });
         if (payload.objects) calls.objectJello.push(payload.objects.map((obj) => obj.id));
-        if (payload.selection) calls.pulses++;
         return true;
       },
     },
@@ -359,6 +357,7 @@ function loadTextEditCopyHarness(value, options = {}) {
     focus() {},
   };
   const context = {
+    performance,
     console,
     editingId: 'text-1',
     _editEl: editProxy,
@@ -572,7 +571,6 @@ test('copying a selected text object jiggles after its clipboard write finishes'
   assert.deepEqual(context.calls.copiedTexts, [context.textObject.data.content]);
   assert.deepEqual(context.calls.jello, []);
   assert.deepEqual(context.calls.objectJello, []);
-  assert.equal(context.calls.pulses, 0);
   assert.deepEqual(context.calls.renders, []);
 
   assert.equal(copyResult, true);
@@ -625,13 +623,13 @@ test('copying multiple objects jiggles after the browser clipboard marker settle
   assert.equal(context.copySelected(), true);
   assert.deepEqual([...context.calls.jsClipboards[0].objects].map((obj) => obj.id), ['text-1', 'text-2']);
   assert.deepEqual(context.calls.copiedTokens, ['web-token']);
-  assert.equal(context.calls.pulses, 0);
+  assert.deepEqual(context.calls.objectJello, []);
 
   context.calls.resolveNextCopiedToken();
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
-  assert.equal(context.calls.pulses, 1);
+  assert.deepEqual(context.calls.objectJello.map((ids) => [...ids]), [['text-1', 'text-2']]);
 });
 
 test('cutting a selected object copies without jiggle and deletes immediately', () => {
@@ -643,7 +641,6 @@ test('cutting a selected object copies without jiggle and deletes immediately', 
   assert.deepEqual(context.calls.copiedTexts, [context.textObject.data.content]);
   assert.deepEqual(context.calls.jello, []);
   assert.deepEqual(context.calls.objectJello, []);
-  assert.equal(context.calls.pulses, 0);
   assert.equal(context.calls.deleted, 1);
   assert.equal(context.calls.pendingTextCopyResolves.length, 1);
 });

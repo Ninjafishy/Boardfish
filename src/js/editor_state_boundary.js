@@ -6,10 +6,7 @@
     selectedIds.clear();
   }
 
-  function setSelectionState(ids = [], {
-    primaryId = null,
-    exitEditing = true,
-  } = {}) {
+  function setSelectionState(ids = [], { primaryId = null } = {}) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const startedAt = root.performance?.now?.() ?? Date.now();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -19,7 +16,6 @@
     const previousPrimaryId = selectedId || '';
     const previousEditingId = editingId || '';
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    if (exitEditing && editingId && !(ids instanceof Set ? ids.has(editingId) : nextIds.includes(editingId))) exitEdit();
     selectedIds.clear();
     let lastExistingId = null;
     for (const id of nextIds) {
@@ -35,7 +31,6 @@
         previousCount,
         previousPrimaryId,
         previousEditingId,
-        exitEditing,
         requestedPrimaryId: primaryId || '',
       });
     }
@@ -48,17 +43,12 @@
 
   function removeObjectsById(ids = []) {
     const idsToRemove = ids instanceof Set ? ids : new Set(ids);
-    if (!idsToRemove.size) {
-      if (selectedId && !selectedIds.has(selectedId)) selectedId = null;
-      return;
-    }
     let write = 0;
     for (let read = 0; read < objects.length; read++) {
       const obj = objects[read];
       if (idsToRemove.has(obj.id)) {
         objectsMap.delete(obj.id);
         selectedIds.delete(obj.id);
-        if (selectedId === obj.id) selectedId = null;
         continue;
       }
       objects[write++] = obj;

@@ -246,7 +246,7 @@
   let touchSelectionDrag = null;
   let suppressCompatibilityMouseUntil = 0;
 
-  const touchInputNow = () => root.performance?.now?.() ?? Date.now();
+  const touchInputNow = () => performance.now();
 
   function preventTouchDefault(event) {
     if (event?.cancelable) event.preventDefault();
@@ -286,20 +286,15 @@
     const target = touchMouseTarget(point);
     target.dispatchEvent(makeTouchMouseEvent('mousedown', point, 0, 1));
     target.dispatchEvent(makeTouchMouseEvent('mouseup', point, 0, 0));
-    if (editingId && _editEl) {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const obj = typeof objectsMap?.get === 'function' ? objectsMap.get(editingId) : null;
-        focusTextEditProxyNow(_editEl, obj, 'touch-tap-focus', {
-          phase: 'touch-tap',
-          clientX: point.x,
-          clientY: point.y,
-        });
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      } else {
-        focusTextEditProxyNow(_editEl);
+    if (editingId && _editEl) focusTextEditProxyNow(_editEl
+      /* BOARDFISH_DEV_DIAGNOSTICS_START */
+      , typeof objectsMap?.get === 'function' ? objectsMap.get(editingId) : null, 'touch-tap-focus', {
+        phase: 'touch-tap',
+        clientX: point.x,
+        clientY: point.y,
       }
-    }
+      /* BOARDFISH_DEV_DIAGNOSTICS_END */
+    );
   }
 
   function dispatchTouchRightClick(point) {
@@ -418,17 +413,12 @@
     controller.pointerMove(event);
   }
 
-  function onTouchPointerUp(event) {
-    if (event.pointerType !== 'touch' || !controller.pointerUp(event)) return;
+  const finishTouchPointer = (finish) => (event) => {
+    if (event.pointerType !== 'touch' || !finish(event)) return;
     markTouchCompatibilityWindow();
     releaseTouchPointer(event);
-  }
-
-  function onTouchPointerCancel(event) {
-    if (event.pointerType !== 'touch' || !controller.pointerCancel(event)) return;
-    markTouchCompatibilityWindow();
-    releaseTouchPointer(event);
-  }
+  };
+  const onTouchPointerCancel = finishTouchPointer(controller.pointerCancel);
 
   const forEachChangedTouch = (event, callback) => {
     for (let i = 0; i < (event.changedTouches?.length || 0); i++) callback(event.changedTouches[i], event);
@@ -472,7 +462,7 @@
   } else {
     canvas.addEventListener('pointerdown', onTouchPointerDown, { passive: false });
     canvas.addEventListener('pointermove', onTouchPointerMove, { passive: false });
-    canvas.addEventListener('pointerup', onTouchPointerUp, { passive: false });
+    canvas.addEventListener('pointerup', finishTouchPointer(controller.pointerUp), { passive: false });
     canvas.addEventListener('pointercancel', onTouchPointerCancel, { passive: false });
     canvas.addEventListener('lostpointercapture', onTouchPointerCancel, { passive: false });
   }

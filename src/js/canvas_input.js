@@ -9,9 +9,7 @@ var _textInputSelectionHistorySuppress = null, _editHistoryActionStartState = nu
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 function canvasInputNow() {
-  return typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
+  return performance.now();
 }
 
 function canvasInputDebugRound(value) {
@@ -168,9 +166,7 @@ function handleViewportWheel(e) {
     }
     if (e.ctrlKey || e.metaKey) {
       ViewportDebug.count('wheelZoom');
-      const factor = Math.abs(e.deltaY) < 30
-        ? Math.pow(0.995, e.deltaY)
-        : e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      const factor = Math.pow(0.995, e.deltaY);
       const requestedZoom = zoom * factor;
       scheduleTransform(BoardfishViewportState.zoomAroundClient(e.clientX, e.clientY, requestedZoom) /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'wheel-zoom', e /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       if (collectDebug) {
@@ -434,29 +430,22 @@ function createSelectionDragSession(startClientX, startClientY) {
   const dragZoom = Math.max(0.0001, zoom);
   let grpMoved = false;
   let finished = false;
-  function applyGrpDrag(dx, dy) {
-    dx /= dragZoom; dy /= dragZoom;
-    for (const item of grpItems) { item.obj.x = item.startX + dx; item.obj.y = item.startY + dy; }
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') withRenderSource('group-drag', () => drawBoard());
-    else drawBoard();
-    updateSelectionOverlay();
-  }
-  const dragCommitter = createRafCommitter(applyGrpDrag);
   function move(clientX, clientY) {
     if (finished || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return false;
     const dx = clientX - startClientX;
     const dy = clientY - startClientY;
     if (!grpMoved && dx*dx + dy*dy > 9) grpMoved = true;
     if (!grpMoved) return false;
-    dragCommitter.schedule(dx, dy);
+    const worldDx = dx / dragZoom, worldDy = dy / dragZoom;
+    for (const item of grpItems) { item.obj.x = item.startX + worldDx; item.obj.y = item.startY + worldDy; }
+    scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'drag' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     return true;
   }
   function finish() {
     if (finished) return false;
     finished = true;
     if (!grpMoved) return false;
-    dragCommitter.flush();
-    pushHistory('group-drag', grpItems);
+    pushHistory('drag', grpItems);
     return true;
   }
   return { move, finish };
@@ -634,23 +623,14 @@ function startTextSelectionDrag(e, obj, wp) {
 }
 
 function startObjectDrag(e, obj) {
-  if (editingId && editingId !== obj.id) exitEdit();
   const wasSelected = isSelected(obj.id);
   const canClickToEditText = obj.type === 'text' && wasSelected && selectedIds.size === 1;
   if (!wasSelected) selectObject(obj.id);
+  const startX = e.clientX, startY = e.clientY;
+  const drag = createSelectionDragSession(startX, startY);
 
-  const startX = e.clientX, startY = e.clientY, objectStartX = obj.x, objectStartY = obj.y;
-  let moved = false;
-
-  function onMove(ev) {
-    const dx = ev.clientX - startX, dy = ev.clientY - startY;
-    if (!moved && dx*dx + dy*dy > 9) moved = true;
-    if (!moved) return;
-    obj.x = objectStartX + dx / zoom; obj.y = objectStartY + dy / zoom;
-    scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'object-drag' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
-  }
   function onUp(ev) {
-    if (!moved) {
+    if (!drag.finish()) {
       if (!isSelected(obj.id)) selectObject(obj.id);
       if (canClickToEditText) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -747,11 +727,9 @@ function startObjectDrag(e, obj) {
           clickToEditTotalMs: canvasInputDebugRound(canvasInputNow() - clickEditStart),
         });
       }
-      return;
     }
-    pushHistory('drag', [obj.id]);
   }
-  beginDocumentDrag({ move: onMove, up: onUp });
+  beginDocumentDrag({ move: (ev) => drag.move(ev.clientX, ev.clientY), up: onUp });
 }
 
 canvas.addEventListener('mousedown', (e) => {

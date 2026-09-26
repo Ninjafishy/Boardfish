@@ -66,9 +66,7 @@ function loadKeyboard(overrides = {}) {
     BoardfishExportUtils: {
       selectedImageObjects: () => [],
     },
-    saveSelectedImage: () => calls.push(['saveSelectedImage']),
-    showInputShield: () => calls.push(['showInputShield']),
-    saveSelectedImages: () => calls.push(['saveSelectedImages']),
+    exportSelectedImages: () => calls.push(['exportSelectedImages']),
     cutSelected: () => calls.push(['cutSelected']),
     redo: () => calls.push(['redo']),
     undo: () => calls.push(['undo']),

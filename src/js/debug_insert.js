@@ -42,11 +42,7 @@ var InsertDebug = (() => {
         readMode: e.meta?.readMode || '',
         sourceKind: e.meta?.sourceKind || '',
         imgKey: e.meta?.imgKey || '',
-        concurrency: e.meta?.concurrency ?? '',
-        acceptedFileCount: e.meta?.acceptedFileCount ?? '',
-        added: e.meta?.added ?? '',
-        historyAdded: e.meta?.historyAdded ?? '',
-        skipped: e.meta?.skipped ?? '',
+        ...debugMetaFields(e, 'concurrency acceptedFileCount added historyAdded skipped'),
         error: e.meta?.error || '',
       }));
   }
@@ -60,7 +56,7 @@ var InsertDebug = (() => {
     console.table(out);
     return out;
   }
-  const dump = () => dumpDebugEvents(events, ({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
+  const dump = () => dumpDebugEvents(events);
   function eventsForId(id) {
     return events.filter(e => e.id === id);
   }

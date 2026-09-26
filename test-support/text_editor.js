@@ -64,6 +64,7 @@ function loadLiveTextEditResizeHarness() {
     },
   });
   const context = {
+    performance,
     console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],

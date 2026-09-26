@@ -236,7 +236,7 @@ function snapshot() {
 // Unchanged objects share the previous snapshot's reference (safe since
 // restoreSnapshot always deep-clones before mutating).
 function pushHistory(reason = '', dirty = null, beforeEditState = null) {
-  if (dirty) for (const item of dirty) _dirtyIds.add(item?.obj?.id ?? item?.id ?? item);
+  if (dirty) for (const item of dirty) _dirtyIds.add(item?.obj?.id ?? item);
   const contentChanged = _dirtyIds.size > 0;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const dbg = HistoryDebug.start('pushHistory', {
@@ -425,7 +425,7 @@ function restoreSnapshot(s, editStateOverride) {
   const selectionStart = performance.now();
   const previousSelectedCount = selectedIds.size;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  BoardfishEditorState.setSelection(obj?.type === 'text' ? [obj.id] : [...selectedIds], { exitEditing: false });
+  BoardfishEditorState.setSelection(obj?.type === 'text' ? [obj.id] : [...selectedIds]);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   HistoryDebug.step(dbg, 'restore-selection', {
     setSelectionMs: performance.now() - selectionStart,

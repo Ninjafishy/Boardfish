@@ -109,21 +109,11 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (commandOnly && isShortcutKey(e, 'c')) {
-    if (e.repeat) {
-      if (!editingId || hasOpenContextMenu()) consumeShortcutEvent(e);
-      return;
-    }
-    if (hasOpenContextMenu()) {
+    if (!editingId || hasOpenContextMenu()) {
       consumeShortcutEvent(e);
-      runShortcutCommand('copy', () => {
+      if (!e.repeat) runShortcutCommand('copy', () => {
         if (!editingId) copySelected();
       });
-      return;
-    }
-    if (!editingId) {
-      consumeShortcutEvent(e);
-      runShortcutCommand('copy', copySelected);
-      return;
     }
     return;
   }
@@ -196,14 +186,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (noShortcutModifiers && (e.key === 'Backspace' || e.key === 'Delete')) {
-    if (hasOpenContextMenu()) {
-      consumeShortcutEvent(e);
-      runShortcutCommand('delete', () => {
-        if (hasSelection() && !editingId) deleteSelected();
-      });
-      return;
-    }
-    if (hasSelection() && !editingId) {
+    if (hasOpenContextMenu() || (hasSelection() && !editingId)) {
       consumeShortcutEvent(e);
       runShortcutCommand('delete', deleteSelected);
     }
@@ -217,17 +200,9 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (commandOnly && !editingId && isShortcutKey(e, 'e')) {
-    const imageObjs = BoardfishExportUtils.selectedImageObjects();
-    if (hasOpenContextMenu() || imageObjs.length) {
+    if (hasOpenContextMenu() || BoardfishExportUtils.selectedImageObjects().length) {
       consumeShortcutEvent(e);
-      runShortcutCommand('export-image', () => {
-        if (!imageObjs.length) return;
-        if (imageObjs.length === 1) saveSelectedImage();
-        else {
-          showInputShield({ keepSelectionOverlay: true });
-          saveSelectedImages();
-        }
-      });
+      runShortcutCommand('export-image', exportSelectedImages);
     }
     return;
   }
@@ -238,13 +213,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (shiftCommandOnly && isShortcutKey(e, 'z')) {
-    consumeShortcutEvent(e);
-    runShortcutCommand('redo', redo);
-    return;
-  }
-
-  if (commandOnly && isShortcutKey(e, 'y')) {
+  if ((shiftCommandOnly && isShortcutKey(e, 'z')) || (commandOnly && isShortcutKey(e, 'y'))) {
     consumeShortcutEvent(e);
     runShortcutCommand('redo', redo);
     return;

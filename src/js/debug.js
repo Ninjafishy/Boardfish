@@ -1,5 +1,6 @@
 // ─── Clipboard / image debugger ──────────────────────────────────────────────
 var ClipDebug = (() => {
+  const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
   const MAX_EVENTS = 2000;
 
@@ -35,21 +36,10 @@ var ClipDebug = (() => {
       ms: e.meta?.ms ?? '',
       path: e.meta?.path || '',
       objectId: e.meta?.objectId || '',
-      selectedCount: e.meta?.selectedCount ?? '',
-      objectCount: e.meta?.objectCount ?? '',
-      imageCount: e.meta?.imageCount ?? '',
-      textObjectCount: e.meta?.textObjectCount ?? '',
-      textCharCount: e.meta?.textCharCount ?? '',
-      largestTextChars: e.meta?.largestTextChars ?? '',
-      trimmedTextObjects: e.meta?.trimmedTextObjects ?? '',
-      additionalTextBytes: e.meta?.additionalTextBytes ?? '',
-      processed: e.meta?.processed ?? '',
-      accepted: e.meta?.accepted ?? '',
-      historyIndex: e.meta?.historyIndex ?? '',
+      ...debugMetaFields(e, 'selectedCount objectCount imageCount textObjectCount textCharCount largestTextChars'),
+      ...debugMetaFields(e, 'trimmedTextObjects additionalTextBytes processed accepted historyIndex'),
       imgKey: e.meta?.imgKey || '',
-      added: e.meta?.added ?? '',
-      objectDelta: e.meta?.objectDelta ?? '',
-      blobSize: e.meta?.blobSize ?? '',
+      ...debugMetaFields(e, 'added objectDelta blobSize'),
       blobType: e.meta?.type || '',
       fileName: e.meta?.fileName || '',
       fileSize: e.meta?.fileSize ?? '',
@@ -57,106 +47,31 @@ var ClipDebug = (() => {
       sourceKind: e.meta?.sourceKind || '',
       sourceLen: e.meta?.sourceLen ?? '',
       sourcePrefix: e.meta?.sourcePrefix || '',
-      sourceBytes: e.meta?.sourceBytes ?? '',
-      bytes: e.meta?.bytes ?? '',
-      width: e.meta?.width ?? '',
-      height: e.meta?.height ?? '',
-      clipboardWriteMs: e.meta?.clipboardWriteMs ?? '',
-      textLen: e.meta?.textLen ?? '',
-      boardfishTokenWritten: e.meta?.boardfishTokenWritten ?? '',
-      richAttempted: e.meta?.richAttempted ?? '',
+      ...debugMetaFields(e, 'sourceBytes bytes width height clipboardWriteMs textLen boardfishTokenWritten richAttempted'),
       inputType: e.meta?.inputType || '',
       eventType: e.meta?.eventType || '',
-      eventAgeMs: e.meta?.eventAgeMs ?? '',
-      eventAt: e.meta?.eventAt ?? '',
-      inputDataLength: e.meta?.inputDataLength ?? '',
-      isComposing: e.meta?.isComposing ?? '',
-      isTrusted: e.meta?.isTrusted ?? '',
-      cancelable: e.meta?.cancelable ?? '',
-      defaultPrevented: e.meta?.defaultPrevented ?? '',
-      sourceTextLen: e.meta?.sourceTextLen ?? '',
-      fallbackTextChars: e.meta?.fallbackTextChars ?? '',
-      candidateTextLen: e.meta?.candidateTextLen ?? '',
-      selectedChars: e.meta?.selectedChars ?? '',
-      selectionStart: e.meta?.selectionStart ?? '',
-      selectionEnd: e.meta?.selectionEnd ?? '',
-      replacementStart: e.meta?.replacementStart ?? '',
-      replacementEnd: e.meta?.replacementEnd ?? '',
-      replacementChars: e.meta?.replacementChars ?? '',
-      oldChars: e.meta?.oldChars ?? '',
-      nextChars: e.meta?.nextChars ?? '',
-      insertedChars: e.meta?.insertedChars ?? '',
-      removedChars: e.meta?.removedChars ?? '',
-      proxyChars: e.meta?.proxyChars ?? '',
-      textBytes: e.meta?.textBytes ?? '',
-      textLineCount: e.meta?.textLineCount ?? '',
-      largestLineChars: e.meta?.largestLineChars ?? '',
-      objectWidth: e.meta?.objectWidth ?? '',
-      objectHeight: e.meta?.objectHeight ?? '',
-      editStartChars: e.meta?.editStartChars ?? '',
-      layoutCachePresent: e.meta?.layoutCachePresent ?? '',
-      layoutCacheLines: e.meta?.layoutCacheLines ?? '',
-      layoutPatched: e.meta?.layoutPatched ?? '',
-      layoutPatchOldLines: e.meta?.layoutPatchOldLines ?? '',
-      layoutPatchNewLines: e.meta?.layoutPatchNewLines ?? '',
-      layoutPatchRemovedLines: e.meta?.layoutPatchRemovedLines ?? '',
-      layoutPatchInsertedLines: e.meta?.layoutPatchInsertedLines ?? '',
-      layoutPatchLineDelta: e.meta?.layoutPatchLineDelta ?? '',
-      layoutPatchLogicalLineDelta: e.meta?.layoutPatchLogicalLineDelta ?? '',
+      ...debugMetaFields(e, 'eventAgeMs eventAt inputDataLength isComposing isTrusted cancelable defaultPrevented sourceTextLen fallbackTextChars'),
+      ...debugMetaFields(e, 'candidateTextLen selectedChars selectionStart selectionEnd replacementStart replacementEnd replacementChars oldChars nextChars'),
+      ...debugMetaFields(e, 'insertedChars removedChars proxyChars textBytes textLineCount largestLineChars objectWidth objectHeight editStartChars'),
+      ...debugMetaFields(e, 'layoutCachePresent layoutCacheLines layoutPatched layoutPatchOldLines layoutPatchNewLines layoutPatchRemovedLines layoutPatchInsertedLines layoutPatchLineDelta layoutPatchLogicalLineDelta'),
       layoutPatchReason: e.meta?.layoutPatchReason || '',
-      historyActionMs: e.meta?.historyActionMs ?? '',
-      historyPushed: e.meta?.historyPushed ?? '',
-      setRangeTextMs: e.meta?.setRangeTextMs ?? '',
-      valueAssignMs: e.meta?.valueAssignMs ?? '',
-      valueBuildMs: e.meta?.valueBuildMs ?? '',
-      valueSetMs: e.meta?.valueSetMs ?? '',
-      selectionSetMs: e.meta?.selectionSetMs ?? '',
-      textareaMutationMs: e.meta?.textareaMutationMs ?? '',
+      ...debugMetaFields(e, 'historyActionMs historyPushed setRangeTextMs valueAssignMs valueBuildMs valueSetMs selectionSetMs textareaMutationMs'),
       textareaMutationMethod: e.meta?.textareaMutationMethod || '',
-      dispatchMs: e.meta?.dispatchMs ?? '',
-      heightChanged: e.meta?.heightChanged ?? '',
-      restoredMinLinesReset: e.meta?.restoredMinLinesReset ?? '',
-      updatedObjectHeight: e.meta?.updatedObjectHeight ?? '',
-      updatedLogicalLines: e.meta?.updatedLogicalLines ?? '',
-      updatedCachedLines: e.meta?.updatedCachedLines ?? '',
+      ...debugMetaFields(e, 'dispatchMs heightChanged restoredMinLinesReset updatedObjectHeight updatedLogicalLines updatedCachedLines'),
       updatedCachedLineSource: e.meta?.updatedCachedLineSource || '',
-      updatedExpectedLogicalHeight: e.meta?.updatedExpectedLogicalHeight ?? '',
-      updatedExpectedCachedHeight: e.meta?.updatedExpectedCachedHeight ?? '',
-      updatedHeightDeltaFromLogical: e.meta?.updatedHeightDeltaFromLogical ?? '',
-      updatedHeightDeltaFromCached: e.meta?.updatedHeightDeltaFromCached ?? '',
-      beforeAutoHeightObjectHeight: e.meta?.beforeAutoHeightObjectHeight ?? '',
-      beforeAutoHeightLogicalLines: e.meta?.beforeAutoHeightLogicalLines ?? '',
-      beforeAutoHeightCachedLines: e.meta?.beforeAutoHeightCachedLines ?? '',
+      ...debugMetaFields(e, 'updatedExpectedLogicalHeight updatedExpectedCachedHeight updatedHeightDeltaFromLogical updatedHeightDeltaFromCached'),
+      ...debugMetaFields(e, 'beforeAutoHeightObjectHeight beforeAutoHeightLogicalLines beforeAutoHeightCachedLines'),
       beforeAutoHeightCachedLineSource: e.meta?.beforeAutoHeightCachedLineSource || '',
-      beforeAutoHeightExpectedLogicalHeight: e.meta?.beforeAutoHeightExpectedLogicalHeight ?? '',
-      beforeAutoHeightExpectedCachedHeight: e.meta?.beforeAutoHeightExpectedCachedHeight ?? '',
-      beforeAutoHeightHeightDeltaFromLogical: e.meta?.beforeAutoHeightHeightDeltaFromLogical ?? '',
-      beforeAutoHeightHeightDeltaFromCached: e.meta?.beforeAutoHeightHeightDeltaFromCached ?? '',
-      afterAutoHeightObjectHeight: e.meta?.afterAutoHeightObjectHeight ?? '',
-      afterAutoHeightLogicalLines: e.meta?.afterAutoHeightLogicalLines ?? '',
-      afterAutoHeightCachedLines: e.meta?.afterAutoHeightCachedLines ?? '',
+      ...debugMetaFields(e, 'beforeAutoHeightExpectedLogicalHeight beforeAutoHeightExpectedCachedHeight beforeAutoHeightHeightDeltaFromLogical beforeAutoHeightHeightDeltaFromCached'),
+      ...debugMetaFields(e, 'afterAutoHeightObjectHeight afterAutoHeightLogicalLines afterAutoHeightCachedLines'),
       afterAutoHeightCachedLineSource: e.meta?.afterAutoHeightCachedLineSource || '',
-      afterAutoHeightExpectedLogicalHeight: e.meta?.afterAutoHeightExpectedLogicalHeight ?? '',
-      afterAutoHeightExpectedCachedHeight: e.meta?.afterAutoHeightExpectedCachedHeight ?? '',
-      afterAutoHeightHeightDeltaFromLogical: e.meta?.afterAutoHeightHeightDeltaFromLogical ?? '',
-      afterAutoHeightHeightDeltaFromCached: e.meta?.afterAutoHeightHeightDeltaFromCached ?? '',
-      inputEndObjectHeight: e.meta?.inputEndObjectHeight ?? '',
-      inputEndLogicalLines: e.meta?.inputEndLogicalLines ?? '',
-      inputEndCachedLines: e.meta?.inputEndCachedLines ?? '',
+      ...debugMetaFields(e, 'afterAutoHeightExpectedLogicalHeight afterAutoHeightExpectedCachedHeight afterAutoHeightHeightDeltaFromLogical afterAutoHeightHeightDeltaFromCached'),
+      ...debugMetaFields(e, 'inputEndObjectHeight inputEndLogicalLines inputEndCachedLines'),
       inputEndCachedLineSource: e.meta?.inputEndCachedLineSource || '',
-      inputEndExpectedLogicalHeight: e.meta?.inputEndExpectedLogicalHeight ?? '',
-      inputEndExpectedCachedHeight: e.meta?.inputEndExpectedCachedHeight ?? '',
-      inputEndHeightDeltaFromLogical: e.meta?.inputEndHeightDeltaFromLogical ?? '',
-      inputEndHeightDeltaFromCached: e.meta?.inputEndHeightDeltaFromCached ?? '',
-      proxyScrollHeight: e.meta?.proxyScrollHeight ?? '',
-      proxyClientHeight: e.meta?.proxyClientHeight ?? '',
-      renderBoard: e.meta?.renderBoard ?? '',
-      renderOverlay: e.meta?.renderOverlay ?? '',
+      ...debugMetaFields(e, 'inputEndExpectedLogicalHeight inputEndExpectedCachedHeight inputEndHeightDeltaFromLogical inputEndHeightDeltaFromCached'),
+      ...debugMetaFields(e, 'proxyScrollHeight proxyClientHeight renderBoard renderOverlay'),
       renderSource: e.meta?.renderSource || '',
-      pasted: e.meta?.pasted ?? '',
-      seq: e.meta?.seq ?? '',
-      expected: e.meta?.expected ?? '',
-      current: e.meta?.current ?? '',
+      ...debugMetaFields(e, 'pasted seq expected current'),
       ...(includeSkipped ? { skipped: e.meta?.skipped ?? '' } : {}),
       error: e.meta?.error || '',
     };
@@ -188,7 +103,6 @@ var ClipDebug = (() => {
   }
 
   function copyPanReport() {
-    const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
     const copyStarts = events.filter(e => e.op === 'copySelected' && e.step === 'start');
     const copyStart = copyStarts[copyStarts.length - 1];
     if (!copyStart) {
@@ -524,7 +438,6 @@ var ClipDebug = (() => {
   }
 
   function textPasteLagReport(options = {}) {
-    const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
     const pasteStarts = events.filter(e => e.op === 'pasteTextEditSelection' && e.step === 'start');
     const pasteStart = pasteStarts[pasteStarts.length - 1];
     if (!pasteStart) {
@@ -895,34 +808,11 @@ var HistoryDebug = (() => {
       step: e.step,
       dt: e.dt,
       total: e.total,
-      objectCount: e.meta?.objectCount ?? '',
-      historyLength: e.meta?.historyLength ?? '',
-      historyIndex: e.meta?.historyIndex ?? '',
-      cloned: e.meta?.cloned ?? '',
-      reused: e.meta?.reused ?? '',
-      dirtyCount: e.meta?.dirtyCount ?? '',
-      selectedCount: e.meta?.selectedCount ?? '',
-      editState: e.meta?.editState ?? '',
-      restoredEdit: e.meta?.restoredEdit ?? '',
-      actionReason: e.meta?.actionReason ?? '',
-      targetReason: e.meta?.targetReason ?? '',
-      sourceReason: e.meta?.sourceReason ?? '',
-      flushedCheckpoint: e.meta?.flushedCheckpoint ?? '',
-      skipped: e.meta?.skipped ?? '',
-      textObjectCount: e.meta?.textObjectCount ?? '',
-      textCharCount: e.meta?.textCharCount ?? '',
-      largestTextChars: e.meta?.largestTextChars ?? '',
-      textLineCount: e.meta?.textLineCount ?? '',
-      largestTextLineChars: e.meta?.largestTextLineChars ?? '',
-      runtimeTextLayoutObjects: e.meta?.runtimeTextLayoutObjects ?? '',
-      runtimeTextLayoutLines: e.meta?.runtimeTextLayoutLines ?? '',
-      runtimeTextLayoutPrefixEntries: e.meta?.runtimeTextLayoutPrefixEntries ?? '',
+      ...debugMetaFields(e, 'objectCount historyLength historyIndex cloned reused dirtyCount selectedCount editState'),
+      ...debugMetaFields(e, 'restoredEdit actionReason targetReason sourceReason flushedCheckpoint skipped textObjectCount textCharCount'),
+      ...debugMetaFields(e, 'largestTextChars textLineCount largestTextLineChars runtimeTextLayoutObjects runtimeTextLayoutLines runtimeTextLayoutPrefixEntries'),
       restoreCloneMs: e.meta?.cloneObjectsMs ?? '',
-      replaceBoardObjectsMs: e.meta?.replaceBoardObjectsMs ?? '',
-      enterEditMs: e.meta?.enterEditMs ?? '',
-      renderScheduleMs: e.meta?.renderScheduleMs ?? '',
-      reason: e.meta?.reason ?? '',
-      ms: e.meta?.ms ?? '',
+      ...debugMetaFields(e, 'replaceBoardObjectsMs enterEditMs renderScheduleMs reason ms'),
     }));
     console.table(rows);
     return rows;
@@ -931,20 +821,8 @@ var HistoryDebug = (() => {
   function pushes() {
     const rows = events.filter(e => e.op === 'pushHistory' && e.step === 'end').map(e => ({
       id: e.id,
-      objectCount: e.meta?.objectCount ?? '',
-      historyLength: e.meta?.historyLength ?? '',
-      historyIndex: e.meta?.historyIndex ?? '',
-      cloned: e.meta?.cloned ?? '',
-      reused: e.meta?.reused ?? '',
-      reason: e.meta?.reason ?? '',
-      textObjectCount: e.meta?.textObjectCount ?? '',
-      textCharCount: e.meta?.textCharCount ?? '',
-      largestTextChars: e.meta?.largestTextChars ?? '',
-      textLineCount: e.meta?.textLineCount ?? '',
-      largestTextLineChars: e.meta?.largestTextLineChars ?? '',
-      runtimeTextLayoutLines: e.meta?.runtimeTextLayoutLines ?? '',
-      runtimeTextLayoutPrefixEntries: e.meta?.runtimeTextLayoutPrefixEntries ?? '',
-      ms: e.meta?.ms ?? '',
+      ...debugMetaFields(e, 'objectCount historyLength historyIndex cloned reused reason textObjectCount'),
+      ...debugMetaFields(e, 'textCharCount largestTextChars textLineCount largestTextLineChars runtimeTextLayoutLines runtimeTextLayoutPrefixEntries ms'),
     }));
     console.table(rows);
     return rows;
@@ -977,43 +855,11 @@ var HistoryDebug = (() => {
         step: e.step,
         total: e.total,
         dt: e.dt,
-        reason: e.meta?.reason ?? '',
-        ms: e.meta?.ms ?? '',
-        objectCount: e.meta?.objectCount ?? '',
-        cloned: e.meta?.cloned ?? '',
-        reused: e.meta?.reused ?? '',
-        textObjectCount: e.meta?.textObjectCount ?? '',
-        textCharCount: e.meta?.textCharCount ?? '',
-        largestTextChars: e.meta?.largestTextChars ?? '',
-        largestTextId: e.meta?.largestTextId ?? '',
-        textLineCount: e.meta?.textLineCount ?? '',
-        largestTextLineChars: e.meta?.largestTextLineChars ?? '',
-        runtimeTextLayoutObjects: e.meta?.runtimeTextLayoutObjects ?? '',
-        runtimeTextLayoutLines: e.meta?.runtimeTextLayoutLines ?? '',
-        runtimeTextLayoutPrefixEntries: e.meta?.runtimeTextLayoutPrefixEntries ?? '',
-        actionReason: e.meta?.actionReason ?? '',
-        targetReason: e.meta?.targetReason ?? '',
-        sourceReason: e.meta?.sourceReason ?? '',
-        editStateId: e.meta?.editStateId ?? '',
-        editValueChars: e.meta?.editValueChars ?? '',
-        selectionStart: e.meta?.selectionStart ?? '',
-        selectionEnd: e.meta?.selectionEnd ?? '',
-        cloneObjectsMs: e.meta?.cloneObjectsMs ?? '',
-        replaceBoardObjectsMs: e.meta?.replaceBoardObjectsMs ?? '',
-        enterEditMs: e.meta?.enterEditMs ?? '',
-        reusedEditProxy: e.meta?.reusedEditProxy ?? '',
-        proxyDomSyncedForSelection: e.meta?.proxyDomSyncedForSelection ?? '',
-        proxyDomSyncReason: e.meta?.proxyDomSyncReason ?? '',
-        proxyDomSyncMs: e.meta?.proxyDomSyncMs ?? '',
-        proxyDomCharsBeforeSelection: e.meta?.proxyDomCharsBeforeSelection ?? '',
-        proxyDomCharsAfterSelection: e.meta?.proxyDomCharsAfterSelection ?? '',
-        setSelectionRangeMs: e.meta?.setSelectionRangeMs ?? '',
-        focusMs: e.meta?.focusMs ?? '',
-        focusSkipped: e.meta?.focusSkipped ?? '',
-        renderScheduleMs: e.meta?.renderScheduleMs ?? '',
-        flushedCheckpoint: e.meta?.flushedCheckpoint ?? '',
-        historyLength: e.meta?.historyLength ?? '',
-        historyIndex: e.meta?.historyIndex ?? '',
+        ...debugMetaFields(e, 'reason ms objectCount cloned reused textObjectCount textCharCount largestTextChars'),
+        ...debugMetaFields(e, 'largestTextId textLineCount largestTextLineChars runtimeTextLayoutObjects runtimeTextLayoutLines runtimeTextLayoutPrefixEntries actionReason targetReason'),
+        ...debugMetaFields(e, 'sourceReason editStateId editValueChars selectionStart selectionEnd cloneObjectsMs replaceBoardObjectsMs enterEditMs'),
+        ...debugMetaFields(e, 'reusedEditProxy proxyDomSyncedForSelection proxyDomSyncReason proxyDomSyncMs proxyDomCharsBeforeSelection proxyDomCharsAfterSelection setSelectionRangeMs focusMs'),
+        ...debugMetaFields(e, 'focusSkipped renderScheduleMs flushedCheckpoint historyLength historyIndex'),
       }));
     console.table(rows);
     return rows;
@@ -1032,64 +878,16 @@ var HistoryDebug = (() => {
         step: e.step,
         total: e.total,
         dt: e.dt,
-        ms: e.meta?.ms ?? '',
-        reason: e.meta?.reason ?? '',
-        actionReason: e.meta?.actionReason ?? '',
-        targetReason: e.meta?.targetReason ?? '',
-        sourceReason: e.meta?.sourceReason ?? '',
-        flushedCheckpoint: e.meta?.flushedCheckpoint ?? '',
-        flushMs: e.meta?.flushMs ?? '',
-        restoreMs: e.meta?.restoreMs ?? '',
-        skipped: e.meta?.skipped ?? '',
-        objectCount: e.meta?.objectCount ?? '',
-        selectedCount: e.meta?.selectedCount ?? '',
-        editState: e.meta?.editState ?? '',
-        restoredEdit: e.meta?.restoredEdit ?? '',
-	        editStateId: e.meta?.editStateId ?? '',
-	        editValueChars: e.meta?.editValueChars ?? '',
-	        selectionStart: e.meta?.selectionStart ?? '',
-	        selectionEnd: e.meta?.selectionEnd ?? '',
-	        editStateSelectionStart: e.meta?.editStateSelectionStart ?? '',
-	        editStateSelectionEnd: e.meta?.editStateSelectionEnd ?? '',
-	        editStateSelectedChars: e.meta?.editStateSelectedChars ?? '',
-	        actionEditStateSelectionStart: e.meta?.actionEditStateSelectionStart ?? '',
-	        actionEditStateSelectionEnd: e.meta?.actionEditStateSelectionEnd ?? '',
-	        actionEditStateSelectedChars: e.meta?.actionEditStateSelectedChars ?? '',
-	        actionBeforeEditStateSelectionStart: e.meta?.actionBeforeEditStateSelectionStart ?? '',
-	        actionBeforeEditStateSelectionEnd: e.meta?.actionBeforeEditStateSelectionEnd ?? '',
-	        actionBeforeEditStateSelectedChars: e.meta?.actionBeforeEditStateSelectedChars ?? '',
-	        targetEditStateSelectionStart: e.meta?.targetEditStateSelectionStart ?? '',
-	        targetEditStateSelectionEnd: e.meta?.targetEditStateSelectionEnd ?? '',
-	        targetEditStateSelectedChars: e.meta?.targetEditStateSelectedChars ?? '',
-	        sourceEditStateSelectionStart: e.meta?.sourceEditStateSelectionStart ?? '',
-	        sourceEditStateSelectionEnd: e.meta?.sourceEditStateSelectionEnd ?? '',
-	        sourceEditStateSelectedChars: e.meta?.sourceEditStateSelectedChars ?? '',
-	        textObjectCount: e.meta?.textObjectCount ?? '',
-        textCharCount: e.meta?.textCharCount ?? '',
-        largestTextChars: e.meta?.largestTextChars ?? '',
-        largestTextId: e.meta?.largestTextId ?? '',
-        textLineCount: e.meta?.textLineCount ?? '',
-        largestTextLineChars: e.meta?.largestTextLineChars ?? '',
-        runtimeTextLayoutObjects: e.meta?.runtimeTextLayoutObjects ?? '',
-        runtimeTextLayoutLines: e.meta?.runtimeTextLayoutLines ?? '',
-        runtimeTextLayoutPrefixEntries: e.meta?.runtimeTextLayoutPrefixEntries ?? '',
-        cloneObjectsMs: e.meta?.cloneObjectsMs ?? '',
-        replaceBoardObjectsMs: e.meta?.replaceBoardObjectsMs ?? '',
-        setSelectionMs: e.meta?.setSelectionMs ?? '',
-        renderScheduleMs: e.meta?.renderScheduleMs ?? '',
-        enterEditMs: e.meta?.enterEditMs ?? '',
-        reusedEditProxy: e.meta?.reusedEditProxy ?? '',
-        proxyDomSyncedForSelection: e.meta?.proxyDomSyncedForSelection ?? '',
-        proxyDomSyncReason: e.meta?.proxyDomSyncReason ?? '',
-        proxyDomSyncMs: e.meta?.proxyDomSyncMs ?? '',
-        proxyDomCharsBeforeSelection: e.meta?.proxyDomCharsBeforeSelection ?? '',
-        proxyDomCharsAfterSelection: e.meta?.proxyDomCharsAfterSelection ?? '',
-        setSelectionRangeMs: e.meta?.setSelectionRangeMs ?? '',
-        focusMs: e.meta?.focusMs ?? '',
-        focusSkipped: e.meta?.focusSkipped ?? '',
-        proxyChars: e.meta?.proxyChars ?? '',
-        historyLength: e.meta?.historyLength ?? '',
-        historyIndex: e.meta?.historyIndex ?? '',
+        ...debugMetaFields(e, 'ms reason actionReason targetReason sourceReason flushedCheckpoint flushMs'),
+        ...debugMetaFields(e, 'restoreMs skipped objectCount selectedCount editState restoredEdit'),
+	        ...debugMetaFields(e, 'editStateId editValueChars selectionStart selectionEnd editStateSelectionStart'),
+	        ...debugMetaFields(e, 'editStateSelectionEnd editStateSelectedChars actionEditStateSelectionStart actionEditStateSelectionEnd actionEditStateSelectedChars'),
+	        ...debugMetaFields(e, 'actionBeforeEditStateSelectionStart actionBeforeEditStateSelectionEnd actionBeforeEditStateSelectedChars targetEditStateSelectionStart targetEditStateSelectionEnd'),
+	        ...debugMetaFields(e, 'targetEditStateSelectedChars sourceEditStateSelectionStart sourceEditStateSelectionEnd sourceEditStateSelectedChars textObjectCount'),
+        ...debugMetaFields(e, 'textCharCount largestTextChars largestTextId textLineCount largestTextLineChars runtimeTextLayoutObjects runtimeTextLayoutLines'),
+        ...debugMetaFields(e, 'runtimeTextLayoutPrefixEntries cloneObjectsMs replaceBoardObjectsMs setSelectionMs renderScheduleMs enterEditMs reusedEditProxy'),
+        ...debugMetaFields(e, 'proxyDomSyncedForSelection proxyDomSyncReason proxyDomSyncMs proxyDomCharsBeforeSelection proxyDomCharsAfterSelection setSelectionRangeMs focusMs'),
+        ...debugMetaFields(e, 'focusSkipped proxyChars historyLength historyIndex'),
       }));
     const max = (field) => rows.reduce((value, row) => Math.max(value, Number(row[field]) || 0), 0);
     const endRows = rows.filter(row => row.step === 'end');
@@ -1794,7 +1592,6 @@ var ViewportDebug = (() => {
     for (let i = 1; i < rows.length; i++) gaps.push(rows[i].at - rows[i - 1].at);
     const sum = (values) => values.reduce((n, value) => n + (Number(value) || 0), 0);
     const max = (values) => values.reduce((n, value) => Math.max(n, Number(value) || 0), 0);
-    const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
     const absDeltaY = rows.map(row => Math.abs(Number(row.deltaY) || 0));
     const zoomStepPct = zoomRows.map(row => {
       const before = Number(row.zoom) || 0;
@@ -1935,16 +1732,20 @@ var ViewportDebug = (() => {
         at: e.at,
         step: e.step,
         source: e.meta?.source || '',
-        pendingSources: e.meta?.pendingSources ?? '',
-        needTransform: e.meta?.needTransform ?? '',
-        needBoardRender: e.meta?.needBoardRender ?? '',
-        needOverlayRender: e.meta?.needOverlayRender ?? '',
+        ...debugMetaFields(e, 'pendingSources needTransform needBoardRender needOverlayRender'),
         inputSource: e.meta?.inputSource || '',
-        inputAgeMs: e.meta?.inputAgeMs ?? '',
-        panX: e.meta?.panX ?? '',
-        panY: e.meta?.panY ?? '',
-        zoom: e.meta?.zoom ?? '',
+        ...debugMetaFields(e, 'inputAgeMs panX panY zoom'),
       }));
+    console.table(rows);
+    return rows;
+  }
+
+  function timelineTable(timeline, limit) {
+    timeline.sort((a, b) => a.at - b.at);
+    const rows = timeline.slice(-limit).map((row, index, list) => ({
+      ...row,
+      timelineGapMs: index ? round(row.at - list[index - 1].at) : '',
+    }));
     console.table(rows);
     return rows;
   }
@@ -1962,27 +1763,10 @@ var ViewportDebug = (() => {
           mode: e.meta?.mode || '',
           source: e.meta?.source || '',
           eventType: e.meta?.eventType || '',
-          eventAgeMs: e.meta?.eventAgeMs ?? '',
-          deltaX: e.meta?.deltaX ?? '',
-          deltaY: e.meta?.deltaY ?? '',
-          deltaMode: e.meta?.deltaMode ?? '',
-          wheelDeltaXPx: e.meta?.wheelDeltaXPx ?? '',
-          wheelDeltaYPx: e.meta?.wheelDeltaYPx ?? '',
-          clientX: e.meta?.clientX ?? '',
-          clientY: e.meta?.clientY ?? '',
-          panXBefore: e.meta?.panXBefore ?? '',
-          panYBefore: e.meta?.panYBefore ?? '',
-          panXAfter: e.meta?.panXAfter ?? '',
-          panYAfter: e.meta?.panYAfter ?? '',
-          panDeltaX: e.meta?.panDeltaX ?? '',
-          panDeltaY: e.meta?.panDeltaY ?? '',
-          panDistancePx: e.meta?.panDistancePx ?? '',
-          zoomBefore: e.meta?.zoomBefore ?? '',
+          ...debugMetaFields(e, 'eventAgeMs deltaX deltaY deltaMode wheelDeltaXPx wheelDeltaYPx clientX clientY'),
+          ...debugMetaFields(e, 'panXBefore panYBefore panXAfter panYAfter panDeltaX panDeltaY panDistancePx zoomBefore'),
           zoomAfter: e.meta?.zoomAfter ?? e.meta?.newZoom ?? '',
-          zoomDeltaPct: e.meta?.zoomDeltaPct ?? '',
-          handlerMs: e.meta?.handlerMs ?? '',
-          rafPending: e.meta?.rafPending ?? '',
-          pendingSources: e.meta?.pendingSources ?? '',
+          ...debugMetaFields(e, 'zoomDeltaPct handlerMs rafPending pendingSources'),
         });
       } else if (e.op === 'frame' && (e.step === 'start' || e.step === 'end')) {
         timeline.push({
@@ -1990,14 +1774,7 @@ var ViewportDebug = (() => {
           kind: 'frame',
           step: e.step,
           source: e.meta?.inputSource || e.meta?.sources || '',
-          queueMs: e.meta?.queueMs ?? '',
-          inputAgeMs: e.meta?.inputAgeMs ?? '',
-          rafGap: e.meta?.rafGap ?? '',
-          frameMs: e.meta?.frameMs ?? '',
-          doTransform: e.meta?.doTransform ?? '',
-          doBoard: e.meta?.doBoard ?? '',
-          doOverlay: e.meta?.doOverlay ?? '',
-          slow: e.meta?.slow ?? '',
+          ...debugMetaFields(e, 'queueMs inputAgeMs rafGap frameMs doTransform doBoard doOverlay slow'),
         });
       } else if (e.op === 'frameSchedule') {
         timeline.push({
@@ -2005,12 +1782,7 @@ var ViewportDebug = (() => {
           kind: 'frameSchedule',
           step: e.step,
           source: e.meta?.source || '',
-          inputAgeMs: e.meta?.inputAgeMs ?? '',
-          rafPending: e.meta?.rafPending ?? '',
-          pendingSources: e.meta?.pendingSources ?? '',
-          needTransform: e.meta?.needTransform ?? '',
-          needBoardRender: e.meta?.needBoardRender ?? '',
-          needOverlayRender: e.meta?.needOverlayRender ?? '',
+          ...debugMetaFields(e, 'inputAgeMs rafPending pendingSources needTransform needBoardRender needOverlayRender'),
         });
       } else if (e.op === 'applyTransform' && e.step === 'end') {
         timeline.push({
@@ -2019,11 +1791,7 @@ var ViewportDebug = (() => {
           step: 'end',
           source: e.meta?.source || '',
           totalMs: e.meta?.totalMeasuredMs ?? e.total ?? '',
-          drawMs: e.meta?.drawMs ?? '',
-          overlayMs: e.meta?.overlayMs ?? '',
-          panX: e.meta?.panX ?? '',
-          panY: e.meta?.panY ?? '',
-          zoom: e.meta?.zoom ?? '',
+          ...debugMetaFields(e, 'drawMs overlayMs panX panY zoom'),
         });
       } else if (e.op === 'drawBoard' && e.step === 'end' && !e.meta?.skipped) {
         timeline.push({
@@ -2032,30 +1800,9 @@ var ViewportDebug = (() => {
           step: 'end',
           source: e.meta?.source || '',
           totalMs: e.meta?.totalMeasuredMs ?? e.total ?? '',
-          objectLoopMs: e.meta?.objectLoopMs ?? '',
-          visibleObjects: e.meta?.visibleObjects ?? '',
-          testedObjects: e.meta?.testedObjects ?? '',
-          drawnImages: e.meta?.drawnImages ?? '',
-          drawnText: e.meta?.drawnText ?? '',
-          drawnTextLines: e.meta?.drawnTextLines ?? '',
-          textDrawUnits: e.meta?.textDrawUnits ?? '',
-          textDrawCalls: e.meta?.textDrawCalls ?? '',
-          textRuns: e.meta?.textRuns ?? '',
-          textPlanCacheHits: e.meta?.textPlanCacheHits ?? '',
-          textPlanCacheMisses: e.meta?.textPlanCacheMisses ?? '',
-          textLineDrawMs: e.meta?.textLineDrawMs ?? '',
-          maxTextLineDrawMs: e.meta?.maxTextLineDrawMs ?? '',
-          slowTextLineDrawCount: e.meta?.slowTextLineDrawCount ?? '',
-          textDirectDraws: e.meta?.textDirectDraws ?? '',
-          imageContextFirstDraws: e.meta?.imageContextFirstDraws ?? '',
-          scaledImageContextFirstDraws: e.meta?.scaledImageContextFirstDraws ?? '',
-          culledImages: e.meta?.culledImages ?? '',
-          culledText: e.meta?.culledText ?? '',
-          scaledImages: e.meta?.scaledImages ?? '',
-          scaledFallbackFull: e.meta?.scaledFallbackFull ?? '',
-          activeInputFullFallbackImages: e.meta?.activeInputFullFallbackImages ?? '',
-          fullScaleImages: e.meta?.fullScaleImages ?? '',
-          zoom: e.meta?.zoom ?? '',
+          ...debugMetaFields(e, 'objectLoopMs visibleObjects testedObjects drawnImages drawnText drawnTextLines textDrawUnits textDrawCalls'),
+          ...debugMetaFields(e, 'textRuns textPlanCacheHits textPlanCacheMisses textLineDrawMs maxTextLineDrawMs slowTextLineDrawCount textDirectDraws imageContextFirstDraws'),
+          ...debugMetaFields(e, 'scaledImageContextFirstDraws culledImages culledText scaledImages scaledFallbackFull activeInputFullFallbackImages fullScaleImages zoom'),
         });
       } else if (e.op === 'eventLoop' || e.op === 'longTask') {
         timeline.push({
@@ -2067,13 +1814,7 @@ var ViewportDebug = (() => {
         });
       }
     }
-    timeline.sort((a, b) => a.at - b.at);
-    const rows = timeline.slice(-limit).map((row, index, list) => ({
-      ...row,
-      timelineGapMs: index ? round(row.at - list[index - 1].at) : '',
-    }));
-    console.table(rows);
-    return rows;
+    return timelineTable(timeline, limit);
   }
 
   function drawSummary() {
@@ -2639,22 +2380,13 @@ var ViewportDebug = (() => {
         step: e.step,
         source: e.meta?.source || '',
         eventType: e.meta?.eventType || '',
-        eventAgeMs: e.meta?.eventAgeMs ?? '',
-        deltaX: e.meta?.deltaX ?? '',
-        deltaY: e.meta?.deltaY ?? '',
-        deltaMode: e.meta?.deltaMode ?? '',
-        wheelDeltaXPx: e.meta?.wheelDeltaXPx ?? '',
-        wheelDeltaYPx: e.meta?.wheelDeltaYPx ?? '',
+        ...debugMetaFields(e, 'eventAgeMs deltaX deltaY deltaMode wheelDeltaXPx wheelDeltaYPx'),
         key: e.meta?.key || '',
         code: e.meta?.code || '',
-        repeat: e.meta?.repeat ?? '',
-        button: e.meta?.button ?? '',
-        buttons: e.meta?.buttons ?? '',
+        ...debugMetaFields(e, 'repeat button buttons'),
         ctrl: !!e.meta?.ctrlKey,
         meta: !!e.meta?.metaKey,
-        shieldActive: e.meta?.shieldActive ?? '',
-        inputShieldCount: e.meta?.inputShieldCount ?? '',
-        blocked: e.meta?.blocked ?? '',
+        ...debugMetaFields(e, 'shieldActive inputShieldCount blocked'),
         target: e.meta?.target || '',
       }));
     console.table(rows);
@@ -2689,11 +2421,7 @@ var ViewportDebug = (() => {
           queueMs: startMeta.queueMs ?? '',
           inputAgeMs: startMeta.inputAgeMs ?? '',
           rafGap: startMeta.rafGap ?? '',
-          frameMs: e.meta?.frameMs ?? '',
-          doTransform: e.meta?.doTransform ?? '',
-          doBoard: e.meta?.doBoard ?? '',
-          doOverlay: e.meta?.doOverlay ?? '',
-          slow: e.meta?.slow ?? '',
+          ...debugMetaFields(e, 'frameMs doTransform doBoard doOverlay slow'),
         };
       })
       .filter(row => sourceIncludesMotion(row.source));
@@ -2705,25 +2433,9 @@ var ViewportDebug = (() => {
       .map(e => ({
         at: e.at,
         drawMs: e.meta?.totalMeasuredMs ?? e.total ?? '',
-        objectLoopMs: e.meta?.objectLoopMs ?? '',
-        drawnImages: e.meta?.drawnImages ?? '',
-        drawnText: e.meta?.drawnText ?? '',
-        motionObjects: e.meta?.motionObjects ?? '',
-        motionImages: e.meta?.motionImages ?? '',
-        motionText: e.meta?.motionText ?? '',
-        motionTranslatedObjects: e.meta?.motionTranslatedObjects ?? '',
-        motionScaledObjects: e.meta?.motionScaledObjects ?? '',
-        motionScaledImages: e.meta?.motionScaledImages ?? '',
-        motionFullScaleImages: e.meta?.motionFullScaleImages ?? '',
-        motionFullFallbackImages: e.meta?.motionFullFallbackImages ?? '',
-        motionActiveInputFullFallbackImages: e.meta?.motionActiveInputFullFallbackImages ?? '',
-        scaledFallbackFull: e.meta?.scaledFallbackFull ?? '',
-        activeInputFullFallbackImages: e.meta?.activeInputFullFallbackImages ?? '',
-        croppedImages: e.meta?.croppedImages ?? '',
-        imageSourceFirstDraws: e.meta?.imageSourceFirstDraws ?? '',
-        imageSourceWarmDraws: e.meta?.imageSourceWarmDraws ?? '',
-        imageContextFirstDraws: e.meta?.imageContextFirstDraws ?? '',
-        imageContextWarmDraws: e.meta?.imageContextWarmDraws ?? '',
+        ...debugMetaFields(e, 'objectLoopMs drawnImages drawnText motionObjects motionImages motionText motionTranslatedObjects'),
+        ...debugMetaFields(e, 'motionScaledObjects motionScaledImages motionFullScaleImages motionFullFallbackImages motionActiveInputFullFallbackImages scaledFallbackFull activeInputFullFallbackImages'),
+        ...debugMetaFields(e, 'croppedImages imageSourceFirstDraws imageSourceWarmDraws imageContextFirstDraws imageContextWarmDraws'),
         slowDrawObjects: (e.meta?.slowDrawObjects || []).map(row => ({ ...row })),
       }));
   }
@@ -2836,10 +2548,7 @@ var ViewportDebug = (() => {
           kind: 'frameSchedule',
           step: e.step,
           source: e.meta?.source || '',
-          pendingSources: e.meta?.pendingSources ?? '',
-          rafPending: e.meta?.rafPending ?? '',
-          needBoardRender: e.meta?.needBoardRender ?? '',
-          needOverlayRender: e.meta?.needOverlayRender ?? '',
+          ...debugMetaFields(e, 'pendingSources rafPending needBoardRender needOverlayRender'),
         });
       } else if (e.op === 'frame' && e.step === 'end' && sourceIncludesMotion(e.meta?.sources)) {
         timeline.push({
@@ -2847,10 +2556,7 @@ var ViewportDebug = (() => {
           kind: 'frame',
           step: 'end',
           source: e.meta?.sources || '',
-          frameMs: e.meta?.frameMs ?? '',
-          doBoard: e.meta?.doBoard ?? '',
-          doOverlay: e.meta?.doOverlay ?? '',
-          slow: e.meta?.slow ?? '',
+          ...debugMetaFields(e, 'frameMs doBoard doOverlay slow'),
         });
       } else if (e.op === 'drawBoard' && e.step === 'end' && sourceIncludesMotion(e.meta?.source)) {
         timeline.push({
@@ -2859,11 +2565,7 @@ var ViewportDebug = (() => {
           step: 'end',
           source: e.meta?.source || '',
           drawMs: e.meta?.totalMeasuredMs ?? e.total ?? '',
-          objectLoopMs: e.meta?.objectLoopMs ?? '',
-          motionImages: e.meta?.motionImages ?? '',
-          motionScaledImages: e.meta?.motionScaledImages ?? '',
-          motionFullFallbackImages: e.meta?.motionFullFallbackImages ?? '',
-          motionActiveInputFullFallbackImages: e.meta?.motionActiveInputFullFallbackImages ?? '',
+          ...debugMetaFields(e, 'objectLoopMs motionImages motionScaledImages motionFullFallbackImages motionActiveInputFullFallbackImages'),
         });
       } else if (e.op === 'eventLoop' || e.op === 'longTask') {
         timeline.push({
@@ -2876,13 +2578,7 @@ var ViewportDebug = (() => {
         });
       }
     }
-    timeline.sort((a, b) => a.at - b.at);
-    const rows = timeline.slice(-limit).map((row, index, list) => ({
-      ...row,
-      timelineGapMs: index ? round(row.at - list[index - 1].at) : '',
-    }));
-    console.table(rows);
-    return rows;
+    return timelineTable(timeline, limit);
   }
 
   function jiggleReport(options = {}) {

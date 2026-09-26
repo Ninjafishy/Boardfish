@@ -95,15 +95,14 @@
     };
   }
 
-  async function imageObjectDownloadEntry(obj, index
+  async function imageObjectDownloadEntry(obj
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     , dbg
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    , options = {}
+    , name
   ) {
     const source = BoardfishImageStore.getSource(obj?.data?.imgKey);
     const needsRendering = imageNeedsRendering(obj);
-    const name = options.filename || `image_${index + 1}.${needsRendering ? 'png' : guessImageExtForSource(source)}`;
     if (!needsRendering) {
       const sourceEntry = await imageSourceDownloadEntry(source, name);
       if (sourceEntry) return sourceEntry;
@@ -147,18 +146,11 @@
 
   async function imageSourceDownloadEntry(source, name) {
     const webRef = isWebImageRef(source);
+    if (!webRef && !(typeof source === 'string' && source.startsWith('data:'))) return null;
     try {
-      let data, ext, mime;
-      if (webRef) {
-        data = await readableImageSourceBlob(source);
-        ext = source.ext === 'jpeg' ? 'jpg' : (source.ext || 'png');
-        mime = source.mime || mimeForImageExt(ext);
-      } else if (typeof source === 'string' && source.startsWith('data:')) {
-        ext = guessImageExtFromDataUrl(source);
-        data = await readableImageSourceBlob(source);
-        mime = dataUrlMime(source);
-      } else return null;
-      const entry = { name: withImageExtension(name, ext), data, mime };
+      const data = await readableImageSourceBlob(source);
+      const ext = guessImageExtForSource(source);
+      const entry = { name: withImageExtension(name, ext), data, mime: webRef ? source.mime || mimeForImageExt(ext) : dataUrlMime(source) };
       if (typeof BOARDFISH_PRODUCTION === 'undefined') {
         entry.debug = {
           phase: 'web-original',
@@ -236,13 +228,12 @@
       let itemStart;
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       if (typeof BOARDFISH_PRODUCTION === 'undefined') itemStart = performance.now();
-      const entry = await imageObjectDownloadEntry(imageObjs[i], i
+      const entry = await imageObjectDownloadEntry(imageObjs[i]
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         , dbg
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        , {
-        filename: imageObjs.length === 1 ? options.filename : uniqueImageExportName(imageObjs[i], usedNames),
-      });
+        , (imageObjs.length === 1 && options.filename) || uniqueImageExportName(imageObjs[i], usedNames),
+      );
       if (!entry) {
         skippedCount++;
         if (typeof BOARDFISH_PRODUCTION === 'undefined') {
@@ -414,14 +405,17 @@
     }
   }
 
-  async function writeEntryToDirectory(directoryHandle, entry) {
-    const fileHandle = await directoryHandle.getFileHandle(entry.name, { create: true });
-    const writable = await fileHandle.createWritable();
+  async function writeFileHandle(handle, data) {
+    const writable = await handle.createWritable();
     try {
-      await writable.write(entry.data);
+      await writable.write(data);
     } finally {
       await writable.close();
     }
+  }
+
+  async function writeEntryToDirectory(directoryHandle, entry) {
+    await writeFileHandle(await directoryHandle.getFileHandle(entry.name, { create: true }), entry.data);
     return entry.data?.size || entry.data?.length || 0;
   }
 
@@ -451,11 +445,11 @@
       let itemStart;
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       if (typeof BOARDFISH_PRODUCTION === 'undefined') itemStart = performance.now();
-      const entry = await imageObjectDownloadEntry(imageObjs[i], i
+      const entry = await imageObjectDownloadEntry(imageObjs[i]
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         , dbg
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        , { filename: name }
+        , name
       );
       if (!entry) {
         skippedCount++;
@@ -580,12 +574,7 @@
 
   async function saveExportData(data, target, fallbackName, type) {
     if (target?.handle) {
-      const writable = await target.handle.createWritable();
-      try {
-        await writable.write(data);
-      } finally {
-        await writable.close();
-      }
+      await writeFileHandle(target.handle, data);
       return true;
     }
     root.BoardfishRuntime.downloadBlob(data instanceof Blob && data.type === type ? data : new Blob([data], { type }), fallbackName);
@@ -609,7 +598,6 @@
   root.BoardfishExportUtils = Object.freeze({
     createProgressUpdater,
     downloadImageObjects,
-    guessImageExtForObjectExport,
     guessImageExtFromDataUrl,
     randomHex,
     selectedImageObjects,

@@ -1,29 +1,24 @@
 'use strict';
 
-async function saveSelectedImage() {
+function finishImageExport(busyPill, releaseInputShield, finalMsg = null) {
+  if (busyPill) finishPillTask({ beforeFinish: releaseInputShield, busyPill, finalMsg });
+  else releaseInputShield();
+}
+
+async function saveSelectedImage(imageObjs) {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const dbg = ExportDebug.start('exportImage', { selectedCount: selectedIds.size });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const imageObjs = BoardfishExportUtils.selectedImageObjects();
-  if (imageObjs.length !== 1) {
-    ExportDebug.end(dbg, { skipped: true, imageCount: imageObjs.length });
-    return;
-  }
-
   ExportDebug.startMassive('exportImage', imageObjs);
-  const obj = imageObjs[0];
   const releaseInputShield = acquireInputShield({ keepSelectionOverlay: true });
-  const ext = BoardfishExportUtils.guessImageExtForObjectExport(obj);
-  const defaultName = `image_${BoardfishExportUtils.randomHex()}.${ext}`;
 
   let busyPill = null;
   try {
-    const downloadResult = await BoardfishExportUtils.downloadImageObjects([obj]
+    const downloadResult = await BoardfishExportUtils.downloadImageObjects(imageObjs
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       , dbg
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       , {
-      filename: defaultName,
       targetMode: 'file',
       onStart: () => {
         busyPill = startIslandBusyMsg('Exporting');
@@ -35,48 +30,22 @@ async function saveSelectedImage() {
     });
     const saved = (downloadResult?.downloadedCount || 0) > 0;
     ExportDebug.end(dbg, { saved, ...downloadResult });
-    if (saved) {
-      finishPillTask({ beforeFinish: releaseInputShield, busyPill, finalMsg: '1 Image Exported' });
-    } else if (busyPill) {
-      finishPillTask({ beforeFinish: releaseInputShield, busyPill });
-    } else {
-      releaseInputShield();
-    }
+    finishImageExport(busyPill, releaseInputShield, saved ? '1 Image Exported' : null);
   } catch (err) {
-    if (busyPill) finishPillTask({ beforeFinish: releaseInputShield, busyPill });
-    else releaseInputShield();
+    finishImageExport(busyPill, releaseInputShield);
     ExportDebug.end(dbg, { saved: false, error: String(err) });
     console.error('Export Failed:', err);
   }
 }
 
-async function exportImageBatch({
+async function saveSelectedImages(imageObjs) {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  op,
-  mode,
+  const dbg = ExportDebug.start('exportImages', { selectedCount: selectedIds.size });
+  const stopTotalWatch = ExportDebug.watch(dbg, 'export-total', { mode: 'selected' }, 5000);
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  imageObjs,
-  skip = false,
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  startMeta,
-  skipMeta = null,
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-}) {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = ExportDebug.start(op, startMeta);
-  const stopTotalWatch = ExportDebug.watch(dbg, 'export-total', { mode }, 5000);
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (skip) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    stopTotalWatch?.({ skipped: true });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    ExportDebug.end(dbg, { skipped: true, imageCount: imageObjs.length, ...skipMeta });
-    hideInputShield();
-    return;
-  }
-
   ExportDebug.step(dbg, 'images:found', { imageCount: imageObjs.length });
-  ExportDebug.startMassive(op, imageObjs);
+  ExportDebug.startMassive('exportImages', imageObjs);
+  const releaseInputShield = acquireInputShield({ keepSelectionOverlay: true });
 
   let busyPill = null;
   let updateProgress = null;
@@ -92,18 +61,11 @@ async function exportImageBatch({
         updateProgress = BoardfishExportUtils.createProgressUpdater(imageObjs.length, busyPill);
         ExportDebug.step(dbg, 'web-export:pill-start', { imageCount: imageObjs.length });
       },
-      onProgress: typeof BOARDFISH_PRODUCTION === 'undefined'
-        ? ({ phase, preparedCount, finishedCount, totalCount }) => {
-          if (!updateProgress) return;
-          updateProgress(phase || 'prepare-progress', preparedCount ?? finishedCount ?? imageObjs.length, {
-            finishedCount: finishedCount ?? '',
-            totalCount: totalCount ?? imageObjs.length,
-          });
-        }
-        : ({ preparedCount, finishedCount }) => {
-          if (!updateProgress) return;
-          updateProgress(preparedCount ?? finishedCount ?? imageObjs.length);
-        },
+      onProgress: ({ /* BOARDFISH_DEV_DIAGNOSTICS_START */ phase, totalCount, /* BOARDFISH_DEV_DIAGNOSTICS_END */ preparedCount, finishedCount }) => updateProgress?.(
+        /* BOARDFISH_DEV_DIAGNOSTICS_START */ phase || 'prepare-progress', /* BOARDFISH_DEV_DIAGNOSTICS_END */
+        preparedCount ?? finishedCount ?? imageObjs.length,
+        /* BOARDFISH_DEV_DIAGNOSTICS_START */ { finishedCount: finishedCount ?? '', totalCount: totalCount ?? imageObjs.length }, /* BOARDFISH_DEV_DIAGNOSTICS_END */
+      ),
     });
     const downloadedCount = downloadResult?.downloadedCount || 0;
     const saved = downloadedCount > 0;
@@ -111,20 +73,9 @@ async function exportImageBatch({
     stopTotalWatch?.({ saved, ...downloadResult });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     ExportDebug.end(dbg, { saved, imageCount: imageObjs.length, ...downloadResult });
-    if (downloadedCount > 0) {
-      finishPillTask({
-        beforeFinish: hideInputShield,
-        busyPill,
-        finalMsg: downloadedCount === 1 ? '1 Image Exported' : `${downloadedCount} Images Exported`,
-      });
-    } else if (busyPill) {
-      finishPillTask({ beforeFinish: hideInputShield, busyPill });
-    } else {
-      hideInputShield();
-    }
+    finishImageExport(busyPill, releaseInputShield, saved ? `${downloadedCount} Image${downloadedCount === 1 ? '' : 's'} Exported` : null);
   } catch (err) {
-    if (busyPill) finishPillTask({ beforeFinish: hideInputShield, busyPill });
-    else hideInputShield();
+    finishImageExport(busyPill, releaseInputShield);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     stopTotalWatch?.({ error: String(err) });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -133,19 +84,8 @@ async function exportImageBatch({
   }
 }
 
-async function saveSelectedImages() {
-  const multiSelection = isMultiSelected();
-  const selectedObjs = BoardfishExportUtils.selectedImageObjects();
-  return exportImageBatch({
-    imageObjs: selectedObjs,
-    skip: !multiSelection || selectedObjs.length < 1,
-    ...(typeof BOARDFISH_PRODUCTION === 'undefined'
-      ? {
-          op: 'exportImages',
-          mode: 'selected',
-          startMeta: { selectedCount: selectedIds.size },
-          skipMeta: (!multiSelection || selectedObjs.length < 1) ? { multiSelection } : null,
-        }
-      : {}),
-  });
+function exportSelectedImages() {
+  const imageObjs = BoardfishExportUtils.selectedImageObjects();
+  if (imageObjs.length === 1) saveSelectedImage(imageObjs);
+  else if (imageObjs.length) saveSelectedImages(imageObjs);
 }

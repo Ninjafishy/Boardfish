@@ -58,18 +58,8 @@ var SaveDebug = (() => {
   function boardSaveColumns(e) {
     return {
       command: e.meta?.command || '',
-      objectCount: e.meta?.objectCount ?? '',
-      imageCount: e.meta?.imageCount ?? '',
-      imageObjectCount: e.meta?.imageObjectCount ?? '',
-      textObjectCount: e.meta?.textObjectCount ?? '',
-      textCharCount: e.meta?.textCharCount ?? '',
-      largestTextChars: e.meta?.largestTextChars ?? '',
-      runtimeTextCacheObjects: e.meta?.runtimeTextCacheObjects ?? '',
-      runtimeTextCacheLines: e.meta?.runtimeTextCacheLines ?? '',
-      runtimeTextCachePrefixEntries: e.meta?.runtimeTextCachePrefixEntries ?? '',
-      runtimeTextPrivateFields: e.meta?.runtimeTextPrivateFields ?? '',
-      imageStoreBytes: e.meta?.imageStoreBytes ?? '',
-      rawImageStoreBytes: e.meta?.rawImageStoreBytes ?? '',
+      ...debugMetaFields(e, 'objectCount imageCount imageObjectCount textObjectCount textCharCount largestTextChars'),
+      ...debugMetaFields(e, 'runtimeTextCacheObjects runtimeTextCacheLines runtimeTextCachePrefixEntries runtimeTextPrivateFields imageStoreBytes rawImageStoreBytes'),
     };
   }
 

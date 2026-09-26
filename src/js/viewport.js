@@ -60,11 +60,8 @@ function hideIsland(reason = 'hide') {
 }
 
 function startIslandBusyMsg(text) {
-  const token = ++_islMsgToken;
-  clearTimeout(_islMsgTimer);
-  _islMsgTimer = null;
-  _islMsgActive = true;
-  showIslandForMessage(text);
+  showIslandMsg(text);
+  const token = _islMsgToken;
   PillDebug.log('busyIslandMsg:shown', { text });
 
   return {
@@ -690,9 +687,7 @@ function applyTransform(
   }
   const overlayStart = collectTransformDebug ? performance.now() : 0;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const needsOverlayUpdate = hasSelection()
-    || selOverlay.classList.contains('visible')
-    || multiSelOverlay.classList.contains('visible');
+  const needsOverlayUpdate = selectionOverlayActive();
   if (needsOverlayUpdate) updateSelectionOverlay();
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   else ViewportDebug.count('selectionOverlaySkipped');
@@ -1507,14 +1502,14 @@ function scheduleTransform(
   else scheduleFrame();
 }
 
+function selectionOverlayActive() {
+  return hasSelection() || selOverlay.classList.contains('visible') || multiSelOverlay.classList.contains('visible');
+}
+
 function scheduleRender(board = true, overlay = null, source = null) {
   if (typeof BOARDFISH_PRODUCTION === 'undefined' && source == null) source = 'render';
   if (board) _needBoardRender = true;
-  _needOverlayRender ||= !!(overlay ?? (board && (
-    hasSelection() ||
-    selOverlay.classList.contains('visible') ||
-    multiSelOverlay.classList.contains('visible')
-  )));
+  _needOverlayRender ||= !!(overlay ?? (board && selectionOverlayActive()));
   if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleFrame(source);
   else scheduleFrame();
 }

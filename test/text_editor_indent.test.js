@@ -28,6 +28,7 @@ function loadTextEditorHelpers() {
 
 function loadTextEditorIntegrationHelpers() {
   const context = {
+    performance,
     console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     document: {
@@ -131,6 +132,7 @@ function loadExitEditHarness() {
     _editStartContent: '',
   };
   const context = {
+    performance,
     console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],
@@ -202,6 +204,29 @@ function loadExitEditHarness() {
   return context;
 }
 
+
+function makePasteEvent() {
+  return {
+    type: 'paste',
+    clipboardData: {},
+    cancelable: true,
+    defaultPrevented: false,
+    preventDefault() { this.defaultPrevented = true; },
+  };
+}
+
+function recordClipDebug(context) {
+  const clipEvents = [];
+  context.ClipDebug = {
+    start(op, meta) {
+      clipEvents.push({ op, step: 'start', meta });
+      return { id: clipEvents.length, op };
+    },
+    step(dbg, step, meta) { clipEvents.push({ op: dbg.op, step, meta }); },
+    end(dbg, meta) { clipEvents.push({ op: dbg.op, step: 'end', meta }); },
+  };
+  return clipEvents;
+}
 
 function makeBeforeInputEvent(inputType, data = '') {
   return {
@@ -503,20 +528,7 @@ test('verified Boardfish text selection paste can use native textarea insertion'
 test('native Boardfish paste keeps pending state through beforeinput', () => {
   const context = loadLiveTextEditResizeHarness();
   const { obj } = context;
-  const clipEvents = [];
-  context.ClipDebug = {
-    start(op, meta) {
-      const dbg = { id: clipEvents.length + 1, op };
-      clipEvents.push({ op, step: 'start', meta });
-      return dbg;
-    },
-    step(dbg, step, meta) {
-      clipEvents.push({ op: dbg.op, step, meta });
-    },
-    end(dbg, meta) {
-      clipEvents.push({ op: dbg.op, step: 'end', meta });
-    },
-  };
+  const clipEvents = recordClipDebug(context);
   context.BoardfishClipboardIO = {
     describeClipboardData() { return {}; },
     readBoardfishClipboardTokenFromEvent() { return 'bf-token'; },
@@ -531,15 +543,7 @@ test('native Boardfish paste keeps pending state through beforeinput', () => {
 
   context.enterEdit(obj.id, { history: false });
   context.proxy.setSelectionRange(6, 6, 'none');
-  const paste = {
-    type: 'paste',
-    clipboardData: {},
-    cancelable: true,
-    defaultPrevented: false,
-    preventDefault() {
-      this.defaultPrevented = true;
-    },
-  };
+  const paste = makePasteEvent();
   context.proxy.dispatchEvent(paste);
   assert.equal(paste.defaultPrevented, false);
 
@@ -559,20 +563,7 @@ test('native Boardfish paste keeps pending state through beforeinput', () => {
 test('external paste with stale Boardfish clipboard can use native textarea insertion', () => {
   const context = loadLiveTextEditResizeHarness();
   const { obj } = context;
-  const clipEvents = [];
-  context.ClipDebug = {
-    start(op, meta) {
-      const dbg = { id: clipEvents.length + 1, op };
-      clipEvents.push({ op, step: 'start', meta });
-      return dbg;
-    },
-    step(dbg, step, meta) {
-      clipEvents.push({ op: dbg.op, step, meta });
-    },
-    end(dbg, meta) {
-      clipEvents.push({ op: dbg.op, step: 'end', meta });
-    },
-  };
+  const clipEvents = recordClipDebug(context);
   context.BoardfishClipboardIO = {
     describeClipboardData() { return {}; },
     readBoardfishClipboardTokenFromEvent() { return ''; },
@@ -587,15 +578,7 @@ test('external paste with stale Boardfish clipboard can use native textarea inse
 
   context.enterEdit(obj.id, { history: false });
   context.proxy.setSelectionRange(6, 6, 'none');
-  const paste = {
-    type: 'paste',
-    clipboardData: {},
-    cancelable: true,
-    defaultPrevented: false,
-    preventDefault() {
-      this.defaultPrevented = true;
-    },
-  };
+  const paste = makePasteEvent();
   context.proxy.dispatchEvent(paste);
   assert.equal(paste.defaultPrevented, false);
 
@@ -634,15 +617,7 @@ test('paste after stale proxy restore uses logical text before copy', () => {
   context.setTextEditProxyLogicalValue(context.proxy, 'hello ', false);
   context.proxy.setSelectionRange(6, 6, 'none');
 
-  const paste = {
-    type: 'paste',
-    clipboardData: {},
-    cancelable: true,
-    defaultPrevented: false,
-    preventDefault() {
-      this.defaultPrevented = true;
-    },
-  };
+  const paste = makePasteEvent();
   context.proxy.dispatchEvent(paste);
 
   assert.equal(paste.defaultPrevented, true);
@@ -676,15 +651,7 @@ test('external edit paste trims whitespace-only edge lines before insertion', ()
   context.enterEdit(obj.id, { history: false });
   const caret = obj.data.content.indexOf('\n\nexisting line 3') + 1;
   context.proxy.setSelectionRange(caret, caret, 'none');
-  const paste = {
-    type: 'paste',
-    clipboardData: {},
-    cancelable: true,
-    defaultPrevented: false,
-    preventDefault() {
-      this.defaultPrevented = true;
-    },
-  };
+  const paste = makePasteEvent();
   context.proxy.dispatchEvent(paste);
 
   assert.equal(paste.defaultPrevented, true);

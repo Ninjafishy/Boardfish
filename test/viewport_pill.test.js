@@ -73,9 +73,9 @@ function loadViewportPillHarness() {
 
 function loadViewportRenderSchedulerHarness({ selected = false, overlayVisible = false } = {}) {
   const source = readSource('src/js/viewport.js');
-  const functionStart = source.indexOf('function scheduleRender(');
+  const functionStart = source.indexOf('function selectionOverlayActive(');
   assert.ok(functionStart > 0, 'scheduleRender is missing');
-  const functionEnd = source.indexOf('\n}', functionStart);
+  const functionEnd = source.indexOf('\n}', source.indexOf('function scheduleRender(', functionStart));
   assert.ok(functionEnd > functionStart, 'scheduleRender is unterminated');
   const scheduled = [];
   const context = {

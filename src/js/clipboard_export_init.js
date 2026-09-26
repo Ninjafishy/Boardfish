@@ -83,11 +83,7 @@ const trimPastedTextObjectContent = (obj) => {
 };
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-const clipboardNow = () => (
-  typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-);
+const clipboardNow = () => performance.now();
 
 const clipboardElapsedMs = (startedAt) => Math.round((clipboardNow() - startedAt) * 100) / 100;
 
@@ -253,10 +249,10 @@ const copySelected = (options = {}) => {
     });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     // The in-app clipboard is populated above; wait until its browser marker write settles
-    // before starting the full-selection jiggle.
+    // before starting the copied objects' jiggle.
     if (animateCopy) {
       webClipboardWrite
-        .then(() => BoardfishMotion.applyCopyFeedback({ selection: true }))
+        .then(() => BoardfishMotion.applyCopyFeedback({ objects: clonedObjs }))
         .catch((err) => console.error('Copy Feedback Failed:', err));
     }
     return true;

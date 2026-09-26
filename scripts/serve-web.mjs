@@ -85,7 +85,7 @@ async function handleRequest(req, res) {
 function startServer(nextPort, attemptsRemaining = explicitPort ? 1 : fallbackPortAttempts) {
   const server = http.createServer(handleRequest);
   server.once('error', (error) => {
-    if (error.code === 'EADDRINUSE' && !explicitPort && attemptsRemaining > 1) {
+    if (error.code === 'EADDRINUSE' && attemptsRemaining > 1) {
       const fallbackPort = nextPort + 1;
       console.warn(`Port ${nextPort} In Use; Trying ${fallbackPort}`);
       startServer(fallbackPort, attemptsRemaining - 1);

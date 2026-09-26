@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const zlib = require('node:zlib');
 
 const WebContainer = require('../src/js/web_board_container.js');
+const { singleImageBoard } = require('../test-support/image_output.js');
 
 function crc32(bytes) {
   const table = new Uint32Array(256);
@@ -483,16 +484,7 @@ test('Blob lazy opens use range reads and preserve exact image bytes on re-save'
 test('volatile File-backed image refs detach once before repeated saves', async () => {
   const imageBytes = new Uint8Array(160 * 1024);
   for (let i = 0; i < imageBytes.length; i++) imageBytes[i] = (i * 29) % 251;
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'volatile-board.bf', { type: 'application/octet-stream' }),
@@ -538,16 +530,7 @@ test('volatile File-backed image refs detach once before repeated saves', async 
 test('volatile File-backed image refs recover only from a matching fresh snapshot', async () => {
   const imageBytes = new Uint8Array(128 * 1024);
   for (let i = 0; i < imageBytes.length; i++) imageBytes[i] = (i * 31) % 251;
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'stale-board.bf', { type: 'application/octet-stream' }),
@@ -591,16 +574,7 @@ test('ZIP32 writer rejects fields that would otherwise be silently truncated', a
 });
 
 test('read validates advertised image bytes before materializing image entries', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const payload = await WebContainer.createBoardContainerBlob(board, {
     'img-1': 'data:image/png;base64,AQIDBA==',
   });
@@ -663,16 +637,7 @@ test('board json CRC mismatch fails open', async () => {
 });
 
 test('image CRC mismatch is reported as a warning while preserving recoverable data', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const payload = await WebContainer.createBoardContainerBlob(board, {
     'img-1': 'data:image/png;base64,AQIDBA==',
   });
@@ -692,16 +657,7 @@ test('image CRC mismatch is reported as a warning while preserving recoverable d
 });
 
 test('Blob lazy refs preserve default image CRC warning behavior', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const payload = await WebContainer.createBoardContainerBlob(board, {
     'img-1': 'data:image/png;base64,AQIDBA==',
   });
@@ -719,16 +675,7 @@ test('Blob lazy refs preserve default image CRC warning behavior', async () => {
 });
 
 test('Blob random-access reads reject invalid local entry offsets and truncated entry data', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const payload = await WebContainer.createBoardContainerBlob(board, {
     'img-1': 'data:image/png;base64,AQIDBA==',
   });
@@ -761,16 +708,7 @@ test('Blob random-access reads reject invalid local entry offsets and truncated 
 });
 
 test('Blob lazy reads reject inconsistent stored entry sizes before creating refs', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard();
   const payload = await WebContainer.createBoardContainerBlob(board, {
     'img-1': 'data:image/png;base64,AQIDBA==',
   });
