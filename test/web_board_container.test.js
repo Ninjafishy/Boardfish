@@ -590,32 +590,6 @@ test('ZIP32 writer rejects fields that would otherwise be silently truncated', a
   );
 });
 
-test('Uint8Array lazy opens retain synchronous byte-backed compatibility', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
-  const imageStore = { 'img-1': 'data:image/png;base64,AQIDBA==' };
-  const payload = await WebContainer.createBoardContainerBlob(board, imageStore);
-
-  const opened = await WebContainer.readBoardContainer(new Uint8Array(await payload.blob.arrayBuffer()), {
-    lazyImageRefs: true,
-    verifyImageCrc: false,
-  });
-  const source = opened.board.imageStore['img-1'];
-
-  assert.equal(opened.debug.read_mode, 'full-buffer');
-  assert.equal(source.__blob, undefined);
-  assert.ok(source.__lazy?.containerBytes);
-  assert.deepEqual(WebContainer.bytesForImageSource(source), new Uint8Array([1, 2, 3, 4]));
-});
-
 test('read validates advertised image bytes before materializing image entries', async () => {
   const board = {
     version: 3,
@@ -667,7 +641,7 @@ test('creates byte-backed web image refs for inserted files', async () => {
 
 test('rejects tiny malformed containers without raw DataView range errors', async () => {
   await assert.rejects(
-    () => WebContainer.readBoardContainer(new Uint8Array([0x50, 0x4b])),
+    () => WebContainer.readBoardContainer(new Blob([new Uint8Array([0x50, 0x4b])])),
     /Unsupported File Format/,
   );
 });
@@ -683,7 +657,7 @@ test('board json CRC mismatch fails open', async () => {
   corrupt[storedZipEntryDataOffset(corrupt, 'board.json')] ^= 0xff;
 
   await assert.rejects(
-    () => WebContainer.readBoardContainer(corrupt),
+    () => WebContainer.readBoardContainer(new Blob([corrupt])),
     /File Checksum Mismatch: board\.json/,
   );
 });
@@ -705,14 +679,14 @@ test('image CRC mismatch is reported as a warning while preserving recoverable d
   const corrupt = new Uint8Array(await payload.blob.arrayBuffer());
   corrupt[storedZipEntryDataOffset(corrupt, 'images/img-1.png')] ^= 0xff;
 
-  const result = await WebContainer.readBoardContainer(corrupt);
+  const result = await WebContainer.readBoardContainer(new Blob([corrupt]));
 
   assert.equal(result.debug.warnings.length, 1);
   assert.equal(result.debug.warnings[0].type, 'crc-mismatch');
   assert.equal(result.debug.warnings[0].path, 'images/img-1.png');
   assert.equal(WebContainer.bytesForImageSource(result.board.imageStore['img-1'])[0], 254);
 
-  const unchecked = await WebContainer.readBoardContainer(corrupt, { verifyImageCrc: false });
+  const unchecked = await WebContainer.readBoardContainer(new Blob([corrupt]), { verifyImageCrc: false });
   assert.equal(unchecked.debug.warnings.length, 0);
   assert.equal(WebContainer.bytesForImageSource(unchecked.board.imageStore['img-1'])[0], 254);
 });
@@ -867,10 +841,6 @@ test('deflated entries abort when decompressed bytes exceed advertised size', as
   }));
   const zip = createDeflatedZipWithAdvertisedSize('board.json', boardJson, 2);
 
-  await assert.rejects(
-    () => WebContainer.readBoardContainer(zip),
-    /File Entry Too Large|Invalid File Entry/,
-  );
   await assert.rejects(
     () => WebContainer.readBoardContainer(new Blob([zip])),
     /File Entry Too Large|Invalid File Entry/,

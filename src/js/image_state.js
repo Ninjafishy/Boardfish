@@ -141,10 +141,6 @@ const bitmapSourceFromImageSource = async (source) => {
     const container = globalThis.BoardfishWebBoardContainer;
     const blob = container?.blobForImageSource?.(source);
     if (blob) return blob;
-    const bytes = container?.bytesForImageSource?.(source);
-    if (bytes && typeof Blob !== 'undefined') {
-      return new Blob([bytes], { type: source.mime || 'image/png' });
-    }
   }
   if (source && typeof Blob !== 'undefined' && source instanceof Blob) return source;
   if (typeof source === 'string' && source && typeof fetch === 'function') {

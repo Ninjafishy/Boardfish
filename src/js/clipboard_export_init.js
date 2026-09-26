@@ -114,8 +114,6 @@ const createWebSourcePngClipboardBlob = (obj, source
 ) => {
   if (imageNeedsRendering(obj)) return null;
   if (typeof Blob === 'undefined') return null;
-  const container = globalThis.BoardfishWebBoardContainer;
-  if (!container?.bytesForImageSource) return null;
   if (webSourceClipboardMime(source) !== 'image/png') return null;
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */

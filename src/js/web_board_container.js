@@ -282,9 +282,6 @@
   }
 
   async function blobToBytes(blob) {
-    if (blob instanceof Uint8Array) return blob;
-    if (blob instanceof ArrayBuffer) return new Uint8Array(blob);
-    if (ArrayBuffer.isView(blob)) return new Uint8Array(blob.buffer, blob.byteOffset, blob.byteLength);
     if (blob?.arrayBuffer) return new Uint8Array(await blob.arrayBuffer());
     throw unsupportedContainerError();
   }
@@ -399,12 +396,6 @@
     return entries;
   }
 
-  function parseCentralDirectory(bytes) {
-    const info = endOfCentralDirectoryInfo(bytes, { containerSize: bytes.length });
-    const centralBytes = bytes.subarray(info.centralOffset, info.centralOffset + info.centralSize);
-    return parseCentralDirectoryBytes(centralBytes, info.entryCount);
-  }
-
   async function parseCentralDirectoryFromBlob(blob) {
     const containerSize = Number(blob?.size) || 0;
     if (containerSize < ZIP_EOCD_MIN_SIZE) throw unsupportedContainerError();
@@ -423,21 +414,6 @@
       tailBytes: tailBytes.length,
       centralBytes: centralBytes.length,
     };
-  }
-
-  function compressedEntryBytes(bytes, entry) {
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    ensureByteRange(bytes, entry.localOffset, 30, entry.name);
-    if (view.getUint32(entry.localOffset, true) !== ZIP_LOCAL_FILE_HEADER) {
-      throw invalidContainerError(entry.name);
-    }
-    const nameLength = view.getUint16(entry.localOffset + 26, true);
-    const extraLength = view.getUint16(entry.localOffset + 28, true);
-    const dataStart = entry.localOffset + 30 + nameLength + extraLength;
-    const dataEnd = dataStart + entry.compressedSize;
-    ensureByteRange(bytes, entry.localOffset + 30, nameLength + extraLength, entry.name);
-    if (dataEnd > bytes.length) throw invalidContainerError(entry.name);
-    return bytes.subarray(dataStart, dataEnd);
   }
 
   function assertStoredEntrySize(entry) {
@@ -570,9 +546,7 @@
 
   async function readZipEntry(input, entry, options = {}) {
     assertZipEntryReadBudget(entry, options.maxBytes);
-    let compressed = isBlobLike(input)
-      ? await compressedEntryBlob(input, entry)
-      : compressedEntryBytes(input, entry);
+    let compressed = await compressedEntryBlob(input, entry);
     if (isBlobLike(compressed) && (entry.method === ZIP_METHOD_STORED || !isNativeBlobPart(compressed))) {
       compressed = await blobToBytes(compressed);
     }
@@ -613,13 +587,13 @@
     return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
   }
 
-  function createWebImageRef({ path, mime, ext, bytes, blob, lazy, volatileBlob = false, archiveCrc = null }) {
+  function createWebImageRef({ path, mime, ext, bytes, blob, volatileBlob = false, archiveCrc = null }) {
     const normalizedExt = normalizeImageExt(ext, mime);
     const normalizedMime = mime || mimeForExt(normalizedExt);
     const sourceBlob = isBlobLike(blob)
       ? (blob.type === normalizedMime ? blob : blob.slice(0, blob.size, normalizedMime))
       : null;
-    const byteLength = bytes?.length || Number(sourceBlob?.size || 0) || (lazy?.entry ? zipEntryContentBytes(lazy.entry) : 0);
+    const byteLength = bytes?.length || Number(sourceBlob?.size || 0);
     const ref = {
       web: true,
       path,
@@ -636,14 +610,6 @@
       Object.defineProperties(ref, {
         __blob: { value: sourceBlob, writable: true },
         __blobVolatile: { value: volatileBlob === true, writable: true },
-      });
-    }
-    if (lazy?.containerBytes && lazy?.entry) {
-      Object.defineProperty(ref, '__lazy', {
-        value: {
-          containerBytes: lazy.containerBytes,
-          entry: lazy.entry,
-        },
       });
     }
     if (Number.isInteger(archiveCrc)) {
@@ -701,7 +667,7 @@
   }
 
   function isWebImageRef(source) {
-    return !!(source && typeof source === 'object' && source.web === true && (source.__bytes || source.__blob || source.__lazy));
+    return !!(source && typeof source === 'object' && source.web === true && (source.__bytes || source.__blob));
   }
 
   function imageSourceCrcIdentity(source) {
@@ -743,20 +709,9 @@
     return true;
   }
 
-  function bytesForWebImageRef(source) {
-    if (source.__bytes) return source.__bytes;
-    if (source.__lazy?.containerBytes && source.__lazy?.entry) {
-      if (source.__lazy.entry.method !== ZIP_METHOD_STORED) {
-        throw new Error(`Unsupported Image Compression: ${source.path || source.__lazy.entry.name}`);
-      }
-      return compressedEntryBytes(source.__lazy.containerBytes, source.__lazy.entry);
-    }
-    return null;
-  }
-
   function blobForWebImageRef(source) {
     if (isBlobLike(source?.__blob)) return source.__blob;
-    const bytes = bytesForWebImageRef(source);
+    const bytes = source.__bytes;
     if (!bytes || typeof Blob !== 'function') return null;
     return new Blob([bytes], { type: source?.mime || 'image/png' });
   }
@@ -804,9 +759,7 @@
 
   function bytesForImageSource(source) {
     if (isWebImageRef(source)) {
-      const bytes = bytesForWebImageRef(source);
-      if (bytes) return bytes;
-      return null;
+      return source.__bytes || null;
     }
     if (typeof source === 'string') return dataUrlToBytes(source);
     if (source instanceof Uint8Array) return source;
@@ -825,7 +778,7 @@
 
   async function bytesForImageSourceAsync(source) {
     if (isWebImageRef(source)) {
-      const bytes = bytesForWebImageRef(source);
+      const bytes = source.__bytes;
       if (bytes) return bytes;
       const blob = blobForWebImageRef(source);
       if (blob) return new Uint8Array(await blob.arrayBuffer());
@@ -1038,43 +991,17 @@
     const startedAt = nowMs();
     let phaseStart = startedAt;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    const randomAccessBlob = isBlobLike(input) ? input : null;
-    let containerBytes = null;
-    let entries = null;
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    let readMs = 0;
-    let zipOpenMs = 0;
-    let zipTailBytes = 0;
-    let centralDirectoryBytes = 0;
-    let containerFileBytes = 0;
+    const containerFileBytes = Number(input?.size) || 0;
+    phaseStart = nowMs();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    if (randomAccessBlob) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      containerFileBytes = Number(randomAccessBlob.size) || 0;
-      phaseStart = nowMs();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      const directory = await parseCentralDirectoryFromBlob(randomAccessBlob);
-      entries = directory.entries;
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      zipTailBytes = directory.tailBytes;
-      centralDirectoryBytes = directory.centralBytes;
-      zipOpenMs = nowMs() - phaseStart;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    } else {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      phaseStart = nowMs();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      containerBytes = await blobToBytes(input);
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      readMs = nowMs() - phaseStart;
-      containerFileBytes = containerBytes.length;
-      phaseStart = nowMs();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      entries = parseCentralDirectory(containerBytes);
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      zipOpenMs = nowMs() - phaseStart;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    }
+    const directory = await parseCentralDirectoryFromBlob(input);
+    const entries = directory.entries;
+    /* BOARDFISH_DEV_DIAGNOSTICS_START */
+    const zipTailBytes = directory.tailBytes;
+    const centralDirectoryBytes = directory.centralBytes;
+    const zipOpenMs = nowMs() - phaseStart;
+    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const warnings = [];
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -1095,7 +1022,7 @@
     phaseStart = nowMs();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const boardJsonBytes = await readZipEntry(
-      randomAccessBlob || containerBytes,
+      input,
       boardEntry,
       {
         maxBytes: Number.isFinite(maxBoardContentBytes) ? maxBoardContentBytes : undefined,
@@ -1131,7 +1058,7 @@
     let imageHeaderReadMs = 0;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     let lazyStoredImageBlobs = null, recordIndex = 0;
-    const records = randomAccessBlob && lazyImageRefs ? [] : null;
+    const records = lazyImageRefs ? [] : null;
     const imageStore = board.imageStore || {};
     const resolve = (key, manifest) => {
       const manifestObject = manifest && typeof manifest === 'object' ? manifest : {};
@@ -1141,7 +1068,7 @@
       return { path, entry, size, ext, mime: manifestObject.mime || mimeForExt(ext) };
     };
 
-    if (randomAccessBlob && lazyImageRefs) {
+    if (lazyImageRefs) {
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       const headerStart = nowMs();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -1161,7 +1088,7 @@
       await Promise.all(Array.from({ length: workerCount }, async () => {
         while (next < tasks.length) {
           const task = tasks[next++];
-          lazyStoredImageBlobs.set(task.path, await compressedEntryBlob(randomAccessBlob, task.entry, task.mime));
+          lazyStoredImageBlobs.set(task.path, await compressedEntryBlob(input, task.entry, task.mime));
         }
       }));
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -1195,19 +1122,15 @@
       if (canUseLazyRef) {
         assertStoredEntrySize(imageEntry);
         imageBytes += advertisedImageBytes;
-        if (randomAccessBlob) {
-          const untypedBlob = lazyStoredImageBlobs?.get(path);
-          if (!untypedBlob) throw new Error(`Missing File Entry: ${path}`);
-          imageBlob = untypedBlob.type === mime
-            ? untypedBlob
-            : untypedBlob.slice(0, untypedBlob.size, mime);
-        }
+        const untypedBlob = lazyStoredImageBlobs?.get(path);
+        if (!untypedBlob) throw new Error(`Missing File Entry: ${path}`);
+        imageBlob = untypedBlob.type === mime
+          ? untypedBlob
+          : untypedBlob.slice(0, untypedBlob.size, mime);
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         if (verifyImageCrc && Number.isFinite(Number(imageEntry.crc))) {
           const crcStart = nowMs();
-          const view = randomAccessBlob
-            ? new Uint8Array(await imageBlob.arrayBuffer())
-            : compressedEntryBytes(containerBytes, imageEntry);
+          const view = new Uint8Array(await imageBlob.arrayBuffer());
           const actualCrc = await crc32Async(view);
           imageCrcMs += nowMs() - crcStart;
           imageCrcCount++;
@@ -1228,7 +1151,7 @@
         const imageReadStart = nowMs();
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         bytes = await readZipEntry(
-          randomAccessBlob || containerBytes,
+          input,
           imageEntry,
           {
             maxBytes: remainingBytes,
@@ -1258,16 +1181,14 @@
       const imageRefStart = nowMs();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       nextSources[key] = canUseLazyRef
-        ? (randomAccessBlob
-            ? createWebImageRef({
-                path,
-                mime,
-                ext,
-                blob: imageBlob,
-                volatileBlob: true,
-                archiveCrc: imageEntry.crc,
-              })
-            : createWebImageRef({ path, mime, ext, lazy: { containerBytes, entry: imageEntry } }))
+        ? createWebImageRef({
+            path,
+            mime,
+            ext,
+            blob: imageBlob,
+            volatileBlob: true,
+            archiveCrc: imageEntry.crc,
+          })
         : createWebImageRef({ path, mime, ext, bytes });
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       if (canUseLazyRef) lazyImageRefCount++;
@@ -1284,8 +1205,6 @@
       imageRefMs += nowMs() - imageRefStart;
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
-    containerBytes = null;
-
     board.imageStore = nextSources;
     const result = { board };
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -1298,10 +1217,10 @@
       image_bytes: imageBytes,
       total_content_bytes: boardJsonBytes.length + imageBytes,
       total_ms: nowMs() - startedAt,
-      read_ms: readMs,
+      read_ms: 0,
       zip_open_ms: zipOpenMs,
-      read_mode: randomAccessBlob ? 'blob-random-access' : 'full-buffer',
-      random_access: !!randomAccessBlob,
+      read_mode: 'blob-random-access',
+      random_access: true,
       zip_tail_bytes: zipTailBytes,
       central_directory_bytes: centralDirectoryBytes,
       zip_entry_count: entries.size,
@@ -1330,7 +1249,6 @@
     bytesForImageSource,
     bytesForImageSourceAsync,
     dataUrlByteLength,
-    dataUrlToBytes,
     isWebImageRef,
     readBoardContainer,
     recoverMatchingVolatileImageRefsFromContainer,
