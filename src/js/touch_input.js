@@ -477,8 +477,8 @@
     canvas.addEventListener('lostpointercapture', onTouchPointerCancel, { passive: false });
   }
 
-  root.addEventListener?.('blur', () => controller.cancel());
-  root.addEventListener?.('pagehide', () => controller.cancel());
+  root.addEventListener?.('blur', controller.cancel);
+  root.addEventListener?.('pagehide', controller.cancel);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || document.visibilityState === 'hidden') controller.cancel();
   });

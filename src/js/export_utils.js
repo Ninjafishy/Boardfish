@@ -12,7 +12,7 @@
   }
 
   function guessImageExtForSource(src) {
-    if (typeof isWebImageRef === 'function' && isWebImageRef(src)) return src.ext === 'jpeg' ? 'jpg' : (src.ext || 'png');
+    if (isWebImageRef(src)) return src.ext === 'jpeg' ? 'jpg' : (src.ext || 'png');
     if (typeof src === 'string') return guessImageExtFromDataUrl(src);
     return 'png';
   }
@@ -151,7 +151,7 @@
   }
 
   async function imageSourceDownloadEntry(source, name) {
-    const webRef = typeof isWebImageRef === 'function' && isWebImageRef(source);
+    const webRef = isWebImageRef(source);
     try {
       let data, ext, mime;
       if (webRef) {
@@ -180,7 +180,7 @@
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const imageSourceKind = (source) => {
-    if (typeof isWebImageRef === 'function' && isWebImageRef(source)) return 'web-ref';
+    if (isWebImageRef(source)) return 'web-ref';
     if (typeof source === 'string') return source.startsWith('data:') ? 'data-url' : 'string';
     if (!source) return 'missing';
     return typeof source;

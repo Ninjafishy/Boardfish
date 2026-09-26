@@ -83,7 +83,7 @@ self.addEventListener('activate', (event) => {
         }
         return Promise.all(deletions);
       })
-      .then(() => pruneCurrentCache())
+      .then(pruneCurrentCache)
       .then(() => self.clients.claim()),
   );
 });

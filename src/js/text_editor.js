@@ -561,8 +561,8 @@ const textEditCaretLineAtIndex = (layout, index, affinity) => {
   const line = layout[lo];
   const visibleEnd = line.endIndex ?? (line.startIndex + line.text.length);
   if (index > visibleEnd && layout[lo + 1]?.startIndex === index) result = lo + 1;
-  for (let i = lo; i < layout.length && layout[i].startIndex <= index; i++) {
-    if (affinity === 'forward') result = i;
+  if (affinity === 'forward') {
+    while (lo < layout.length && layout[lo].startIndex <= index) result = lo++;
   }
   return result;
 };

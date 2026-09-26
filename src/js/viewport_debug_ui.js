@@ -39,9 +39,7 @@ var PillDebug = (() => {
     return entry;
   }
 
-  function log(event, data = {}) {
-    return push(event, data);
-  }
+  const log = push;
 
   function enable() {
     if (!DEBUG_TOOLS_ENABLED) return;
@@ -252,7 +250,7 @@ var MenuDebug = (() => {
     return rows;
   }
 
-  function log(event, data = {}) { return push(event, data); }
+  const log = push;
 
   function logDomEvent(label, event) {
     lastPointerEvent = event;

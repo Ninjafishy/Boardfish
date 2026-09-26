@@ -68,8 +68,7 @@ const externalTextBoundaryLooksContinuous = (previousLine, nextLine) => {
   if (!previous || !next) return false;
   return (
     !/[.!?…]["'”’)\]]*$/.test(previous) ||
-    externalTextLineStartsLowercase(next) ||
-    /[,;:\-‐‑‒–—]$/.test(previous)
+    externalTextLineStartsLowercase(next)
   );
 };
 

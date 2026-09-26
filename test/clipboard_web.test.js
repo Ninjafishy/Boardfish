@@ -401,14 +401,7 @@ function loadTextEditCopyHarness(value, options = {}) {
     scheduleRender(board, overlay, sourceName) {
       calls.renders.push({ board, overlay, source: sourceName });
     },
-    textSelectionForClipboard(text) {
-      const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
-      let first = 0;
-      let last = lines.length - 1;
-      while (first <= last && !/\S/.test(lines[first])) first++;
-      while (last >= first && !/\S/.test(lines[last])) last--;
-      return first <= last ? lines.slice(first, last + 1).join('\n') : '';
-    },
+    textSelectionForClipboard: trimClipboardFixture,
   };
 
   vm.createContext(context);

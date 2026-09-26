@@ -44,7 +44,7 @@ test('web runtime owns local board file IO', () => {
   assert.match(runtime, /showSaveFilePicker/);
   assert.match(runtime, /downloadBlob\(payload\.blob, fileNameFromRef\(ref, 'board\.bf'\)\)/);
   assert.match(runtime, /root\.BoardfishRuntime = api;/);
-  assert.match(io, /BoardfishRuntime\.openFileDialog\(\)/);
+  assert.match(io, /const chooseFile = BoardfishRuntime\.openFileDialog;/);
   assert.match(io, /BoardfishRuntime\.saveFileDialog\(defaultName\)/);
   assert.match(io, /BoardfishRuntime\.readBoard\(fileRef\)/);
   assert.match(io, /BoardfishRuntime\.saveBoard\(fileRef, data, \{ imageStore, \.\.\.options \}\)/);

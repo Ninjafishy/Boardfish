@@ -55,13 +55,8 @@ var SaveDebug = (() => {
     };
   }
 
-  function summary() {
-    const rows = core.events.filter(e => e.step && e.step !== 'start').map(e => ({
-      id: e.id,
-      op: e.op,
-      step: e.step,
-      dt: e.dt,
-      total: e.total,
+  function boardSaveColumns(e) {
+    return {
       command: e.meta?.command || '',
       objectCount: e.meta?.objectCount ?? '',
       imageCount: e.meta?.imageCount ?? '',
@@ -75,6 +70,17 @@ var SaveDebug = (() => {
       runtimeTextPrivateFields: e.meta?.runtimeTextPrivateFields ?? '',
       imageStoreBytes: e.meta?.imageStoreBytes ?? '',
       rawImageStoreBytes: e.meta?.rawImageStoreBytes ?? '',
+    };
+  }
+
+  function summary() {
+    const rows = core.events.filter(e => e.step && e.step !== 'start').map(e => ({
+      id: e.id,
+      op: e.op,
+      step: e.step,
+      dt: e.dt,
+      total: e.total,
+      ...boardSaveColumns(e),
       largestImageBytes: e.meta?.largestImageBytes ?? '',
       ...serializedSaveColumns(e),
     }));
@@ -96,19 +102,7 @@ var SaveDebug = (() => {
         step: e.step,
         total: e.total,
         dt: e.dt,
-        command: e.meta?.command || '',
-        objectCount: e.meta?.objectCount ?? '',
-        imageCount: e.meta?.imageCount ?? '',
-        imageObjectCount: e.meta?.imageObjectCount ?? '',
-        textObjectCount: e.meta?.textObjectCount ?? '',
-        textCharCount: e.meta?.textCharCount ?? '',
-        largestTextChars: e.meta?.largestTextChars ?? '',
-        runtimeTextCacheObjects: e.meta?.runtimeTextCacheObjects ?? '',
-        runtimeTextCacheLines: e.meta?.runtimeTextCacheLines ?? '',
-        runtimeTextCachePrefixEntries: e.meta?.runtimeTextCachePrefixEntries ?? '',
-        runtimeTextPrivateFields: e.meta?.runtimeTextPrivateFields ?? '',
-        imageStoreBytes: e.meta?.imageStoreBytes ?? '',
-        rawImageStoreBytes: e.meta?.rawImageStoreBytes ?? '',
+        ...boardSaveColumns(e),
         ...serializedSaveColumns(e),
       }));
     console.table(rows);

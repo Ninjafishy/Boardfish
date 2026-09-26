@@ -83,6 +83,7 @@ function loadSelectionInputHarness(objects, options = {}) {
     history: [],
     historyOptions: [],
     _editEl: null,
+    textEditProxyValue: proxy => proxy._boardfishLogicalValue ?? proxy.value,
     _editHistoryTimer: null,
     _editHistoryLastContent: null,
     _editHistoryActionStartState: null,

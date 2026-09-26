@@ -802,7 +802,7 @@ var ClipDebug = (() => {
     return out;
   }
 
-  function reset() { core.reset(); }
+  const reset = core.reset;
   const clear = reset;
 
 

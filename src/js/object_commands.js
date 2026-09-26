@@ -261,9 +261,7 @@ function duplicateSelected(anchorPoint = null) {
     Number.isFinite(Number(anchorPoint.y))
   )
     ? { x: Number(anchorPoint.x), y: Number(anchorPoint.y) }
-    : (typeof boardCursorWorldPoint === 'function'
-        ? boardCursorWorldPoint()
-        : toWorld(window.innerWidth / 2, window.innerHeight / 2));
+    : boardCursorWorldPoint();
   const dx = center.x - (minX + maxX) / 2;
   const dy = center.y - (minY + maxY) / 2;
   const duplicatedIds = [];

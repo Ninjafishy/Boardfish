@@ -467,7 +467,7 @@ function startGroupDrag(e) {
   if (!drag) return;
   beginDocumentDrag({
     move: (ev) => drag.move(ev.clientX, ev.clientY),
-    up: () => drag.finish(),
+    up: drag.finish,
   });
 }
 

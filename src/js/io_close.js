@@ -171,16 +171,16 @@ const getOpenImageRuntimeDebugMetrics = (dbg = null) => {
 const getImageStoreOpenDebugSampleIfEnabled = (dbg = null) => {
   return isOpenDebugActive(dbg) ? getImageStoreOpenDebugSample() : [];
 };
-function scheduleSaveFrameProbe(dbg, label) {
-  if (!SaveDebug.enabled) return null;
+function scheduleDebugFrameProbe(api, dbg, label) {
+  if (!api.enabled) return null;
   const scheduledAt = performance.now();
   let done = false;
   requestAnimationFrame(() => {
     done = true;
-    SaveDebug.step(dbg, label, { queueMs: performance.now() - scheduledAt });
+    api.step(dbg, label, { queueMs: performance.now() - scheduledAt });
   });
   return () => {
-    if (!done) SaveDebug.step(dbg, `${label}:pending`, { elapsedMs: performance.now() - scheduledAt });
+    if (!done) api.step(dbg, `${label}:pending`, { elapsedMs: performance.now() - scheduledAt });
   };
 }
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -200,7 +200,7 @@ async function invokeSaveBoard(fileRef
     const data = boardDataForSave();
     const metrics = getBoardSaveDebugMetrics(dbg, data);
     SaveDebug.step(dbg, 'boardData', { ms: performance.now() - dataStart, path, ...metrics });
-    const frameProbe = scheduleSaveFrameProbe(dbg, 'save-frame-probe');
+    const frameProbe = scheduleDebugFrameProbe(SaveDebug, dbg, 'save-frame-probe');
     const result = await SaveDebug.wrap(
       dbg,
       'web_save_board',
@@ -224,7 +224,7 @@ async function invokeReadBoard(fileRef
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   {
     const path = BoardfishRuntime.describeFileRef(fileRef);
-    const frameProbe = scheduleOpenFrameProbe(dbg, 'open-frame-probe');
+    const frameProbe = scheduleDebugFrameProbe(OpenDebug, dbg, 'open-frame-probe');
     const result = await OpenDebug.wrap(dbg, 'web_read_board', () => BoardfishRuntime.readBoard(fileRef), { path });
     if (frameProbe) frameProbe();
     const board = result?.board || result;
@@ -240,20 +240,6 @@ async function invokeReadBoard(fileRef
   return result?.board || result;
 }
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-function scheduleOpenFrameProbe(dbg, label) {
-  if (!OpenDebug.enabled) return null;
-  const scheduledAt = performance.now();
-  let done = false;
-  requestAnimationFrame(() => {
-    done = true;
-    OpenDebug.step(dbg, label, { queueMs: performance.now() - scheduledAt });
-  });
-  return () => {
-    if (!done) OpenDebug.step(dbg, `${label}:pending`, { elapsedMs: performance.now() - scheduledAt });
-  };
-}
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
 
 const isOpenHydratableImageSource = (source) => {
   return typeof source === 'string' || isWebImageRef(source);
@@ -853,7 +839,7 @@ async function openBoard() {
   if (!(await confirmDirtyBeforeOpen())) return;
 
   try {
-    const chooseFile = () => BoardfishRuntime.openFileDialog();
+    const chooseFile = BoardfishRuntime.openFileDialog;
     let fileRef;
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
       /* BOARDFISH_DEV_DIAGNOSTICS_START */

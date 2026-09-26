@@ -719,7 +719,7 @@ const normalizeTextEditHistoryState = (id, state = null) => {
   const valueLength = typeof state?.value === 'string'
     ? state.value.length
     : (_editEl
-        ? (typeof textEditProxyValue === 'function' ? textEditProxyValue(_editEl).length : (_editEl.value?.length || 0))
+        ? textEditProxyValue(_editEl).length
         : (obj?.data?.content?.length || 0));
   const start = Math.max(0, Math.min(state?.start ?? state?.selectionStart ?? _editEl?.selectionStart ?? 0, valueLength));
   const end = Math.max(0, Math.min(state?.end ?? state?.selectionEnd ?? start, valueLength));
@@ -734,7 +734,7 @@ const normalizeTextEditHistoryState = (id, state = null) => {
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 const textEditHistoryDebugMeta = (id, state = null, normalized = null, extra = {}) => {
   const obj = id ? objectsMap.get(id) : null;
-  const proxyValue = typeof textEditProxyValue === 'function' && _editEl
+  const proxyValue = _editEl
     ? textEditProxyValue(_editEl)
     : (typeof _editEl?.value === 'string' ? _editEl.value : '');
   const rawStart = state?.start ?? state?.selectionStart ?? _editEl?.selectionStart ?? '';
@@ -838,11 +838,10 @@ const shouldCommitTextEditInputImmediately = (inputType = '', hadSelection = fal
   hadSelection || inputType.includes('Paste') || inputType.includes('Cut');
 
 const recordTextEditInputHistory = (id, inputType = '', hadSelection = false) => {
+  clearEditHistoryCheckpointTimer();
   if (shouldCommitTextEditInputImmediately(inputType, hadSelection)) {
-    clearEditHistoryCheckpointTimer();
     return pushEditHistoryIfChanged(id);
   }
-  clearEditHistoryCheckpointTimer();
   _editHistoryTimer = setTimeout(() => {
     _editHistoryTimer = null;
     pushEditHistoryIfChanged(id);

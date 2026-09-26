@@ -665,7 +665,6 @@ function prewarmVisibleScaledImageVariants(options = {}) {
   }
   const padPx = Number.isFinite(options.padPx) ? options.padPx : IMAGE_VARIANT_PREWARM_PAD_PX;
   const rect = viewportWorldRect(padPx);
-  if (!rect) return typeof BOARDFISH_PRODUCTION === 'undefined' ? { skipped: 'no-viewport' } : undefined;
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   let candidates = 0;

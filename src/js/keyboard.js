@@ -131,9 +131,7 @@ document.addEventListener('keydown', (e) => {
   if (commandOnly && isShortcutKey(e, 'r')) {
     if (!canTransformSelectedImagesFromKeyboard()) return;
     consumeShortcutEvent(e);
-    runShortcutCommand('rotate-image', () => {
-      rotateSelectedImages();
-    });
+    runShortcutCommand('rotate-image', rotateSelectedImages);
     return;
   }
 
