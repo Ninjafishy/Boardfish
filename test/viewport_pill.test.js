@@ -69,8 +69,7 @@ function loadViewportPillHarness() {
   vm.runInContext(
     `${source.slice(0, prefixEnd)}\n` +
       'globalThis.showIslandMsg = showIslandMsg;\n' +
-      'globalThis.startPillTask = startPillTask;\n' +
-      'globalThis.updatePillTask = updatePillTask;\n' +
+      'globalThis.startIslandBusyMsg = startIslandBusyMsg;\n' +
       'globalThis.syncIslandZoomDisplay = syncIslandZoomDisplay;\n',
     context,
     { filename: 'viewport.js' },
@@ -263,11 +262,11 @@ test('pill messages update without redundant text writes', () => {
 
 test('busy pill progress updates in place', () => {
   const context = loadViewportPillHarness();
-  const busyPill = context.startPillTask({ message: '0/2', progress: true });
+  const busyPill = context.startIslandBusyMsg('0/2');
 
-  context.updatePillTask(busyPill, '0/2');
+  busyPill.update('0/2');
 
-  context.updatePillTask(busyPill, '1/2');
+  busyPill.update('1/2');
 
   assert.equal(context.islZoom.textContent, '1/2');
   assert.equal(context.island.classList.contains('visible'), true);

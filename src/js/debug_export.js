@@ -487,11 +487,7 @@ var ExportDebug = (() => {
     };
   }
 
-  function dump() {
-    const flat = events.map(({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
-    console.table(flat);
-    return events.slice();
-  }
+  const dump = () => dumpDebugEvents(events, ({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
 
   function summary() {
     const rows = events.filter(e => e.step && e.step !== 'start').map(e => ({

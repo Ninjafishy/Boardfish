@@ -394,7 +394,7 @@ test('wheel zoom over visible floating UI uses the viewport wheel handler', () =
   assert.match(inputSource, /window\.addEventListener\('wheel', handleViewportWheel, \{ capture: true, passive: false \}\);/);
   assert.doesNotMatch(inputSource, /canvas\.addEventListener\('wheel'/);
   assert.doesNotMatch(inputSource, /viewportWheelSurfaces/);
-  assert.match(inputSource, /const requestedZoom = zoom \* factor;\s*if \(typeof BOARDFISH_PRODUCTION === 'undefined'\) scheduleTransform\(BoardfishViewportState\.zoomAroundClient\(e\.clientX, e\.clientY, requestedZoom\), 'wheel-zoom', e\);/);
+  assert.match(inputSource.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_(?:START|END) \*\//g, ''), /const requestedZoom = zoom \* factor;\s*scheduleTransform\(BoardfishViewportState\.zoomAroundClient\(e\.clientX, e\.clientY, requestedZoom\)\s*, 'wheel-zoom', e\s*\);/);
   assert.match(viewportSource, /lastViewportInputAt = now;\s*if \(changed === false && !editingId\) return;/);
   assert.doesNotMatch(inputSource, /const newZoom = Math\.min\(ZOOM_MAX/);
   assert.match(selectionSource, /document\.elementFromPoint\(x, y\)/);

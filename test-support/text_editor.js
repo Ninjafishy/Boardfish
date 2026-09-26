@@ -3,6 +3,20 @@
 const { readSource } = require('./source.js');
 const vm = require('node:vm');
 
+function createUnitTextContext() {
+  return {
+    font: '',
+    textBaseline: '',
+    measureText(text) {
+      return {
+        width: String(text).length,
+        actualBoundingBoxAscent: 12,
+        actualBoundingBoxDescent: 4,
+      };
+    },
+  };
+}
+
 function loadLiveTextEditResizeHarness() {
   const obj = {
     id: 'text-1',
@@ -144,4 +158,4 @@ function loadLiveTextEditResizeHarness() {
   return context;
 }
 
-module.exports = { loadLiveTextEditResizeHarness };
+module.exports = { loadLiveTextEditResizeHarness, createUnitTextContext };

@@ -868,13 +868,7 @@ async function openBoard() {
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       return;
     }
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      await openBoardFromPath(fileRef, dbg);
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    } else {
-      await openBoardFromPath(fileRef);
-    }
+    await openBoardFromPath(fileRef /* BOARDFISH_DEV_DIAGNOSTICS_START */ , dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   } catch (err) {
     finishFailedOpen(
       /* BOARDFISH_DEV_DIAGNOSTICS_START */

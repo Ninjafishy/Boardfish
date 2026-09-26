@@ -21,33 +21,10 @@ var SaveDebug = (() => {
     if (DEBUG_TOOLS_ENABLED) console.info('Boardfish save debugger disabled.');
   }
 
-  function dump() {
-    const flat = core.events.map(flattenDebugEvent);
-    console.table(flat);
-    return core.events;
-  }
+  const dump = () => dumpDebugEvents(core.events);
 
-  function summary() {
-    const rows = core.events.filter(e => e.step && e.step !== 'start').map(e => ({
-      id: e.id,
-      op: e.op,
-      step: e.step,
-      dt: e.dt,
-      total: e.total,
-      command: e.meta?.command || '',
-      objectCount: e.meta?.objectCount ?? '',
-      imageCount: e.meta?.imageCount ?? '',
-      imageObjectCount: e.meta?.imageObjectCount ?? '',
-      textObjectCount: e.meta?.textObjectCount ?? '',
-      textCharCount: e.meta?.textCharCount ?? '',
-      largestTextChars: e.meta?.largestTextChars ?? '',
-      runtimeTextCacheObjects: e.meta?.runtimeTextCacheObjects ?? '',
-      runtimeTextCacheLines: e.meta?.runtimeTextCacheLines ?? '',
-      runtimeTextCachePrefixEntries: e.meta?.runtimeTextCachePrefixEntries ?? '',
-      runtimeTextPrivateFields: e.meta?.runtimeTextPrivateFields ?? '',
-      imageStoreBytes: e.meta?.imageStoreBytes ?? '',
-      rawImageStoreBytes: e.meta?.rawImageStoreBytes ?? '',
-      largestImageBytes: e.meta?.largestImageBytes ?? '',
+  function serializedSaveColumns(e) {
+    return {
       jsonBytes: e.meta?.rust?.json_bytes ?? '',
       queueMs: e.meta?.queueMs ?? '',
       elapsedMs: e.meta?.elapsedMs ?? '',
@@ -75,6 +52,31 @@ var SaveDebug = (() => {
       rustImageCount: e.meta?.rust?.image_count ?? '',
       rustTotalMs: e.meta?.rust?.total_ms ?? '',
       error: e.meta?.error || '',
+    };
+  }
+
+  function summary() {
+    const rows = core.events.filter(e => e.step && e.step !== 'start').map(e => ({
+      id: e.id,
+      op: e.op,
+      step: e.step,
+      dt: e.dt,
+      total: e.total,
+      command: e.meta?.command || '',
+      objectCount: e.meta?.objectCount ?? '',
+      imageCount: e.meta?.imageCount ?? '',
+      imageObjectCount: e.meta?.imageObjectCount ?? '',
+      textObjectCount: e.meta?.textObjectCount ?? '',
+      textCharCount: e.meta?.textCharCount ?? '',
+      largestTextChars: e.meta?.largestTextChars ?? '',
+      runtimeTextCacheObjects: e.meta?.runtimeTextCacheObjects ?? '',
+      runtimeTextCacheLines: e.meta?.runtimeTextCacheLines ?? '',
+      runtimeTextCachePrefixEntries: e.meta?.runtimeTextCachePrefixEntries ?? '',
+      runtimeTextPrivateFields: e.meta?.runtimeTextPrivateFields ?? '',
+      imageStoreBytes: e.meta?.imageStoreBytes ?? '',
+      rawImageStoreBytes: e.meta?.rawImageStoreBytes ?? '',
+      largestImageBytes: e.meta?.largestImageBytes ?? '',
+      ...serializedSaveColumns(e),
     }));
     console.table(rows);
     return rows;
@@ -107,33 +109,7 @@ var SaveDebug = (() => {
         runtimeTextPrivateFields: e.meta?.runtimeTextPrivateFields ?? '',
         imageStoreBytes: e.meta?.imageStoreBytes ?? '',
         rawImageStoreBytes: e.meta?.rawImageStoreBytes ?? '',
-        jsonBytes: e.meta?.rust?.json_bytes ?? '',
-        queueMs: e.meta?.queueMs ?? '',
-        elapsedMs: e.meta?.elapsedMs ?? '',
-        rustSerializeMs: e.meta?.rust?.serialize_ms ?? '',
-        rustJsonStringifyMs: e.meta?.rust?.json_stringify_ms ?? '',
-        rustJsonEncodeMs: e.meta?.rust?.json_encode_ms ?? '',
-        rustValidateMs: e.meta?.rust?.validate_ms ?? '',
-        rustSourceLookupMs: e.meta?.rust?.source_lookup_ms ?? '',
-        rustWriteMs: e.meta?.rust?.write_ms ?? '',
-        rustZipMs: e.meta?.rust?.zip_ms ?? '',
-        rustCrcMs: e.meta?.rust?.crc_ms ?? '',
-        rustCrcComputedBytes: e.meta?.rust?.crc_computed_bytes ?? '',
-        rustCrcComputedEntries: e.meta?.rust?.crc_computed_entries ?? '',
-        rustCrcReusedEntries: e.meta?.rust?.crc_reused_entries ?? '',
-        blobImageBytes: e.meta?.rust?.blob_image_bytes ?? '',
-        byteArrayImageBytes: e.meta?.rust?.byte_array_image_bytes ?? '',
-        imageSourceRefreshMs: e.meta?.rust?.image_source_refresh_ms ?? '',
-        imageSourceRefreshCount: e.meta?.rust?.image_source_refresh_count ?? '',
-        imageSourceRefreshBytes: e.meta?.rust?.image_source_refresh_bytes ?? '',
-        imageSourceRefreshBacking: e.meta?.rust?.image_source_refresh_backing ?? '',
-        imageSourceRefreshError: e.meta?.rust?.image_source_refresh_error ?? '',
-        zipMode: e.meta?.rust?.zip_mode ?? '',
-        zipBytes: e.meta?.rust?.zip_bytes ?? '',
-        rustImageBytes: e.meta?.rust?.image_bytes ?? '',
-        rustImageCount: e.meta?.rust?.image_count ?? '',
-        rustTotalMs: e.meta?.rust?.total_ms ?? '',
-        error: e.meta?.error || '',
+        ...serializedSaveColumns(e),
       }));
     console.table(rows);
     return rows;

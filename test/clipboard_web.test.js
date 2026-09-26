@@ -8,6 +8,15 @@ const { loadReadableImageSourceBlob, pngBytes } = require('../test-support/image
 const WebContainer = require('../src/js/web_board_container.js');
 
 
+function trimClipboardFixture(value) {
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
+  let first = 0;
+  let last = lines.length - 1;
+  while (first <= last && !/\S/.test(lines[first])) first++;
+  while (last >= first && !/\S/.test(lines[last])) last--;
+  return first <= last ? lines.slice(first, last + 1).join('\n') : '';
+}
+
 function loadClipboardStateHarness() {
   const source = readSource('src/js/clipboard_state.js');
   let tokenId = 0;
@@ -209,14 +218,7 @@ function loadClipboardExportHarness(options = {}) {
       }
       return Promise.resolve(options.renderedBlob || null);
     },
-    textForClipboard(value) {
-      const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
-      let first = 0;
-      let last = lines.length - 1;
-      while (first <= last && !/\S/.test(lines[first])) first++;
-      while (last >= first && !/\S/.test(lines[last])) last--;
-      return first <= last ? lines.slice(first, last + 1).join('\n') : '';
-    },
+    textForClipboard: trimClipboardFixture,
     scheduleRender(board, overlay, sourceName) {
       calls.renders.push({ board, overlay, source: sourceName });
     },
@@ -330,14 +332,7 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
       obj.h = 56;
       return true;
     },
-    textForTextObjectPaste(value) {
-      const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
-      let first = 0;
-      let last = lines.length - 1;
-      while (first <= last && !/\S/.test(lines[first])) first++;
-      while (last >= first && !/\S/.test(lines[last])) last--;
-      return first <= last ? lines.slice(first, last + 1).join('\n') : '';
-    },
+    textForTextObjectPaste: trimClipboardFixture,
   };
   if (realLimits) {
     const limitsContext = vm.createContext({

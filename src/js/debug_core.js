@@ -34,6 +34,11 @@
       : { ...rest, ...other };
   }
 
+  function dumpDebugEvents(events, flatten = flattenDebugEvent) {
+    console.table(events.map(flatten));
+    return events.slice();
+  }
+
   function debugEventTimestampMs(event = null) {
     const timestamp = Number(event?.timeStamp);
     if (!Number.isFinite(timestamp) || timestamp <= 0) return performance.now();
@@ -144,6 +149,7 @@
   root.debugEventTimestampMs = debugEventTimestampMs;
   root.debugEventTargetLabel = debugEventTargetLabel;
   root.flattenDebugEvent = flattenDebugEvent;
+  root.dumpDebugEvents = dumpDebugEvents;
   root.createDebugRecorder = createDebugRecorder;
   root.round2 = round2;
   root.debugLast = debugLast;

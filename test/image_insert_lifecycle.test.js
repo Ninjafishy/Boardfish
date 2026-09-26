@@ -36,7 +36,9 @@ function loadWebImageSourceHarness({ boardContainer = null } = {}) {
 }
 
 function loadAddImageHarness() {
-  const source = readSource('src/js/image_insert.js');
+  const source = readSource('src/js/image_insert.js').replace(
+    /\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '',
+  );
   const calls = {
     histories: [],
     objects: [],

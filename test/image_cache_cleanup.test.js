@@ -297,7 +297,7 @@ test('clearImageStore clears shared scaled image work', () => {
   let clears = 0;
   context.clearScaledImageVariants = () => { clears++; };
 
-  context.clearImageStore(false);
+  context.clearImageStore();
 
   assert.equal(clears, 1);
 });

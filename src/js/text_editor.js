@@ -883,13 +883,10 @@ const replaceTextEditProxyRange = (proxy, text, start, end, selectionMode = 'end
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const rangeTextStartedAt = textEditorDebugNow();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (typeof BOARDFISH_PRODUCTION !== 'undefined') {
+  /* BOARDFISH_DEV_DIAGNOSTICS_START */
+  var domSyncResult =
+  /* BOARDFISH_DEV_DIAGNOSTICS_END */
     syncTextEditProxyDomValue(proxy, value);
-  } else {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    var domSyncResult = syncTextEditProxyDomValue(proxy, value);
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  }
   proxy.setRangeText(inserted, from, to, selectionMode);
   setTextEditProxyLogicalValue(proxy, proxy.value);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -2032,8 +2029,7 @@ function enterEdit(id, {
     const hasSelection = proxy.selectionStart !== proxy.selectionEnd;
     if (hasSelection) { _caretVisible = true; return; }
     _caretVisible = !_caretVisible;
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(true, false, 'caret-blink');
-    else scheduleRender(true, false);
+    scheduleRender(true, false /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'caret-blink' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   }, 500);
 
   if (placeInitialCaret) {

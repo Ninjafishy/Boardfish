@@ -12,8 +12,7 @@ function finishBulkImageInsert() {
   if (_bulkImageInsertDepth > 0) _bulkImageInsertDepth--;
   if (_bulkImageInsertDepth === 0 && _bulkImageInsertAdded > 0) {
     invalidateOffscreen();
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(true, true, 'bulk-image-insert');
-    else scheduleRender(true, true);
+    scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'bulk-image-insert' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     pushHistory('bulk-image-insert');
   }
   const added = _bulkImageInsertAdded;
@@ -132,8 +131,7 @@ async function addImage(src, cx, cy, imgKey, options = {}) {
       _bulkImageInsertAdded++;
     } else {
       BoardfishEditorState.setSelection([obj.id], { primaryId: obj.id, exitEditing: false });
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(true, true, 'add-image');
-      else scheduleRender(true, true);
+      scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'add-image' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       pushHistory('add-image');
     }
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
@@ -381,9 +379,5 @@ canvas.addEventListener('drop', async (event) => {
     return;
   }
   const wp = toWorld(event.clientX, event.clientY);
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-    await insertImageFiles(files, wp.x, wp.y, 'web-drop');
-  } else {
-    await insertImageFiles(files, wp.x, wp.y);
-  }
+  await insertImageFiles(files, wp.x, wp.y /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'web-drop' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
 });

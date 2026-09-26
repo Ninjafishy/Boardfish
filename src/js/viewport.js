@@ -81,18 +81,6 @@ function startIslandBusyMsg(text) {
   };
 }
 
-function startPillTask({
-  message = null,
-  progress = false,
-} = {}) {
-  return progress ? startIslandBusyMsg(message) : showIslandMsg(message);
-}
-
-function updatePillTask(busyPill, nextText) {
-  if (!busyPill) return;
-  busyPill.update(nextText);
-}
-
 function finishPillTask({
   beforeFinish = null,
   busyPill = null,
@@ -152,8 +140,7 @@ function _rebuildOffscreen(dpr, viewportRect) {
   for (const obj of objects) {
     if (obj.type === 'text') continue;
     if (viewportCullingEnabled && !objectIntersectsRect(obj, viewportRect)) continue;
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') drawSingleObj(_offCtx, obj, null, viewportRect, view);
-    else drawSingleObj(_offCtx, obj, viewportRect, view);
+    drawSingleObj(_offCtx, obj, /* BOARDFISH_DEV_DIAGNOSTICS_START */ null, /* BOARDFISH_DEV_DIAGNOSTICS_END */ viewportRect, view);
   }
   _offscreenDirty = false;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -275,11 +262,7 @@ const textLayoutLineIntersectsViewport = (line, viewportRect = null) => {
 const drawTextLayoutStatic = (context, obj, layout, selectionGap = null, stats = null) => {
   if (!selectionGap) {
     for (const line of layout) {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        drawTextLineRange(context, line, obj, 0, line.text.length, VIEWPORT_TEXT_DRAW_STATS_DISABLED);
-      } else {
-        drawTextLineRange(context, line, obj);
-      }
+      drawTextLineRange(context, line, obj /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 0, line.text.length, VIEWPORT_TEXT_DRAW_STATS_DISABLED /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       if (stats) {
         stats.editDrawnTextLines = (stats.editDrawnTextLines || 0) + 1;
@@ -294,11 +277,7 @@ const drawTextLayoutStatic = (context, obj, layout, selectionGap = null, stats =
     const ls = line.startIndex, textEnd = ls + line.text.length;
     const h0 = Math.max(selStart, ls), h1 = Math.min(selEnd, textEnd);
     if (h0 >= h1) {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        drawTextLineRange(context, line, obj, 0, line.text.length, VIEWPORT_TEXT_DRAW_STATS_DISABLED);
-      } else {
-        drawTextLineRange(context, line, obj);
-      }
+      drawTextLineRange(context, line, obj /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 0, line.text.length, VIEWPORT_TEXT_DRAW_STATS_DISABLED /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       if (stats) {
         stats.editDrawnTextLines = (stats.editDrawnTextLines || 0) + 1;
@@ -310,18 +289,10 @@ const drawTextLayoutStatic = (context, obj, layout, selectionGap = null, stats =
     const hasBefore = o0 > 0;
     const hasAfter = o1 < line.text.length;
     if (hasBefore) {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        drawTextLineRange(context, line, obj, 0, o0, VIEWPORT_TEXT_DRAW_STATS_DISABLED);
-      } else {
-        drawTextLineRange(context, line, obj, 0, o0);
-      }
+      drawTextLineRange(context, line, obj, 0, o0 /* BOARDFISH_DEV_DIAGNOSTICS_START */ , VIEWPORT_TEXT_DRAW_STATS_DISABLED /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     }
     if (hasAfter) {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        drawTextLineRange(context, line, obj, o1, line.text.length, VIEWPORT_TEXT_DRAW_STATS_DISABLED);
-      } else {
-        drawTextLineRange(context, line, obj, o1);
-      }
+      drawTextLineRange(context, line, obj, o1 /* BOARDFISH_DEV_DIAGNOSTICS_START */ , line.text.length, VIEWPORT_TEXT_DRAW_STATS_DISABLED /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     }
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     if (stats && (hasBefore || hasAfter)) {

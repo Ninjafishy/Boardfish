@@ -4,6 +4,7 @@ const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
+const { createUnitTextContext } = require('../test-support/text_editor.js');
 
 const DEFAULT_TEXT_BOX_MIN_LINES = 1;
 const DEFAULT_TEXT_BOX_LINE_H = 24;
@@ -16,23 +17,7 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
   let idCounter = 1;
   const context = {
     document: {
-      createElement() {
-        return {
-          getContext() {
-            return {
-              font: '',
-              textBaseline: '',
-              measureText(text) {
-                return {
-                  width: String(text).length,
-                  actualBoundingBoxAscent: 12,
-                  actualBoundingBoxDescent: 4,
-                };
-              },
-            };
-          },
-        };
-      },
+      createElement() { return { getContext: createUnitTextContext }; },
     },
     added: [],
     debugSteps: [],

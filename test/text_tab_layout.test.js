@@ -4,6 +4,7 @@ const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
+const { createUnitTextContext } = require('../test-support/text_editor.js');
 
 function loadTextLayout() {
   const context = {
@@ -15,17 +16,7 @@ function loadTextLayout() {
         check: () => true,
       },
       createElement() {
-        const canvasContext = {
-          font: '',
-          textBaseline: '',
-          measureText(text) {
-            return {
-              width: String(text).length,
-              actualBoundingBoxAscent: 12,
-              actualBoundingBoxDescent: 4,
-            };
-          },
-        };
+        const canvasContext = createUnitTextContext();
         return { getContext: () => canvasContext };
       },
     },

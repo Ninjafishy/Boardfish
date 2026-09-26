@@ -267,7 +267,7 @@ test('open failures retain diagnostic details and release the input shield in bo
       startCanvasSizeTracking() {}, resizeCanvas() {}, snapshot() {}, markSaved() {},
       registerDebugCommand() {},
       BoardfishRuntime: { describeFileRef() { return 'board.bf'; } },
-      beginOpeningFreeze() {}, startPillTask() {},
+      beginOpeningFreeze() {}, showIslandMsg() {},
       endOpeningFreeze() { releases++; },
       async invokeReadBoard() { throw error; },
       console: { error(...args) { errors.push(args); } },
@@ -296,9 +296,9 @@ test('open-board loading does not wait for pill status update before reading the
   const productionBootstrap = withoutDeveloperDiagnostics(bootstrap);
   const developmentBootstrap = bootstrap.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_(?:START|END) \*\//g, '');
 
-  assert.match(developmentBootstrap, /startPillTask\(\{ message: 'Opening' \}\);\s*const data = await invokeReadBoard\(filePath\s*, dbg\s*\);/);
-  assert.match(productionBootstrap, /startPillTask\(\{ message: 'Opening' \}\);\s*const data = await invokeReadBoard\(filePath\s*\);/);
-  assert.doesNotMatch(bootstrap, /await startPillTask\(\{ message: 'Opening' \}\)/);
+  assert.match(developmentBootstrap, /showIslandMsg\('Opening'\);\s*const data = await invokeReadBoard\(filePath\s*, dbg\s*\);/);
+  assert.match(productionBootstrap, /showIslandMsg\('Opening'\);\s*const data = await invokeReadBoard\(filePath\s*\);/);
+  assert.doesNotMatch(bootstrap, /await showIslandMsg\('Opening'\)/);
 });
 
 test('open-board file target updates as soon as board data is applied', () => {

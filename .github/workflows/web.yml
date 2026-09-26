@@ -78,41 +78,17 @@ jobs:
             beta-source/package-lock.json
             legacy-source/package-lock.json
 
-      - name: Install production dependencies
-        run: npm ci --prefer-offline --no-audit --fund=false
-        working-directory: production
-
-      - name: Check production web source syntax
-        run: npm run check:js-syntax
-        working-directory: production
-
-      - name: Build production web app
-        run: npm run web:build
-        working-directory: production
-
-      - name: Install beta dependencies
-        run: npm ci --prefer-offline --no-audit --fund=false
-        working-directory: beta-source
-
-      - name: Check beta web source syntax
-        run: npm run check:js-syntax
-        working-directory: beta-source
-
-      - name: Build beta web app
-        run: npm run web:build
-        working-directory: beta-source
-
-      - name: Install legacy dependencies
-        run: npm ci --prefer-offline --no-audit --fund=false
-        working-directory: legacy-source
-
-      - name: Check legacy web source syntax
-        run: npm run check:js-syntax
-        working-directory: legacy-source
-
-      - name: Build legacy web app
-        run: npm run web:build
-        working-directory: legacy-source
+      - name: Install, check, and build all app versions
+        shell: bash
+        run: |
+          for source_dir in production beta-source legacy-source; do
+            (
+              cd "$source_dir"
+              npm ci --prefer-offline --no-audit --fund=false
+              npm run check:js-syntax
+              npm run web:build
+            )
+          done
 
       - name: Assemble production, beta, and legacy site
         shell: bash

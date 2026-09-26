@@ -81,7 +81,7 @@
       const text = progressText(totalCount, preparedCount);
       if (text === currentProgressText) return;
       currentProgressText = text;
-      updatePillTask(busyPill, text);
+      if (busyPill) busyPill.update(text);
       if (typeof BOARDFISH_PRODUCTION === 'undefined') {
         ExportDebug.recordProgressUi({
           phase,

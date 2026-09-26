@@ -50,13 +50,6 @@ function syncHistoryEditProxyDomValueForSelection(proxy, start, end) {
   const selectionEnd = Math.max(selectionStart, Math.trunc(Number(end)) || selectionStart);
   const stale = !!proxy?._boardfishDomValueStale || domValue !== logicalValue;
   const needsSelectionRange = selectionStart !== selectionEnd || selectionEnd > domValue.length;
-  if (typeof BOARDFISH_PRODUCTION !== 'undefined') {
-    if (proxy && stale && needsSelectionRange) {
-      proxy.value = logicalValue;
-      setTextEditProxyLogicalValue(proxy, logicalValue);
-    }
-    return;
-  }
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const domCharsBefore = domValue.length;
   if (!proxy || !stale || !needsSelectionRange) {
@@ -69,8 +62,12 @@ function syncHistoryEditProxyDomValueForSelection(proxy, start, end) {
     };
   }
   const startedAt = performance.now();
-  proxy.value = logicalValue;
-  setTextEditProxyLogicalValue(proxy, logicalValue);
+  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+  if (proxy && stale && needsSelectionRange) {
+    proxy.value = logicalValue;
+    setTextEditProxyLogicalValue(proxy, logicalValue);
+  }
+  /* BOARDFISH_DEV_DIAGNOSTICS_START */
   return {
     synced: true,
     reason: selectionStart !== selectionEnd ? 'restore-highlight' : 'selection-outside-stale-dom',
@@ -738,6 +735,5 @@ function redo() {
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 function renderAll() {
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(true, true, 'renderAll');
-  else scheduleRender(true, true);
+  scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'renderAll' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
 }

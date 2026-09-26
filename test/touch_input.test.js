@@ -194,7 +194,7 @@ test('mobile browsers feed complete TouchEvent snapshots into the gesture contro
 });
 
 test('mobile pinch zoom uses the canonical viewport frame scheduler', () => {
-  assert.match(touchInputSource, /function applyTouchPinch\(gesture\)[\s\S]*BoardfishViewportState\.setZoomPan\([\s\S]*scheduleTransform\(changed, 'touch-pinch-zoom', gesture\.event\)/);
+  assert.match(touchInputSource.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_(?:START|END) \*\//g, ''), /function applyTouchPinch\(gesture\)[\s\S]*BoardfishViewportState\.setZoomPan\([\s\S]*scheduleTransform\(changed\s*, 'touch-pinch-zoom', gesture\.event\s*\)/);
   assert.doesNotMatch(touchInputSource, /BoardfishViewportPreview|viewport-transform-preview|touch-pinch-preview/);
 });
 

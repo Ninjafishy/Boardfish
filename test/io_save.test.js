@@ -21,13 +21,12 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     window: { addEventListener() {} },
     unsavedDialog: { addEventListener() {} },
     BoardfishExportUtils: { randomHex: () => '3ca6d7' },
-    startPillTask({ message }) { calls.messages.push(message); },
     finishPillTask({ beforeFinish, finalMsg }) {
       beforeFinish();
       if (finalMsg) calls.messages.push(finalMsg);
     },
     showIslandMsg(message, duration) {
-      assert.equal(duration, context.long_message);
+      assert.equal(duration, message === 'Saving' ? undefined : context.long_message);
       calls.messages.push(message);
     },
     BoardfishRuntime: {

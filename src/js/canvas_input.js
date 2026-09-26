@@ -172,8 +172,7 @@ function handleViewportWheel(e) {
         ? Math.pow(0.995, e.deltaY)
         : e.deltaY < 0 ? 1.1 : 1 / 1.1;
       const requestedZoom = zoom * factor;
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(BoardfishViewportState.zoomAroundClient(e.clientX, e.clientY, requestedZoom), 'wheel-zoom', e);
-      else scheduleTransform(BoardfishViewportState.zoomAroundClient(e.clientX, e.clientY, requestedZoom));
+      scheduleTransform(BoardfishViewportState.zoomAroundClient(e.clientX, e.clientY, requestedZoom) /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'wheel-zoom', e /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       if (collectDebug) {
         const { panXBefore, panYBefore, zoomBefore } = beforeMeta;
         const handlerMs = canvasInputDebugRound(canvasInputNow() - handlerStart);
@@ -223,8 +222,7 @@ function handleViewportWheel(e) {
     }
 
     ViewportDebug.count('wheelPan');
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(BoardfishViewportState.panBy(-e.deltaX, -e.deltaY), 'wheel-pan', e);
-    else scheduleTransform(BoardfishViewportState.panBy(-e.deltaX, -e.deltaY));
+    scheduleTransform(BoardfishViewportState.panBy(-e.deltaX, -e.deltaY) /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'wheel-pan', e /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     if (collectDebug) {
       const { panXBefore, panYBefore, zoomBefore } = beforeMeta;
       const appliedPanX = -e.deltaX, appliedPanY = -e.deltaY;
@@ -344,8 +342,7 @@ function startMousePan(e) {
       const clientStepY = ev.clientY - lastClientY;
       if (!clientStepX && !clientStepY) return;
       ViewportDebug.count('mousePanMoves');
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(BoardfishViewportState.panBy(clientStepX, clientStepY), 'mouse-pan', ev);
-      else scheduleTransform(BoardfishViewportState.panBy(clientStepX, clientStepY));
+      scheduleTransform(BoardfishViewportState.panBy(clientStepX, clientStepY) /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'mouse-pan', ev /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       if (collectDebug) {
         const panDeltaX = panX - panXBefore;
@@ -650,8 +647,7 @@ function startObjectDrag(e, obj) {
     if (!moved && dx*dx + dy*dy > 9) moved = true;
     if (!moved) return;
     obj.x = objectStartX + dx / zoom; obj.y = objectStartY + dy / zoom;
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(true, true, 'object-drag');
-    else scheduleRender(true, true);
+    scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'object-drag' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   }
   function onUp(ev) {
     if (!moved) {

@@ -54,7 +54,7 @@ var finishFailedOpen;
       const fileLabel = BoardfishRuntime.describeFileRef(filePath);
       _boardOpening = true;
       beginOpeningFreeze();
-      startPillTask({ message: 'Opening' });
+      showIslandMsg('Opening');
       const data = await invokeReadBoard(filePath
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         , dbg

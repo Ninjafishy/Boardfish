@@ -26,11 +26,11 @@ async function saveSelectedImage() {
       filename: defaultName,
       targetMode: 'file',
       onStart: () => {
-        busyPill = startPillTask({ message: 'Exporting', progress: true });
+        busyPill = startIslandBusyMsg('Exporting');
         ExportDebug.step(dbg, 'web-export:pill-start', { imageCount: 1 });
       },
       onProgress: ({ phase, preparedCount, finishedCount }) => {
-        if (phase === 'save-progress') updatePillTask(busyPill, `${finishedCount || preparedCount || 1}/1`);
+        if (phase === 'save-progress' && busyPill) busyPill.update(`${finishedCount || preparedCount || 1}/1`);
       },
     });
     const saved = (downloadResult?.downloadedCount || 0) > 0;
@@ -88,7 +88,7 @@ async function exportImageBatch({
       , {
       targetMode: 'folder',
       onStart: () => {
-        busyPill = startPillTask({ message: `0/${imageObjs.length}`, progress: true });
+        busyPill = startIslandBusyMsg(`0/${imageObjs.length}`);
         updateProgress = BoardfishExportUtils.createProgressUpdater(imageObjs.length, busyPill);
         ExportDebug.step(dbg, 'web-export:pill-start', { imageCount: imageObjs.length });
       },

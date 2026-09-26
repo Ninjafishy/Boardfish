@@ -118,8 +118,7 @@
     const result = mutate();
     if (!result) return result;
     if (options.invalidate) invalidateOffscreen();
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(true, true, reason || 'mutation');
-    else scheduleRender(true, true);
+    scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , reason || 'mutation' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     pushHistory(reason);
     return result;
   }

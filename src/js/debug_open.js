@@ -53,11 +53,7 @@ var OpenDebug = (() => {
     return core.enabled && initialRenderDebugDepth > 0;
   }
 
-  function dump() {
-    const flat = events.map(flattenDebugEvent);
-    console.table(flat);
-    return events.slice();
-  }
+  const dump = () => dumpDebugEvents(events);
 
   function summary() {
     const rows = events.filter(e => e.step && e.step !== 'start').map(e => ({

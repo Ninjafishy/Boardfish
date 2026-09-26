@@ -5,7 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-const { loadLiveTextEditResizeHarness } = require('../test-support/text_editor.js');
+const { loadLiveTextEditResizeHarness, createUnitTextContext } = require('../test-support/text_editor.js');
 const TEST_LINE_H = 24;
 const TEST_TEXT_PAD = 16;
 const TEST_NEW_TEXT_EDIT_MIN_LINES = 1;
@@ -31,23 +31,7 @@ function loadTextEditorIntegrationHelpers() {
     console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     document: {
-      createElement() {
-        return {
-          getContext() {
-            return {
-              font: '',
-              textBaseline: '',
-              measureText(text) {
-                return {
-                  width: String(text).length,
-                  actualBoundingBoxAscent: 12,
-                  actualBoundingBoxDescent: 4,
-                };
-              },
-            };
-          },
-        };
-      },
+      createElement() { return { getContext: createUnitTextContext }; },
     },
     objects: [],
     dirty: [],

@@ -60,11 +60,7 @@ var InsertDebug = (() => {
     console.table(out);
     return out;
   }
-  function dump() {
-    const flat = events.map(({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
-    console.table(flat);
-    return events.slice();
-  }
+  const dump = () => dumpDebugEvents(events, ({ meta, ...rest }) => ({ ...rest, ...(meta || {}) }));
   function eventsForId(id) {
     return events.filter(e => e.id === id);
   }

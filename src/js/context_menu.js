@@ -463,8 +463,7 @@ function resetZoomToClosestObject() {
       window.innerWidth / 2 - center.x * targetZoom,
       window.innerHeight / 2 - center.y * targetZoom,
     );
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(changed, 'reset-zoom');
-    else scheduleTransform(changed);
+    scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'reset-zoom' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     ViewportDebug.end(dbg, {
       mode: 'empty-board-center',
       centerX: center.x,
@@ -482,8 +481,7 @@ function resetZoomToClosestObject() {
     window.innerWidth / 2 - objectCenterX * targetZoom,
     window.innerHeight / 2 - objectCenterY * targetZoom,
   );
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(changed, 'reset-zoom');
-  else scheduleTransform(changed);
+  scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'reset-zoom' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   ViewportDebug.end(dbg, {
     objectId: object.id,
     objectType: object.type,

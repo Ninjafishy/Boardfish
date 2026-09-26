@@ -2968,11 +2968,7 @@ var ViewportDebug = (() => {
     return out;
   }
 
-  function dump() {
-    const flat = events.map(flattenDebugEvent);
-    console.table(flat);
-    return events.slice();
-  }
+  const dump = () => dumpDebugEvents(events);
 
   function reset() {
     events.length = 0;

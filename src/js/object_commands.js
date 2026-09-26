@@ -146,8 +146,7 @@ function acquireInputShield(options = {}) {
     if (index !== -1) _inputShieldStack.splice(index, 1);
     updateInputShieldVisual();
     if (!_inputShieldStack.length && !_boardOpening) {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(false, true, 'input-shield-release');
-      else scheduleRender(false, true);
+      scheduleRender(false, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'input-shield-release' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     }
   };
 }
@@ -161,8 +160,7 @@ function hideInputShield() {
   else {
     updateInputShieldVisual();
     if (!_inputShieldStack.length && !_boardOpening) {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(false, true, 'input-shield-release');
-      else scheduleRender(false, true);
+      scheduleRender(false, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'input-shield-release' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
     }
   }
 }
@@ -181,12 +179,12 @@ function shouldKeepSelectionOverlayWhileBlocked() {
 
 async function runShieldedPillTask({
   releaseInputShield,
-  startMessage,
+  startMessage = null,
   successMessage,
   task,
 }) {
   try {
-    startPillTask({ message: startMessage });
+    showIslandMsg(startMessage);
     await task();
     finishPillTask({ beforeFinish: releaseInputShield, finalMsg: successMessage });
   } catch (err) {
@@ -214,7 +212,7 @@ async function newBoard() {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const openingStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  startPillTask({ message: 'Opening' });
+  showIslandMsg('Opening');
   BoardfishEditorState.resetBoardObjectState();
   OpenDebug.step(dbg, 'exitEdit', {});
   clearJsClipboard();
@@ -223,7 +221,7 @@ async function newBoard() {
   currentFilePath = null;
   currentFileRef = null;
   BoardfishViewportState.reset();
-  clearImageStore(true);
+  clearImageStore();
   OpenDebug.step(dbg, 'clearImageStore', {});
   snapshot();
   markSaved();
@@ -286,8 +284,7 @@ function duplicateSelected(anchorPoint = null) {
   BoardfishEditorState.setSelection(duplicatedIds, {
     primaryId: duplicatedIds[duplicatedIds.length - 1],
   });
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleRender(true, true, 'duplicate-selected');
-  else scheduleRender(true, true);
+  scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'duplicate-selected' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   pushHistory('duplicate-selected');
 }
 

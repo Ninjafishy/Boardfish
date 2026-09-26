@@ -334,8 +334,7 @@
       return;
     }
     if (!boardPressAllowed()) return;
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(BoardfishViewportState.panBy(gesture.dx, gesture.dy), 'touch-pan', gesture.event);
-    else scheduleTransform(BoardfishViewportState.panBy(gesture.dx, gesture.dy));
+    scheduleTransform(BoardfishViewportState.panBy(gesture.dx, gesture.dy) /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'touch-pan', gesture.event /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   }
 
   function beginTouchPinch() {
@@ -354,8 +353,7 @@
       gesture.centerX - (gesture.startCenterX - start.panX) * scale,
       gesture.centerY - (gesture.startCenterY - start.panY) * scale,
     );
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(changed, 'touch-pinch-zoom', gesture.event);
-    else scheduleTransform(changed);
+    scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'touch-pinch-zoom', gesture.event /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   }
 
   function finishTouchPinch() {
