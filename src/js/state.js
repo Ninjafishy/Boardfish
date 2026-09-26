@@ -107,8 +107,8 @@ function flipSelectedImages() {
   ClipDebug.end(dbg, { historyIndex });
 }
 
-function rotateSelectedImages(dir) {
-  BoardfishEditorState.commitMutation(`rotate-image-${dir}`, () => {
+function rotateSelectedImages() {
+  BoardfishEditorState.commitMutation('rotate-image-cw', () => {
     let rotated = false;
     for (const id of selectedIds) {
       const obj = objectsMap.get(id);
@@ -116,7 +116,7 @@ function rotateSelectedImages(dir) {
       const transform = obj.data;
       const current = transform.rotation;
       const oddFlip = transform.flipX !== transform.flipY;
-      const delta = (dir === 'cw') !== oddFlip ? 90 : 270;
+      const delta = oddFlip ? 270 : 90;
       obj.data.rotation = (current + delta) % 360;
       const cx = obj.x + obj.w / 2;
       const cy = obj.y + obj.h / 2;

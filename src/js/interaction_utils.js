@@ -23,13 +23,13 @@
     };
   }
 
-  function beginDocumentDrag({ move, up, moveEvent = 'mousemove', upEvent = 'mouseup' }) {
+  function beginDocumentDrag({ move, up }) {
     let active = true;
     const cleanup = (event = null) => {
       if (!active) return;
       active = false;
-      document.removeEventListener(moveEvent, move);
-      document.removeEventListener(upEvent, cleanup);
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', cleanup);
       if (typeof window !== 'undefined' && window.removeEventListener) {
         window.removeEventListener('blur', onCancel);
         window.removeEventListener('pagehide', onCancel);
@@ -49,8 +49,8 @@
         onCancel({ type: 'visibilitychange' });
       }
     };
-    document.addEventListener(moveEvent, move);
-    document.addEventListener(upEvent, cleanup);
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', cleanup);
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('blur', onCancel);
       window.addEventListener('pagehide', onCancel);

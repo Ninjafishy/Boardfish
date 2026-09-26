@@ -23,8 +23,7 @@
   }
 
   function isSupportedBoardVersion(value) {
-    const version = Number(value);
-    return version === 2 || version === BOARD_VERSION_CONTAINER;
+    return Number(value) === BOARD_VERSION_CONTAINER;
   }
 
   function isBoardObjectType(value) {

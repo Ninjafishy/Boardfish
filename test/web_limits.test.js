@@ -100,17 +100,6 @@ test('web board payload limits reject too many objects', () => {
   );
 });
 
-test('web board payload limits count decoded image bytes toward board content', () => {
-  assert.equal(
-    WebLimits.validateBoardPayload({
-      objectCount: 1,
-      boardJsonBytes: 10,
-      imageEntries: [{ key: 'img-1', byteLength: 33 * 1024 * 1024 }],
-    }),
-    true,
-  );
-});
-
 test('web board content estimate ignores runtime text layout cache fields', () => {
   const previousObjects = globalThis.objects;
   const previousImageStore = globalThis.imageStore;
@@ -173,7 +162,6 @@ test('web board content limit carries a short user-facing message', () => {
     () => WebLimits.validateBoardPayload({
       objectCount: 1,
       boardJsonBytes: WebLimits.LIMITS.maxBoardContentBytes + 1,
-      imageEntries: [],
     }),
     (err) => {
       assert.equal(err.message, 'Board Limit: 500 MB');

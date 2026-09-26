@@ -181,7 +181,6 @@ test('scaled variants round up so the bitmap is not below the qualifying size', 
 test('generic bitmap draw warmup samples the full source into a 1px canvas', () => {
   const context = loadImageVariants();
   const drawCalls = [];
-  let clearCalls = 0;
   let smoothingWrites = 0;
   let qualityWrites = 0;
   let warmupCanvas = null;
@@ -196,7 +195,6 @@ test('generic bitmap draw warmup samples the full source into a 1px canvas', () 
           assert.equal(this.width, 1);
           assert.equal(this.height, 1);
           const drawContext = {
-            clearRect() { clearCalls++; },
             drawImage(...args) { drawCalls.push(args); },
           };
           Object.defineProperty(drawContext, 'imageSmoothingEnabled', {
@@ -223,7 +221,6 @@ test('generic bitmap draw warmup samples the full source into a 1px canvas', () 
   assert.deepEqual({ width: warmupCanvas.width, height: warmupCanvas.height }, { width: 1, height: 1 });
   assert.equal(smoothingWrites, 1);
   assert.equal(qualityWrites, 0);
-  assert.equal(clearCalls, 0);
   assert.equal(context.drawableBitmapWarmupWarmedByKind.other, 1);
 });
 
@@ -239,7 +236,6 @@ test('full image draw warmup uses a bounded real-size sample', () => {
         getContext(type) {
           assert.equal(type, '2d');
           return {
-            clearRect() {},
             drawImage(...args) { drawCalls.push(args); },
           };
         },
@@ -267,7 +263,6 @@ test('scaled bitmap draw warmup uses a bounded real-size sample', () => {
         height: 0,
         getContext() {
           return {
-            clearRect() {},
             drawImage(...args) { drawCalls.push(args); },
           };
         },
@@ -301,13 +296,13 @@ test('source-ready images queue the low zoom scaled variant before first draw', 
   assert.equal(context.imageScaledVariantQueue[0].key, 'img-1');
 });
 
-test('source-ready preview priority promotes an already pending scaled replacement', () => {
+test('scaled variant priority promotes an already pending scaled replacement', () => {
   const context = loadImageVariantsWithBitmap();
   const source = { width: 4000, height: 3000 };
   context.queueScaledImageVariant('img-1', source, 0.25);
   assert.equal(context.imageScaledVariantQueue[0].priority, false);
 
-  const result = context.queueScaledImageVariantForReadyImage('img-1', source, true);
+  const result = context.queueScaledImageVariant('img-1', source, 0.25, true);
 
   assert.equal(result.queued, false);
   assert.equal(result.skipped, 'pending');
@@ -774,7 +769,7 @@ test('scaled image variant skips do not create empty cache groups', () => {
 test('image bitmap queue does not wait for animation frames during board open', () => {
   const imageStateSource = readSource('src/js/image_state.js');
 
-  assert.match(imageStateSource, /if \(typeof _boardOpening !== 'undefined' && _boardOpening\) \{/);
+  assert.match(imageStateSource, /if \(_boardOpening\) \{/);
   assert.match(imageStateSource, /setTimeout\(processImageDecodeQueue, 0\);/);
   assert.match(imageStateSource, /requestAnimationFrame\(processImageDecodeQueue\);/);
 });

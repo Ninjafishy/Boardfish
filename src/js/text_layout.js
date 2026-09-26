@@ -17,7 +17,7 @@ const TEXT_DRAW_BATCH_MAX_UNITS = 2;
 // rendering in Chromium. Keep fallback fonts, other engines, f/F ligatures,
 // the contextual "tt" alternate, punctuation, and complex scripts exact.
 const TEXT_DRAW_BATCHABLE_ASCII_RE = /^[A-EG-Za-eg-z0-9]$/;
-var TEXT_BASELINE_Y_OFFSET = FONT_SIZE;
+var TEXT_BASELINE_Y_OFFSET;
 var _textDrawBatchingEngineVerified = null;
 var _textDrawBatchingVerifiedFonts = new Set();
 
@@ -140,7 +140,6 @@ const textForExternalTextObjectPaste = (value) => {
 function isTextContentEmpty(value) { return !/[^\s\u200B-\u200D\uFEFF]/.test(String(value ?? '')); }
 
 function configureTextCanvasContext(context) {
-  if (!context) return;
   try { context.fontKerning = TEXT_CANVAS_FONT_KERNING; } catch (_) {}
   try { context.letterSpacing = '0px'; } catch (_) {}
   try { context.fontStretch = 'normal'; } catch (_) {}
@@ -152,7 +151,6 @@ function configureTextCanvasContext(context) {
 var _measureCanvas = document.createElement('canvas');
 var _measureCtx = _measureCanvas.getContext('2d');
 configureTextCanvasContext(_measureCtx);
-_measureCtx.font = FONT;
 refreshTextMetrics();
 const TEXT_MEASURE_CACHE_MAX_ENTRIES = 4096;
 const TEXT_PREFIX_CACHE_MAX_ENTRIES = 2048;
@@ -285,15 +283,13 @@ function measureTextGlyphMetricsWithFont(text, font = FONT) {
 
   const measuredWidth = Number(metrics?.width);
   const width = Number.isFinite(measuredWidth) ? measuredWidth : 0;
-  const hasLeft = metrics && 'actualBoundingBoxLeft' in metrics;
-  const hasRight = metrics && 'actualBoundingBoxRight' in metrics;
   const measuredLeft = Number(metrics?.actualBoundingBoxLeft);
   const measuredRight = Number(metrics?.actualBoundingBoxRight);
   const result = {
     width,
     left: Number.isFinite(measuredLeft) ? measuredLeft : 0,
     right: Number.isFinite(measuredRight) ? measuredRight : width,
-    hasInkBounds: hasLeft && hasRight && Number.isFinite(measuredLeft) && Number.isFinite(measuredRight),
+    hasInkBounds: Number.isFinite(measuredLeft) && Number.isFinite(measuredRight),
   };
   _glyphMetricsCache.set(key, result);
   trimMapCache(_glyphMetricsCache, TEXT_GLYPH_METRICS_CACHE_MAX_ENTRIES);
@@ -343,15 +339,11 @@ function textGlyphPairSpacing(previous, next, font = FONT) {
   return spacing;
 }
 
-function clearTextObjectLayoutRuntime(obj, options) {
+function clearTextObjectLayoutRuntime(obj) {
   if (!obj) return;
   obj._layoutCache = obj._layoutCacheContent = null;
-  if (options?.minWidth !== false) {
-    obj._textMinWidthCache = obj._textMinWidthCacheContent = null;
-  }
-  if (options?.prefix !== false) {
-    obj._textParagraphPrefixCache = obj._textParagraphPrefixCacheContent = null;
-  }
+  obj._textMinWidthCache = obj._textMinWidthCacheContent = null;
+  obj._textParagraphPrefixCache = obj._textParagraphPrefixCacheContent = null;
   obj._textWrappedLineCountCacheContent = obj._textWrappedLineCountCacheValue =
     obj._textWrappedLineIndexCacheContent = obj._textWrappedLineIndexCache =
     obj._textWrappedLineIndexWidthCacheContent = obj._textWrappedLineIndexWidthCache =
@@ -493,7 +485,6 @@ function getTextObjectParagraphPrefixWidthsForNormalizedContent(obj, text, start
 }
 
 function getCachedTextWrappedLineCount(obj, text) {
-  if (!obj || obj.type !== 'text') return null;
   if (
     obj._textWrappedLineCountCacheContent === text &&
     obj._textWrappedLineCountCacheW === obj.w &&
@@ -505,7 +496,6 @@ function getCachedTextWrappedLineCount(obj, text) {
 }
 
 function setCachedTextWrappedLineCount(obj, text, lineCount) {
-  if (!obj || obj.type !== 'text') return;
   obj._textWrappedLineCountCacheContent = text;
   obj._textWrappedLineCountCacheW = obj.w;
   obj._textWrappedLineCountCacheValue = Math.max(1, Math.trunc(Number(lineCount)) || 1);
@@ -549,7 +539,7 @@ function getCachedTextWrappedLineIndex(obj, text) {
 }
 
 function setCachedTextWrappedLineIndex(obj, text, entries, lineCount) {
-  if (!obj || obj.type !== 'text' || !Array.isArray(entries)) return;
+  if (!obj || obj.type !== 'text') return;
   const count = Math.max(1, Math.trunc(Number(lineCount)) || 1);
   obj._textWrappedLineIndexCacheContent = text;
   obj._textWrappedLineIndexCacheW = obj.w;
@@ -576,7 +566,7 @@ function ensureCachedTextWrappedLineIndex(obj, content) {
   const cached = getCachedTextWrappedLineIndex(obj, content);
   if (cached) return cached;
   const wrapped = buildWrappedLines(obj, { collect: false, collectLineIndex: true });
-  setCachedTextWrappedLineIndex(obj, content, wrapped.lineIndex || [], wrapped.lineCount);
+  setCachedTextWrappedLineIndex(obj, content, wrapped.lineIndex, wrapped.lineCount);
   return getCachedTextWrappedLineIndex(obj, content);
 }
 
@@ -594,8 +584,7 @@ function textWrappedLineIndexEntryForVisual(cache, visualLineIndex) {
   return entries[lo];
 }
 
-function prewarmTextObjectLayoutRuntimeCaches(obj, options = {}) {
-  if (!obj || obj.type !== 'text') return { available: false, reason: 'not-text' };
+function prewarmTextObjectLayoutRuntimeCaches(obj) {
   const startedAt = textLayoutDebugNow();
   const content = obj.data?.content || '';
   const beforePrefixEntries = obj._textParagraphPrefixCache?.size || 0;
@@ -610,46 +599,26 @@ function prewarmTextObjectLayoutRuntimeCaches(obj, options = {}) {
   if (prefixCacheWarm) {
     return {
       available: true,
-      contentChars: content.length,
       logicalLineEntries: entries.length,
       processedLogicalLines: 0,
-      processedChars: 0,
-      lineCount: lineIndexCache?.lineCount || 0,
-      prefixCacheEntriesBefore: beforePrefixEntries,
-      prefixCacheEntriesAfter: beforePrefixEntries,
       prefixCacheEntriesAdded: 0,
-      wrappedLineIndexEntries: entries.length,
-      layoutCachePresent: Array.isArray(obj._layoutCache),
       skipped: 'warm',
       totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
     };
   }
-  const maxLogicalLines = options.maxLogicalLines == null
-    ? Infinity
-    : Math.max(0, Math.trunc(Number(options.maxLogicalLines)) || 0);
   let processedLogicalLines = 0;
-  let processedChars = 0;
   for (const entry of entries) {
-    if (processedLogicalLines >= maxLogicalLines) break;
     const start = Math.max(0, Math.min(Math.trunc(Number(entry?.startIndex)) || 0, content.length));
     const end = Math.max(start, Math.min(Math.trunc(Number(entry?.endIndex)) || start, content.length));
     getTextObjectParagraphPrefixWidthsForNormalizedContent(obj, content, start, end);
     processedLogicalLines++;
-    processedChars += Math.max(0, end - start);
   }
   const afterPrefixEntries = obj._textParagraphPrefixCache?.size || 0;
   return {
     available: true,
-    contentChars: content.length,
     logicalLineEntries: entries.length,
     processedLogicalLines,
-    processedChars,
-    lineCount: lineIndexCache?.lineCount || 0,
-    prefixCacheEntriesBefore: beforePrefixEntries,
-    prefixCacheEntriesAfter: afterPrefixEntries,
     prefixCacheEntriesAdded: Math.max(0, afterPrefixEntries - beforePrefixEntries),
-    wrappedLineIndexEntries: entries.length,
-    layoutCachePresent: Array.isArray(obj._layoutCache),
     totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
   };
 }
@@ -788,9 +757,7 @@ function buildWrappedLines(obj, options = {}, content = obj.data.content) {
           if (breakAt > lineStart) {
             nextStart = breakAt;
             while (nextStart < paraEnd && isTextWordSeparator(content[nextStart])) nextStart++;
-            if (nextStart < paraEnd) {
-              lineEnd = breakAt;
-            }
+            lineEnd = breakAt;
             caretEnd = nextStart;
           } else if (isTextWordSeparator(content[nextStart])) {
             while (nextStart < paraEnd && isTextWordSeparator(content[nextStart])) nextStart++;
@@ -819,12 +786,12 @@ function getWrappedLineCount(obj, text) {
     return Math.max(1, Math.trunc(Number(cachedCount)) || 1);
   }
   const wrapped = buildWrappedLines(obj, { collect: false, collectLineIndex: true });
-  setCachedTextWrappedLineIndex(obj, text, wrapped.lineIndex || [], wrapped.lineCount);
+  setCachedTextWrappedLineIndex(obj, text, wrapped.lineIndex, wrapped.lineCount);
   return wrapped.lineCount;
 }
 
 function textLayoutLogicalLineIndexAtContentIndex(layout, index) {
-  const lines = Array.isArray(layout) ? layout : [];
+  const lines = layout;
   if (!lines.length) return 0;
   const pos = Math.max(0, Math.trunc(Number(index)) || 0);
   let lo = 0;
@@ -840,7 +807,6 @@ function textLayoutLogicalLineIndexAtContentIndex(layout, index) {
 }
 
 function wrapTextLogicalLineRange(obj, startLine, endLine, options = {}) {
-  if (!obj || obj.type !== 'text') return [];
   const firstLine = Math.max(0, Math.trunc(Number(startLine)) || 0);
   return buildWrappedLines(obj, {
     ...options,
@@ -851,7 +817,7 @@ function wrapTextLogicalLineRange(obj, startLine, endLine, options = {}) {
 }
 
 function textLayoutSpliceRangeForLogicalLines(layout, startLine, endLine) {
-  const lines = Array.isArray(layout) ? layout : [];
+  const lines = layout;
   let lo = 0, hi = lines.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
@@ -890,7 +856,7 @@ function patchTextObjectLayoutAfterInput(obj, options = {}) {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const debug = {
     reason: '',
-    oldLayoutLines: Array.isArray(obj._layoutCache) ? obj._layoutCache.length : 0,
+    oldLayoutLines: obj._layoutCache.length,
   };
   const fail = (reason) => {
     debug.reason = reason;
@@ -1053,7 +1019,6 @@ const getTextMinWidth = (obj) => {
 };
 
 const getTextRenderedContentWidth = (obj) => {
-  if (!obj || obj.type !== 'text') return TEXT_PAD * 2 + 1;
   let maxLineW = 0;
   for (const line of getTextLayout(obj)) {
     maxLineW = Math.max(maxLineW, line.visibleWidth);
@@ -1225,7 +1190,7 @@ function getTextLayout(obj) {
   obj._layoutCacheW = obj.w;
   obj._layoutCacheY = obj.y;
   const wrapped = buildWrappedLines(obj, { collectLineIndex: true }, content);
-  setCachedTextWrappedLineIndex(obj, content, wrapped.lineIndex || [], wrapped.lineCount);
+  setCachedTextWrappedLineIndex(obj, content, wrapped.lineIndex, wrapped.lineCount);
   const lines = wrapped.lines;
   const layout = new Array(lines.length);
   for (let i = 0; i < lines.length; i++) {

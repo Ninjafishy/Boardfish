@@ -38,7 +38,7 @@ function pruneImageCachesAfterHistoryChange(historyEntriesDropped = false) {
 }
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-const isHistoryDebugEnabled = () => HistoryDebug.enabled === true || HistoryDebug.isEnabled() === true;
+const isHistoryDebugEnabled = () => HistoryDebug.enabled === true;
 
 const historyDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -79,10 +79,6 @@ function syncHistoryEditProxyDomValueForSelection(proxy, start, end) {
     domCharsAfter: String(proxy.value ?? '').length,
   };
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-}
-
-function historyEntryObjects(entry) {
-  return Array.isArray(entry?.objects) ? entry.objects : [];
 }
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -135,7 +131,7 @@ function historyEntryReason(entry) {
 
 function getHistoryEntryDebugMetrics(entry, prefix = 'entry') {
   if (!isHistoryDebugEnabled()) return {};
-  const entryObjects = historyEntryObjects(entry);
+  const entryObjects = entry.objects;
   const editState = entry?.editState || null;
   const beforeEditState = entry?.beforeEditState || null;
   return {

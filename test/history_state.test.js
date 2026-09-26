@@ -54,7 +54,6 @@ function makeEditProxy({
     focused: false,
     _boardfishLogicalValue: value,
     _boardfishDomValueStale: false,
-    setRangeTextCalls: [],
     _boardfishSetLogicalValue(nextValue, domSynced = true) {
       this._boardfishLogicalValue = String(nextValue ?? '');
       this._boardfishDomValueStale = domSynced === false || this.value !== this._boardfishLogicalValue;
@@ -77,23 +76,6 @@ function makeEditProxy({
         this.selectionEnd = end;
       }
       this.selectionDirection = direction;
-    },
-    setRangeText(text, start, end, selectionMode = 'preserve') {
-      const from = Math.max(0, Math.min(start, this.value.length));
-      const to = Math.max(from, Math.min(end, this.value.length));
-      const inserted = String(text ?? '');
-      this.setRangeTextCalls.push({ text: inserted, start: from, end: to, selectionMode });
-      this.value = `${this.value.slice(0, from)}${inserted}${this.value.slice(to)}`;
-      if (selectionMode === 'start') {
-        this.selectionStart = from;
-        this.selectionEnd = from;
-      } else if (selectionMode === 'end') {
-        this.selectionStart = from + inserted.length;
-        this.selectionEnd = from + inserted.length;
-      } else if (selectionMode === 'select') {
-        this.selectionStart = from;
-        this.selectionEnd = from + inserted.length;
-      }
     },
   };
 }
@@ -156,7 +138,6 @@ function loadHistoryHarness() {
     HistoryDebug: {
       count() {},
       end() {},
-      isEnabled() { return false; },
       max() {},
       start() { return {}; },
       step() {},
@@ -208,7 +189,6 @@ function loadHistoryHarness() {
 function loadTextEditHistoryStateHarness() {
   const source = readSource('src/js/selection_input.js');
   const start = source.indexOf('const normalizeTextEditHistoryState');
-  const end = source.indexOf('const consumeTextEditHistoryActionStartState', start);
   const context = {
     editingId: 'text-1',
     objectsMap: new Map(),
@@ -222,7 +202,7 @@ function loadTextEditHistoryStateHarness() {
   };
   vm.createContext(context);
   vm.runInContext(
-    source.slice(start, end) +
+    source.slice(start) +
       '\nglobalThis.normalizeTextEditHistoryState = normalizeTextEditHistoryState;\n' +
       'globalThis.beginTextEditHistoryAction = beginTextEditHistoryAction;\n',
     context,
@@ -680,7 +660,6 @@ test('undoing and redoing text edits preserve restored text box dimensions', () 
   assert.equal(context._editEl.value, restored.data.content);
   assert.equal(context._editEl._boardfishDomValueStale, false);
   assert.equal(liveProxy.focused, false);
-  assert.equal(liveProxy.setRangeTextCalls.length, 0);
   assert.equal(context.enterEditCalls.length, 0);
   assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);
   assert.equal(context.replaceBoardObjectsOptions.at(-1).syncTextHeights, false);
@@ -698,7 +677,6 @@ test('undoing and redoing text edits preserve restored text box dimensions', () 
   assert.equal(context._editEl.value, 'plain value');
   assert.equal(context._editEl._boardfishDomValueStale, true);
   assert.equal(liveProxy.focused, false);
-  assert.equal(liveProxy.setRangeTextCalls.length, 0);
   assert.equal(context.enterEditCalls.length, 0);
   assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);
   assert.equal(context.replaceBoardObjectsOptions.at(-1).syncTextHeights, false);
@@ -748,7 +726,6 @@ test('undoing and redoing text edits restore active text runtime layout caches',
   assert.equal(context._editEl.value, 'before');
   assert.equal(context._editEl._boardfishDomValueStale, false);
   assert.equal(liveProxy.focused, false);
-  assert.equal(liveProxy.setRangeTextCalls.length, 0);
   assert.equal(restored._layoutCacheContent, 'before');
   assert.equal(restored._layoutCache[0].text, 'cached-before');
   assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);
@@ -764,7 +741,6 @@ test('undoing and redoing text edits restore active text runtime layout caches',
   assert.equal(context._editEl.value, 'before');
   assert.equal(context._editEl._boardfishDomValueStale, true);
   assert.equal(liveProxy.focused, false);
-  assert.equal(liveProxy.setRangeTextCalls.length, 0);
   assert.equal(restored._layoutCacheContent, 'after');
   assert.equal(restored._layoutCache[0].text, 'cached-after');
   assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);

@@ -27,7 +27,6 @@ test('text edit perf debugger is passive event recording only', () => {
   assert.match(source, /deltaX: event\?\.deltaX/);
   assert.match(source, /clientX: event\?\.clientX/);
   assert.match(source, /shortcut: textEditShortcutFromEvent\(event\)/);
-  assert.match(source, /historyTextUndoRedoReport/);
   assert.match(source, /domValueLength/);
   assert.match(source, /domValueStale/);
   assert.match(source, /maxLogicalSetMs/);
@@ -47,10 +46,7 @@ test('text edit perf debugger is passive event recording only', () => {
   assert.match(source, /traceDeleteInputs/);
   assert.doesNotMatch(source, /maxLayoutPatchTotalMs/);
   assert.match(source, /maxTextareaMutationMs/);
-  assert.match(source, /textEditBegin/);
-  assert.match(source, /textEditReport/);
   assert.match(source, /textEditTimeline/);
-  assert.match(source, /textEditInputStepTimeline/);
   assert.match(combined, /mode: 'passive-event-recording'/);
   assert.match(combined, /BoardfishDebug\.viewport\.enable/);
   assert.match(combined, /BoardfishDebug\.viewport\.reset/);
@@ -96,8 +92,6 @@ test('text resize perf debugger captures resize and follow-up input evidence', (
   assert.match(source, /function startTextResizeDrag/);
   assert.match(source, /function recordTextResizeStep/);
   assert.match(source, /function finishTextResizeDrag/);
-  assert.match(source, /textResizeBegin/);
-  assert.match(source, /textResizeReport/);
   assert.match(source, /maxResizeAutoHeightMs/);
   assert.match(source, /liveAutoHeightCommits/);
   assert.match(source, /liveBoardRenderCommits/);
@@ -146,9 +140,6 @@ test('large text panning debugger records the four large-text viewport scenarios
   assert.match(source, /function currentLargeTextPanningState/);
   assert.match(source, /function largeTextInteractionSnapshot/);
   assert.match(source, /function largeTextPanningHeadline/);
-  assert.match(source, /largeTextPanningBegin/);
-  assert.match(source, /largeTextPanningReport/);
-  assert.match(source, /manual-sequence/);
   assert.match(source, /large-text-pan-manual-sequence/);
   assert.match(source, /large-text-pan-plain/);
   assert.match(source, /large-text-pan-select-mode/);
@@ -221,7 +212,6 @@ test('pan and zoom debugger captures input, scheduling, and render evidence', ()
   assert.match(beginSource, /prewarmVisibleScaledImageVariants/);
   assert.match(beginSource, /prewarmTextLayout/);
   assert.match(beginSource, /prewarmVisibleTextLayoutCaches/);
-  assert.match(source, /panZoomReport/);
   assert.match(panZoomReportSource, /BoardfishDebug\.viewport\.panZoomReport/);
   assert.match(panZoomReportSource, /memorySnapshot\('pan-zoom-finish'/);
   assert.match(panZoomReportSource, /Pan\/zoom report is passive/);

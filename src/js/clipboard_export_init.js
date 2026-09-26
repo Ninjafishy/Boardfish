@@ -1,7 +1,3 @@
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-const collectClipboardDiagnostics = typeof BOARDFISH_PRODUCTION === 'undefined';
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 const finishWebClipboardTokenWrite = (result, token
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   , dbg = null
@@ -24,7 +20,6 @@ const writeWebClipboardTokenForJsClipboard = (
     return Promise.resolve({ boardfishTokenWritten: false });
   }
   const webToken = globalThis.getJsClipboardWebToken?.() || '';
-  if (!webToken) return Promise.resolve({ boardfishTokenWritten: false });
   let clipboardWrite;
   try {
     // Start the protected browser write synchronously in the copy gesture.
@@ -79,33 +74,15 @@ const readWebClipboardTokenForPaste = async (clipboardData
 
 const trimPastedTextObjectContent = (obj) => {
   if (obj?.type !== 'text') return false;
-  if (!obj.data) obj.data = {};
   const content = textForTextObjectPaste(obj.data?.content);
   if (content === obj.data.content) return false;
   obj.data.content = content;
-  if (typeof clearTextObjectLayoutRuntime === 'function') clearTextObjectLayoutRuntime(obj);
-  else {
-    delete obj._layoutCache;
-  }
+  clearTextObjectLayoutRuntime(obj);
   syncTextAutoHeight(obj);
   return true;
 };
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-const clipboardTextMetricsForObjects = (items = []) => {
-  if (!collectClipboardDiagnostics || !ClipDebug.enabled) return {};
-  let textObjectCount = 0;
-  let textCharCount = 0;
-  let largestTextChars = 0;
-  for (const obj of items || []) {
-    if (obj?.type !== 'text') continue;
-    textObjectCount++;
-    const chars = String(obj.data?.content || '').length;
-    textCharCount += chars;
-    largestTextChars = Math.max(largestTextChars, chars);
-  }
-  return { textObjectCount, textCharCount, largestTextChars };
-};
 const clipboardNow = () => (
   typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
@@ -114,33 +91,17 @@ const clipboardNow = () => (
 
 const clipboardElapsedMs = (startedAt) => Math.round((clipboardNow() - startedAt) * 100) / 100;
 
-const clipboardTextStats = (value) => {
-  if (!collectClipboardDiagnostics || !ClipDebug.enabled) return {};
-  const text = String(value ?? '');
-  const lines = text ? text.split('\n') : [];
-  let largestLineChars = 0;
-  for (const line of lines) largestLineChars = Math.max(largestLineChars, line.length);
-  const textBytes = typeof BoardfishWebLimits !== 'undefined' && typeof BoardfishWebLimits.textByteLength === 'function'
-    ? BoardfishWebLimits.textByteLength(text)
-    : (typeof TextEncoder === 'function' ? new TextEncoder().encode(text).length : text.length);
-  return {
-    textLen: text.length,
-    textLineCount: lines.length,
-    largestLineChars,
-    textBytes,
-  };
-};
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
 const webSourceClipboardMime = (source) => {
-  if (typeof isWebImageRef === 'function' && isWebImageRef(source)) return String(source.mime || '').toLowerCase();
+  if (isWebImageRef(source)) return String(source.mime || '').toLowerCase();
   if (typeof source === 'string') return (/^data:([^;,]+)/i.exec(source)?.[1] || '').toLowerCase();
   return '';
 };
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 const webSourceClipboardKind = (source) => {
-  if (typeof isWebImageRef === 'function' && isWebImageRef(source)) return 'web-ref';
+  if (isWebImageRef(source)) return 'web-ref';
   if (typeof source === 'string' && source.startsWith('data:')) return 'data-url';
   return typeof source;
 };
@@ -151,7 +112,7 @@ const createWebSourcePngClipboardBlob = (obj, source
   , dbg = null
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) => {
-  if (!obj || imageNeedsRendering(obj)) return null;
+  if (imageNeedsRendering(obj)) return null;
   if (typeof Blob === 'undefined') return null;
   const container = globalThis.BoardfishWebBoardContainer;
   if (!container?.bytesForImageSource) return null;
@@ -188,7 +149,6 @@ async function pasteWebImageBlob(blob, wx, wy
   , source, dbg = null
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) {
-  if (!blob) return false;
   const imageBlob = blob.type ? blob : blob.slice(0, blob.size, 'image/png');
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const objectCountBefore = objects.length;
@@ -219,7 +179,6 @@ async function pasteWebImageBlob(blob, wx, wy
     objectCountBefore,
     objectCountAfter,
   });
-  return added;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
@@ -262,7 +221,6 @@ const copySelected = (options = {}) => {
           selectedCount: selectedIds.size,
           objectCount: clonedObjs.length,
           imageCount,
-          ...clipboardTextMetricsForObjects(clonedObjs),
         });
       }
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -277,7 +235,6 @@ const copySelected = (options = {}) => {
     ClipDebug.step(dbg, 'copy:multi-set-jsClipboard-start', {
       objectCount: clonedObjs.length,
       imageCount,
-      ...clipboardTextMetricsForObjects(clonedObjs),
     });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     setJsClipboard({ type: 'objects', objects: clonedObjs });
@@ -290,20 +247,18 @@ const copySelected = (options = {}) => {
     ClipDebug.step(dbg, 'copy:multi-set-jsClipboard-end', {
       objectCount: clonedObjs.length,
       imageCount,
-      ...clipboardTextMetricsForObjects(clonedObjs),
     });
     ClipDebug.end(dbg, {
       path: 'multi-jsClipboard',
       objectCount: clonedObjs.length,
       imageCount,
-      ...clipboardTextMetricsForObjects(clonedObjs),
     });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     // The in-app clipboard is populated above; wait until its browser marker write settles
     // before starting the full-selection jiggle.
     if (animateCopy) {
       webClipboardWrite
-        .then(() => globalThis.BoardfishMotion?.applyCopyFeedback?.({ selection: true }))
+        .then(() => BoardfishMotion.applyCopyFeedback({ selection: true }))
         .catch((err) => console.error('Copy Feedback Failed:', err));
     }
     return true;
@@ -324,7 +279,6 @@ const copySelected = (options = {}) => {
   ClipDebug.step(dbg, 'copy:single-clone-done', {
     type: obj.type,
     ms: clipboardElapsedMs(cloneStartedAt),
-    ...(obj.type === 'text' ? clipboardTextStats(cloned.data?.content) : {}),
   });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   setJsClipboard({ type: 'objects', objects: [cloned] });
@@ -333,7 +287,6 @@ const copySelected = (options = {}) => {
     type: obj.type,
     imgKey: obj.data?.imgKey,
     imageNeedsRendering: obj.type === 'image' ? imageNeedsRendering(obj) : false,
-    ...(obj.type === 'text' ? clipboardTextStats(cloned.data?.content) : {}),
   });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
@@ -343,11 +296,9 @@ const copySelected = (options = {}) => {
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const clipboardText = textForClipboard(obj.data.content);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const textStats = clipboardTextStats(clipboardText);
     ClipDebug.step(dbg, 'copy:text-payload-ready', {
       sourceTextLen: String(obj.data?.content || '').length,
       ms: clipboardElapsedMs(payloadStartedAt),
-      ...textStats,
     });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const webToken = globalThis.getJsClipboardWebToken?.() || '';
@@ -355,7 +306,6 @@ const copySelected = (options = {}) => {
     const writeStartedAt = clipboardNow();
     ClipDebug.step(dbg, 'copy:web-text-clipboard-write-start', {
       boardfishToken: !!webToken,
-      ...textStats,
     });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     BoardfishClipboardIO.copyTextToClipboard(
@@ -365,9 +315,6 @@ const copySelected = (options = {}) => {
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       , {
         boardfishToken: webToken
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        , ...textStats
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
       }
     )
       .then((result) => {
@@ -377,13 +324,12 @@ const copySelected = (options = {}) => {
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
         );
         // Do not start a full-board jiggle while large clipboard serialization is running.
-        if (animateCopy) globalThis.BoardfishMotion?.applyCopyFeedback?.({ objects: [obj] });
+        if (animateCopy) BoardfishMotion.applyCopyFeedback({ objects: [obj] });
       })
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       .then(() => {
         ClipDebug.step(dbg, 'copy:web-text-clipboard-write-end', {
           ms: clipboardElapsedMs(writeStartedAt),
-          ...textStats,
         });
       })
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -392,7 +338,6 @@ const copySelected = (options = {}) => {
         ClipDebug.step(dbg, 'copy:web-text-clipboard-write-error', {
           ms: clipboardElapsedMs(writeStartedAt),
           error: String(err),
-          ...textStats,
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         console.error('Clipboard Write Failed:', err);
@@ -403,9 +348,6 @@ const copySelected = (options = {}) => {
           path: 'text-web',
           objectCount: 1,
           textObjectCount: 1,
-          textCharCount: textStats.textLen,
-          largestTextChars: textStats.textLen,
-          ...textStats,
         });
       })
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -443,7 +385,7 @@ const copySelected = (options = {}) => {
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
         );
         // Wait for PNG encoding and the system write before scheduling jiggle frames.
-        if (animateCopy) globalThis.BoardfishMotion?.applyCopyFeedback?.({ objects: [obj] });
+        if (animateCopy) BoardfishMotion.applyCopyFeedback({ objects: [obj] });
         return true;
       } catch (err) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -554,8 +496,8 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
     }
     if (jsClipboard) {
       if (jsClipboard.type === 'objects') {
-        const sourceObjects = jsClipboard.objects || [];
-        if (!sourceObjects.length || !BoardfishWebLimits.canAddObjects(sourceObjects.length)) return;
+        const sourceObjects = jsClipboard.objects;
+        if (!BoardfishWebLimits.canAddObjects(sourceObjects.length)) return;
         let additionalTextCharacters = 0;
         for (const obj of sourceObjects) {
           if (obj?.type === 'text') {
@@ -564,13 +506,9 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
         }
         if (!BoardfishWebLimits.canAcceptAdditionalTextCharacters(additionalTextCharacters)) return;
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const imageCount = ClipDebug.enabled
-          ? sourceObjects.reduce((count, obj) => count + (obj?.type === 'image' ? 1 : 0), 0)
-          : 0;
         ClipDebug.step(dbg, 'paste:objects-start', {
           objectCount: sourceObjects.length,
-          imageCount,
-          ...clipboardTextMetricsForObjects(sourceObjects),
+          imageCount: 0,
         });
         const cloneStart = performance.now();
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -579,7 +517,6 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
         ClipDebug.step(dbg, 'paste:clone-done', {
           objectCount: clones.length,
           ms: Math.round((performance.now() - cloneStart) * 100) / 100,
-          ...clipboardTextMetricsForObjects(clones),
         });
         let trimmedTextObjects = 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -607,7 +544,6 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
         ClipDebug.step(dbg, 'paste:text-trim-done', {
           trimmedTextObjects,
           ms: clipboardElapsedMs(trimStart),
-          ...clipboardTextMetricsForObjects(clones),
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         const canAcceptContent = BoardfishWebLimits.canAcceptAdditionalContentBytes(
@@ -635,7 +571,6 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         ClipDebug.step(dbg, 'paste:objects-add-start', {
           objectCount: clones.length,
-          ...clipboardTextMetricsForObjects(clones),
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         for (const o of clones) {
@@ -659,7 +594,6 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         ClipDebug.step(dbg, 'paste:objects-add-done', {
           objectCount: clones.length,
-          ...clipboardTextMetricsForObjects(clones),
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         scheduleRender(true, true);
@@ -674,7 +608,6 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
           objectCount: clones.length,
           historyIndex,
           objectCountAfter: objects.length,
-          ...clipboardTextMetricsForObjects(clones),
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         return;
@@ -695,7 +628,7 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
     }
     const eventText = BoardfishClipboardIO.readClipboardTextFromEvent(clipboardData);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    ClipDebug.step(dbg, 'paste:event-text-read-done', clipboardTextStats(eventText));
+    ClipDebug.step(dbg, 'paste:event-text-read-done');
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const pastePlainText = (text, path) => {
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -705,7 +638,7 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
       if (text) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         ClipDebug.step(dbg, 'paste:plain-text-add-start', {
-          path, objectCountBefore, ...clipboardTextStats(text),
+          path, objectCountBefore,
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         addText(wx, wy, text,
@@ -721,7 +654,6 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
           objectCountBefore,
           objectCountAfter: objects.length,
           objectDelta: objects.length - objectCountBefore,
-          ...clipboardTextStats(text),
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
       }
@@ -774,7 +706,6 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       ClipDebug.step(dbg, 'browser-text-read:ok', {
         ms: clipboardElapsedMs(textReadStartedAt),
-        ...clipboardTextStats(browserText),
       });
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       pastePlainText(textForExternalTextObjectPaste(browserText), 'web-text');
@@ -798,8 +729,6 @@ document.addEventListener('paste', (e) => {
   if (editingId) return;
   e.preventDefault();
   if (isBoardInputBlocked()) return;
-  const point = typeof boardCursorWorldPoint === 'function'
-    ? boardCursorWorldPoint()
-    : toWorld(window.innerWidth / 2, window.innerHeight / 2);
+  const point = boardCursorWorldPoint();
   pasteAtPos(point.x, point.y, e.clipboardData);
 });

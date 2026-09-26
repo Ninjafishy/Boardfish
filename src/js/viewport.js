@@ -13,8 +13,8 @@ var _islMsgTimer = null;
 var _islMsgToken = 0;
 var _islandSyncedZoom = NaN;
 
-const formatZoomPercent = (value = zoom) => {
-  const pct = Math.max(0, (Number.isFinite(value) ? value : 1) * 100);
+const formatZoomPercent = () => {
+  const pct = Math.max(0, (Number.isFinite(zoom) ? zoom : 1) * 100);
   const roundedPct = Math.round(pct * 10) / 10;
   if (roundedPct >= 10) return `${Math.round(pct)}%`;
   return `${Math.max(0.1, roundedPct).toFixed(1)}%`;
@@ -25,10 +25,9 @@ const setPillMessageText = (text) => {
   islZoom.textContent = nextText;
 };
 
-function setIslandVisible(visible) {
-  island.classList.toggle('visible', visible);
-  const ariaHidden = visible ? 'false' : 'true';
-  if (island.getAttribute?.('aria-hidden') !== ariaHidden) island.setAttribute('aria-hidden', ariaHidden);
+function setIslandVisible() {
+  island.classList.add('visible');
+  if (island.getAttribute?.('aria-hidden') !== 'false') island.setAttribute('aria-hidden', 'false');
 }
 
 const syncIslandZoomDisplay = (reason = 'zoom-sync') => {
@@ -39,14 +38,14 @@ const syncIslandZoomDisplay = (reason = 'zoom-sync') => {
   if (islZoom.textContent !== zoomText) islZoom.textContent = zoomText;
   if (island.dataset.mode !== 'zoom') island.dataset.mode = 'zoom';
   if (island.title !== 'Reset Zoom') island.title = 'Reset Zoom';
-  setIslandVisible(true);
+  setIslandVisible();
   PillDebug.log('zoomIsland:shown', { reason, zoom, text: zoomText });
 };
 
 function showIslandForMessage(text) {
   island.dataset.mode = 'message';
   island.title = '';
-  setIslandVisible(true);
+  setIslandVisible();
   setPillMessageText(text);
 }
 
@@ -86,7 +85,6 @@ function startPillTask({
   message = null,
   progress = false,
 } = {}) {
-  if (!message) return null;
   return progress ? startIslandBusyMsg(message) : showIslandMsg(message);
 }
 
@@ -101,7 +99,7 @@ function finishPillTask({
   finalMsg = null,
   duration = short_message,
 } = {}) {
-  if (beforeFinish) beforeFinish();
+  beforeFinish();
   if (busyPill) return busyPill.done(finalMsg, duration);
   if (finalMsg) return showIslandMsg(finalMsg, duration);
   return hideIsland('pill-finished');
@@ -130,7 +128,6 @@ function showIslandMsg(msg, duration = 0) {
       PillDebug.log('showIslandMsg:onHide', { msg, hideReason });
     }, duration);
   }
-  return 'shown';
 }
 syncIslandZoomDisplay('init');
 // ─── Offscreen buffer ─────────────────────────────────────────────────────────
@@ -868,9 +865,7 @@ finishMotionViewportRenderFrame = (source, meta = {}) => {
   });
 };
 function textPrewarmLogicalLineCount(content) {
-  const text = typeof normalizeTextContent === 'function'
-    ? normalizeTextContent(content)
-    : String(content ?? '').replace(/\r\n?/g, '\n');
+  const text = normalizeTextContent(content);
   return text ? text.split('\n').length : 1;
 }
 function textDrawWarmupContext() {
@@ -899,8 +894,8 @@ function textDrawWarmupTarget(options = {}) {
   if (target === TEXT_DRAW_WARMUP_TARGET_BOARD) {
     return {
       target,
-      ctx: typeof ctx !== 'undefined' ? ctx : null,
-      canvas: typeof boardCanvas !== 'undefined' ? boardCanvas : null,
+      ctx,
+      canvas: boardCanvas,
     };
   }
   return {
@@ -926,7 +921,6 @@ function createBoardTextDrawWarmupSnapshot(canvas) {
 }
 
 function restoreBoardTextDrawWarmupSnapshot(context, canvas, snapshot) {
-  if (!context || !canvas || !snapshot) return 0;
   const startedAt = performance.now();
   try {
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -946,18 +940,11 @@ function restoreBoardTextDrawWarmupSnapshot(context, canvas, snapshot) {
 
 function textDrawWarmupLineWidth(line, obj) {
   const textLength = String(line?.text ?? '').length;
-  if (typeof lineXAtOffset === 'function') {
-    return Math.max(1, lineXAtOffset(line, obj, textLength) - lineXAtOffset(line, obj, 0));
-  }
-  if (line?.prefixWidths && Number.isFinite(Number(line.prefixWidths[textLength]))) {
-    return Math.max(1, Number(line.prefixWidths[textLength]) || 1);
-  }
-  return Math.max(1, (Number(obj?.w) || 0) - TEXT_PAD * 2);
+  return Math.max(1, lineXAtOffset(line, obj, textLength) - lineXAtOffset(line, obj, 0));
 }
 
 function textDrawWarmupBaseX(line, obj) {
-  if (typeof lineXAtOffset === 'function') return lineXAtOffset(line, obj, 0);
-  return (Number(obj?.x) || 0) + TEXT_PAD;
+  return lineXAtOffset(line, obj, 0);
 }
 
 function resizeTextDrawWarmupCanvas(width, height, target = null) {
@@ -973,7 +960,7 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
   const target = textDrawWarmupTarget(options);
   const ctx = target.ctx;
   const canvas = target.canvas;
-  if (!ctx || typeof drawTextLineRange !== 'function' || !Array.isArray(layout) || !layout.length) {
+  if (!ctx || !Array.isArray(layout) || !layout.length) {
     return {
       available: !!ctx,
       target: target.target,
@@ -985,17 +972,6 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
     };
   }
   const maxLines = Math.max(0, Math.trunc(Number(options.maxLines ?? 256)) || 0);
-  if (!maxLines) {
-    return {
-      available: true,
-      target: target.target,
-      warmedLines: 0,
-      drawUnits: 0,
-      totalMs: 0,
-      maxLineMs: 0,
-      errors: 0,
-    };
-  }
   const viewZoom = Math.max(0.01, Number(options.zoom ?? zoom) || 1);
   const viewDpr = Math.max(1, Number(options.dpr ?? window.devicePixelRatio) || 1);
   const deviceScale = viewZoom * viewDpr;
@@ -1100,7 +1076,6 @@ function createTextDrawWarmupAggregate() {
 }
 
 function addTextDrawWarmupAggregate(target, stats, warmupZoom) {
-  if (!target || !stats) return;
   target.warmedLines += Number(stats.warmedLines) || 0;
   target.drawUnits += Number(stats.drawUnits) || 0;
   target.totalMs += Number(stats.totalMs) || 0;
@@ -1114,9 +1089,6 @@ function addTextDrawWarmupAggregate(target, stats, warmupZoom) {
 }
 
 function prewarmVisibleTextLayoutCaches(options = {}) {
-  if (typeof getTextLayoutForViewport !== 'function') {
-    return { available: false, skipped: 'getTextLayoutForViewport-unavailable' };
-  }
   if (_boardOpening) {
     return { available: true, skipped: 'board-opening' };
   }
@@ -1134,17 +1106,13 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
   const requestedDrawWarmupTarget = normalizeTextDrawWarmupTarget(options.drawWarmupTarget);
   const drawWarmupRestore = options.drawWarmupRestore !== false;
   const drawWarmupBoardSnapshot = drawWarmup && requestedDrawWarmupTarget === TEXT_DRAW_WARMUP_TARGET_BOARD && drawWarmupRestore
-    ? createBoardTextDrawWarmupSnapshot(typeof boardCanvas !== 'undefined' ? boardCanvas : null)
+    ? createBoardTextDrawWarmupSnapshot(boardCanvas)
     : null;
   const drawWarmupTarget = requestedDrawWarmupTarget === TEXT_DRAW_WARMUP_TARGET_BOARD && drawWarmupRestore && !drawWarmupBoardSnapshot
     ? TEXT_DRAW_WARMUP_TARGET_OFFSCREEN
     : requestedDrawWarmupTarget;
-  const viewportRect = typeof viewportWorldRect === 'function'
-    ? viewportWorldRect(padScreenPx)
-    : null;
-  const exactViewportRect = typeof viewportWorldRect === 'function'
-    ? viewportWorldRect(0)
-    : viewportRect;
+  const viewportRect = viewportWorldRect(padScreenPx);
+  const exactViewportRect = viewportWorldRect(0);
   const dbg = ViewportDebug.start('visibleTextLayoutPrewarm', {
     source,
     padScreenPx,
@@ -1178,7 +1146,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
   for (const obj of objects) {
     if (obj?.type !== 'text') continue;
     textObjectCount++;
-    if (viewportCullingEnabled && viewportRect && !objectIntersectsRect(obj, viewportRect)) continue;
+    if (viewportCullingEnabled && !objectIntersectsRect(obj, viewportRect)) continue;
     visibleTextObjects++;
     const content = normalizeTextContent(obj.data?.content || '');
     if (content.length < minChars) {
@@ -1187,7 +1155,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
     }
     if (warmedTextObjects >= maxObjects) break;
     const objectStart = performance.now();
-    const runtimePrewarm = typeof prewarmTextObjectLayoutRuntimeCaches === 'function' && options.runtimeCaches !== false
+    const runtimePrewarm = options.runtimeCaches !== false
       ? prewarmTextObjectLayoutRuntimeCaches(obj)
       : null;
     let fullLineCacheLines = 0;
@@ -1196,8 +1164,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
     if (
       fullLineCache &&
       fullLineCount > 0 &&
-      fullLineCount <= fullLineCacheMaxLines &&
-      typeof getTextLayoutForLineRange === 'function'
+      fullLineCount <= fullLineCacheMaxLines
     ) {
       const fullLineCacheStart = performance.now();
       const fullLineLayout = getTextLayoutForLineRange(obj, 0, fullLineCount - 1);
@@ -1205,9 +1172,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
       fullLineCacheLines = fullLineLayout.length;
     }
     const layout = getTextLayoutForViewport(obj, viewportRect);
-    const exactLayout = exactViewportRect &&
-      exactViewportRect !== viewportRect &&
-      (!viewportCullingEnabled || objectIntersectsRect(obj, exactViewportRect))
+    const exactLayout = (!viewportCullingEnabled || objectIntersectsRect(obj, exactViewportRect))
         ? getTextLayoutForViewport(obj, exactViewportRect)
         : layout;
     const totalLines = Math.max(layout.length, Math.trunc(Number(layout.totalLines)) || layout.length);
@@ -1220,8 +1185,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
       if (
         drawWarmupFullObjectLines &&
         totalLines > 0 &&
-        totalLines <= remainingWarmupLines &&
-        typeof getTextLayoutForLineRange === 'function'
+        totalLines <= remainingWarmupLines
       ) {
         drawWarmupLayout = getTextLayoutForLineRange(obj, 0, totalLines - 1);
         drawWarmupSource = 'full-object';
@@ -1286,11 +1250,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
   }
 
   const boardRestoreMs = drawWarmupBoardSnapshot
-    ? restoreBoardTextDrawWarmupSnapshot(
-        typeof ctx !== 'undefined' ? ctx : null,
-        typeof boardCanvas !== 'undefined' ? boardCanvas : null,
-        drawWarmupBoardSnapshot,
-      )
+    ? restoreBoardTextDrawWarmupSnapshot(ctx, boardCanvas, drawWarmupBoardSnapshot)
     : 0;
   rows.sort((a, b) => (b.ms || 0) - (a.ms || 0) || (b.chars || 0) - (a.chars || 0));
   const totalMs = performance.now() - startedAt;

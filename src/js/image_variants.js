@@ -554,7 +554,7 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
     : true;
 }
 
-function queueScaledImageVariantForReadyImage(key, source, priority = false) {
+function queueScaledImageVariantForReadyImage(key, source) {
   if (typeof BOARDFISH_PRODUCTION === 'undefined') imageScaledVariantSourceReadyCandidateCount++;
   if (!viewportImageScalingEnabled || !key) {
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
@@ -571,7 +571,7 @@ function queueScaledImageVariantForReadyImage(key, source, priority = false) {
     return false;
   }
   const scale = IMAGE_SCALE;
-  const result = queueScaledImageVariant(key, source, scale, priority);
+  const result = queueScaledImageVariant(key, source, scale);
   if (typeof BOARDFISH_PRODUCTION === 'undefined') {
     if (result?.queued) imageScaledVariantSourceReadyQueuedCount++;
     else if (result?.skipped === 'already-ready' || result?.skipped === 'pending') {
@@ -664,7 +664,7 @@ function prewarmVisibleScaledImageVariants(options = {}) {
     return typeof BOARDFISH_PRODUCTION === 'undefined' ? { skipped: 'invalid-scale' } : undefined;
   }
   const padPx = Number.isFinite(options.padPx) ? options.padPx : IMAGE_VARIANT_PREWARM_PAD_PX;
-  const rect = typeof viewportWorldRect === 'function' ? viewportWorldRect(padPx) : null;
+  const rect = viewportWorldRect(padPx);
   if (!rect) return typeof BOARDFISH_PRODUCTION === 'undefined' ? { skipped: 'no-viewport' } : undefined;
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */

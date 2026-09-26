@@ -15,8 +15,6 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
   const source = readSource('src/js/object_commands.js');
   let idCounter = 1;
   const context = {
-    console,
-    TextEncoder,
     document: {
       createElement() {
         return {
@@ -43,11 +41,8 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
     histories: [],
     messages: [],
     objects: [],
-    renders: [],
     selectedIds: [],
     zCounter: 1,
-    LINE_H: DEFAULT_TEXT_BOX_LINE_H,
-    TEXT_PAD: DEFAULT_TEXT_BOX_PAD,
     BoardfishWebLimits: {
       canAddObjects() { return true; },
       canAcceptAdditionalContentBytes() { return true; },
@@ -70,17 +65,6 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
         context.debugSteps.push({ step, meta });
       },
     },
-    normalizeTextContent(value) {
-      return String(value ?? '').replace(/\r\n?/g, '\n');
-    },
-    textForTextObjectPaste(value) {
-      const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
-      let first = 0;
-      let last = lines.length - 1;
-      while (first <= last && !/\S/.test(lines[first])) first++;
-      while (last >= first && !/\S/.test(lines[last])) last--;
-      return first <= last ? lines.slice(first, last + 1).join('\n') : '';
-    },
     newId() {
       return `obj-${idCounter++}`;
     },
@@ -92,9 +76,6 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
     selectObject(id) {
       context.selectedIds.push(id);
     },
-    scheduleRender(board, overlay) {
-      context.renders.push({ board, overlay });
-    },
     pushHistory(reason) {
       context.histories.push(reason);
     },
@@ -103,8 +84,6 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
       context.editedIds.push(id);
       if (options.history !== false) context.pushHistory('text-edit-enter');
     },
-    invalidateOffscreen() {},
-    syncAllTextAutoHeights() {},
     textByteLengthCalls: 0,
   };
   if (realLimits) {
@@ -134,9 +113,6 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
       addEventListener() {},
       visibilityState: 'visible',
     },
-    window: {
-      addEventListener() {},
-    },
     navigator: {
       clipboard: {
         readText() {
@@ -148,7 +124,6 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
     jsClipboard: null,
     _pasteInProgress: false,
     BoardfishClipboardIO: {
-      describeClipboardData() { return {}; },
       readClipboardImageFileFromEvent() { return null; },
       readClipboardTextFromEvent(clipboardData) {
         return clipboardData?.getData?.('text/plain') || '';
@@ -159,7 +134,6 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
       start() { return null; },
       step() {},
     },
-    resizeCanvas() {},
     acquireInputShield() {
       return () => {};
     },

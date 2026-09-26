@@ -1,9 +1,6 @@
 'use strict';
 
 (function initClipboardIO(root) {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const collectClipboardIoDiagnostics = typeof BOARDFISH_PRODUCTION === 'undefined';
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const BOARDFISH_CLIPBOARD_TOKEN_RE = /<!--\s*boardfish-clipboard:([A-Za-z0-9._:-]+)\s*-->/i;
 
   function createBoardfishClipboardMarker(token) {
@@ -30,7 +27,6 @@
   }
 
   async function blobToDataUrl(blob) {
-    if (!blob) return '';
     if (typeof FileReader !== 'undefined') {
       return await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -84,7 +80,6 @@
   }
 
   function textClipboardStats(text) {
-    if (!collectClipboardIoDiagnostics || ClipDebug.enabled === false) return {};
     const value = String(text ?? '');
     const lines = value ? value.split('\n') : [];
     let largestLineChars = 0;
@@ -305,16 +300,10 @@
     , dbg = null
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
   ) {
-    const directBlob = typeof Blob !== 'undefined' && blobOrPromise instanceof Blob
-      ? blobOrPromise
-      : null;
-    const blobPromise = directBlob
-      ? Promise.resolve(directBlob)
-      : Promise.resolve(blobOrPromise).then((blob) => {
-        if (!blob) throw new Error('Clipboard Image Creation Failed');
-        return blob;
-      });
-    const imagePart = directBlob || blobPromise;
+    const imagePart = Promise.resolve(blobOrPromise).then((blob) => {
+      if (!blob) throw new Error('Clipboard Image Creation Failed');
+      return blob;
+    });
     const writeImageOnly = () => {
       try {
         return Promise.resolve(writeClipboardItem({ 'image/png': imagePart }))
@@ -324,7 +313,7 @@
       }
     };
     if (token && supportsRichClipboardWrite()) {
-      const htmlBlobPromise = blobPromise
+      const htmlBlobPromise = imagePart
         .then(blobToDataUrl)
         .catch((err) => {
           /* BOARDFISH_DEV_DIAGNOSTICS_START */

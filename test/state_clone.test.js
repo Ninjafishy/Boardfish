@@ -11,15 +11,11 @@ function loadStateCloneHarness() {
   const context = {
     HistoryDebug: {
       count() {},
-      end() {},
-      max() {},
-      start() { return {}; },
     },
     cloneTextObjectRuntimeCaches(source, target) {
       target._runtimeCopiedFrom = source.id;
       return target;
     },
-    performance: { now: () => 0 },
   };
   vm.createContext(context);
   vm.runInContext(

@@ -40,9 +40,8 @@
     if (typeof root.alert === 'function') root.alert(message);
   }
 
-  function rejectLimit(message, { notifyUser = true, throwError = false } = {}) {
+  function rejectLimit(message, { notifyUser = true } = {}) {
     if (notifyUser) notify(message);
-    if (throwError) throw limitError(message);
     return false;
   }
 
@@ -57,9 +56,7 @@
   }
 
   function textCharacterCount(text = '') {
-    let count = 0;
-    for (const character of String(text ?? '')) count++;
-    return count;
+    return String(text ?? '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ').length;
   }
 
   function currentTextCharacters(objects = root.objects, excludedObject = null) {
@@ -86,17 +83,6 @@
     return rejectLimit(textCharacterLimitMessage(), options);
   }
 
-  function dataUrlByteLength(dataUrl) {
-    if (root.BoardfishWebBoardContainer?.dataUrlByteLength) {
-      return root.BoardfishWebBoardContainer.dataUrlByteLength(dataUrl);
-    }
-    const match = /^data:[^;,]+;base64,(.*)$/i.exec(String(dataUrl || ''));
-    if (!match) return 0;
-    const base64 = match[1].replace(/\s/g, '');
-    const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
-    return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
-  }
-
   let textByteEncoder = null;
   function textByteLength(text = '') {
     const value = String(text ?? '');
@@ -108,7 +94,7 @@
   }
 
   function imageSourceByteLength(source) {
-    if (typeof source === 'string' && source.startsWith('data:')) return dataUrlByteLength(source);
+    if (typeof source === 'string' && source.startsWith('data:')) return root.BoardfishWebBoardContainer.dataUrlByteLength(source);
     if (source && typeof source === 'object') return Number(source.bytes || source.byteLength || 0) || 0;
     return 0;
   }
@@ -145,18 +131,10 @@
     return rejectLimit(boardContentLimitMessage(), options);
   }
 
-  function validateBoardPayload({ objectCount: nextObjectCount = 0, textCharacters = 0, boardJsonBytes = 0, imageBytes = null, imageEntries = [] } = {}) {
+  function validateBoardPayload({ objectCount: nextObjectCount = 0, textCharacters = 0, boardJsonBytes = 0, imageBytes = null } = {}) {
     if ((Number(nextObjectCount) || 0) > LIMITS.maxObjects) throw limitError(objectLimitMessage());
     if ((Number(textCharacters) || 0) > LIMITS.maxTextCharacters) throw limitError(textCharacterLimitMessage());
-    let totalImageBytes = Number(imageBytes);
-    if (!Number.isFinite(totalImageBytes)) {
-      totalImageBytes = 0;
-      for (const entry of imageEntries || []) {
-        const bytes = Number(entry.byteLength ?? entry.bytes?.length ?? 0) || 0;
-        totalImageBytes += bytes;
-      }
-    }
-    const total = (Number(boardJsonBytes) || 0) + totalImageBytes;
+    const total = (Number(boardJsonBytes) || 0) + (Number(imageBytes) || 0);
     if (total > LIMITS.maxBoardContentBytes) {
       throw limitError(boardContentLimitMessage());
     }
@@ -172,12 +150,10 @@
     canReplaceText,
     currentContentBytes,
     currentTextCharacters,
-    imageSourceByteLength,
     limitError,
     notify,
     textByteLength,
     textCharacterCount,
-    textCharacterLimitMessage,
     validateBoardPayload,
   });
 

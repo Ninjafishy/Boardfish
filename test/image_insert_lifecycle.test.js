@@ -3,7 +3,6 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const vm = require('node:vm');
 
 const WebContainer = require('../src/js/web_board_container.js');
@@ -36,7 +35,7 @@ function loadWebImageSourceHarness({ boardContainer = null } = {}) {
   return context;
 }
 
-function loadAddImageHarness({ width = 1200, height = 300 } = {}) {
+function loadAddImageHarness() {
   const source = readSource('src/js/image_insert.js');
   const calls = {
     histories: [],
@@ -46,14 +45,11 @@ function loadAddImageHarness({ width = 1200, height = 300 } = {}) {
   };
   const imageStore = {};
   const context = {
-    Blob,
-    File,
     BOARDFISH_PRODUCTION: true,
-    _bulkImageInsertAdded: 0,
     _bulkImageInsertDepth: 0,
     editingId: null,
     imageBitmapCache: {
-      'img-paste': { width, height },
+      'img-paste': { width: 1200, height: 300 },
     },
     imageStore,
     zCounter: 0,
@@ -78,8 +74,6 @@ function loadAddImageHarness({ width = 1200, height = 300 } = {}) {
     canvas: { addEventListener() {} },
     fileInput: {
       addEventListener() {},
-      click() {},
-      value: '',
     },
     newId: () => 'obj-paste',
     pushHistory(reason) {
@@ -100,7 +94,6 @@ function loadEditorStateBoundaryHarness() {
   const obj2 = { id: 'obj-2', type: 'rect', z: 2 };
   const textLayoutCacheClears = [];
   const context = {
-    console,
     editingId: null,
     idCounter: 1,
     zCounter: 3,
@@ -108,26 +101,13 @@ function loadEditorStateBoundaryHarness() {
     objectsMap: new Map([[obj1.id, obj1], [obj2.id, obj2]]),
     selectedId: 'obj-1',
     selectedIds: new Set(['obj-1']),
-    _prefixCache: new Map(),
-    _boardOpening: false,
     textLayoutCacheClears,
-    BoardfishViewportState: {
-      setViewport() {},
-    },
     clearTextLayoutCaches(options = {}) {
       textLayoutCacheClears.push({ ...options });
     },
     exitEdit() {
       context.editingId = null;
     },
-    isTextContentEmpty(value) {
-      return String(value || '').length === 0;
-    },
-    normalizeTextContent(value) {
-      return String(value || '');
-    },
-    syncAllTextAutoHeights() {},
-    updateInputShieldVisual() {},
   };
   vm.createContext(context);
   vm.runInContext(source, context, { filename: 'editor_state_boundary.js' });
@@ -332,6 +312,6 @@ test('file picker image insertion freezes the command point before files are cho
   assert.match(source, /_pendingImageInsertPoint = \{ x, y \};[\s\S]*fileInput\.click\(\);/);
   assert.match(source, /const insertPoint = _pendingImageInsertPoint;/);
   assert.doesNotMatch(source, /\bctxPos\b/);
-  assert.match(source, /insertImageFiles\(files, insertPoint\.x, insertPoint\.y, 'file-input'\)/);
+  assert.match(source, /insertImageFiles\(files, insertPoint\.x, insertPoint\.y\)/);
   assert.match(source, /finally \{[\s\S]*_pendingImageInsertPoint = null;[\s\S]*fileInput\.value = '';/);
 });

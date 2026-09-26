@@ -20,18 +20,11 @@ test('developer open diagnostics tune the shared runtime hydration concurrency',
   const messages = [];
   let exposed = null;
   const context = {
-    DEBUG_TOOLS_ENABLED: true,
     console: {
-      debug() {},
       info(...args) { messages.push(args.join(' ')); },
-      table() {},
-      warn() {},
     },
     exposeDebug(value) {
       exposed = value;
-    },
-    performance: {
-      now() { return 0; },
     },
   };
   vm.createContext(context);
@@ -168,7 +161,6 @@ test('open-board debug workflow stays capturable through beginDebug and finishDe
   assert.match(startupDebug, /async function finishDebug\(spec = \{\}\)/);
   assert.match(startupDebug, /startConsoleCapture\(id\)/);
   assert.match(startupDebug, /finishCalls = calls\.length \? calls : defaultFinishCalls\(\)/);
-  assert.match(startupDebug, /method: 'browser-download'/);
   assert.match(startupDebug, /debugGlobalNames = \{/);
   assert.match(startupDebug, /open: 'OpenDebug'/);
   assert.match(bootstrap, /registerDebugCommand\('openFilePath', openFilePath\)/);

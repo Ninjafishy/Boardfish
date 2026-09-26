@@ -99,15 +99,12 @@
 
   async function recoverBoardImageSources(sourceRef, board, rawImageStore) {
     const sourceHandle = persistentFileHandleFromRef(sourceRef);
-    const recover = root.BoardfishWebBoardContainer?.recoverMatchingVolatileImageRefsFromContainer;
-    if (!sourceHandle || typeof sourceHandle.getFile !== 'function' || typeof recover !== 'function') {
-      return null;
-    }
+    if (!sourceHandle || typeof sourceHandle.getFile !== 'function') return null;
     const freshFile = await waitForFileOperation(
       () => sourceHandle.getFile(),
       'Refreshing Images',
     );
-    return recover(board, rawImageStore, freshFile);
+    return root.BoardfishWebBoardContainer.recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore, freshFile);
   }
 
   function fileOperationTimeoutError(stage) {
@@ -250,7 +247,7 @@
   async function readBoard(ref) {
     const file = await fileFromRef(ref);
     if (!file) throw new Error('No File Selected');
-    if (root.BoardfishWebLimits?.LIMITS && file.size > root.BoardfishWebLimits.LIMITS.maxBoardContentBytes + 10 * 1024 * 1024) {
+    if (file.size > root.BoardfishWebLimits.LIMITS.maxBoardContentBytes + 10 * 1024 * 1024) {
       throw root.BoardfishWebLimits.limitError(
         root.BoardfishWebLimits.boardContentLimitMessage()
       );
@@ -258,8 +255,8 @@
     return root.BoardfishWebBoardContainer.readBoardContainer(file, {
       lazyImageRefs: true,
       verifyImageCrc: false,
-      maxBoardContentBytes: root.BoardfishWebLimits?.LIMITS?.maxBoardContentBytes,
-      validateBoardPayload: root.BoardfishWebLimits?.validateBoardPayload,
+      maxBoardContentBytes: root.BoardfishWebLimits.LIMITS.maxBoardContentBytes,
+      validateBoardPayload: root.BoardfishWebLimits.validateBoardPayload,
     });
   }
 
@@ -326,7 +323,7 @@
     const totalStart = performance.now();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const rawImageStore = options.imageStore || root.imageStore || {};
-    const validateBoardPayload = root.BoardfishWebLimits?.validateBoardPayload;
+    const validateBoardPayload = root.BoardfishWebLimits.validateBoardPayload;
     const writesExistingHandle = ref?.kind === 'web-file-handle';
     const sourceTargetSameEntry = writesExistingHandle && Object.hasOwn(options, 'sourceFileRef')
       ? await fileRefsAreSameEntry(ref, options.sourceFileRef)
@@ -456,7 +453,6 @@
     canSaveToExistingTarget,
     describeFileRef,
     downloadBlob,
-    fileNameFromRef,
     fileRefFromFile: webFileRef,
     openFileDialog,
     readBoard,

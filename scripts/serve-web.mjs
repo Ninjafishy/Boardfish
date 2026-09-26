@@ -38,7 +38,7 @@ function webEnvSource() {
 
 (function initBoardfishWebEnv(root) {
   Object.defineProperty(root, '__BOARDFISH_DEBUG_TOOLS_ENABLED__', {
-    value: ${devMode ? 'true' : 'false'},
+    value: true,
     writable: false,
     configurable: false,
   });

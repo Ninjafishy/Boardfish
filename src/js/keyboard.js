@@ -34,7 +34,6 @@ const enterSelectedTextEditFromKeyboard = (e) => {
     e.repeat ||
     e.isComposing ||
     isBoardInputBlocked() ||
-    typeof enterEdit !== 'function' ||
     isEditableTextShortcutTarget(e.target) ||
     (typeof document !== 'undefined' && isEditableTextShortcutTarget(document.activeElement))
   ) {
@@ -52,39 +51,27 @@ function consumeShortcutEvent(e) {
   e.stopPropagation();
 }
 
-function contextMenusOpenForShortcut() {
-  return typeof hasOpenContextMenu === 'function' && hasOpenContextMenu();
-}
-
 function closeMenusForShortcut(shortcutName) {
-  if (!contextMenusOpenForShortcut() || typeof closeOpenMenusExcept !== 'function') return;
+  if (!hasOpenContextMenu()) return;
   closeOpenMenusExcept('', `shortcut:${shortcutName}`);
 }
 
 function runShortcutCommand(shortcutName, fallback) {
-  if (
-    typeof runVisibleMenuCommandForShortcut === 'function' &&
-    runVisibleMenuCommandForShortcut(shortcutName)
-  ) {
-    return true;
-  }
+  if (runVisibleMenuCommandForShortcut(shortcutName)) return;
   closeMenusForShortcut(shortcutName);
-  if (typeof fallback === 'function') fallback();
-  return true;
+  fallback();
 }
 
 function pasteAtViewportCenterFromShortcut() {
-  if (editingId || typeof pasteAtPos !== 'function') return;
-  const point = typeof boardCursorWorldPoint === 'function'
-    ? boardCursorWorldPoint()
-    : toWorld(window.innerWidth / 2, window.innerHeight / 2);
+  if (editingId) return;
+  const point = boardCursorWorldPoint();
   pasteAtPos(point.x, point.y);
 }
 
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     if (e.cancelBubble) return;
-    const blocked = (isBoardInputBlocked() && !isBoardNavigationAllowedWhileBlocked()) || _rubberBandDragActive;
+    const blocked = isBoardInputBlocked() || _rubberBandDragActive;
     if (blocked || !editingId) e.preventDefault();
     if (blocked || editingId || e.repeat) return;
     _spaceDown = true;
@@ -115,7 +102,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (commandOnly && isShortcutKey(e, 'v') && contextMenusOpenForShortcut()) {
+  if (commandOnly && isShortcutKey(e, 'v') && hasOpenContextMenu()) {
     consumeShortcutEvent(e);
     runShortcutCommand('paste', pasteAtViewportCenterFromShortcut);
     return;
@@ -123,10 +110,10 @@ document.addEventListener('keydown', (e) => {
 
   if (commandOnly && isShortcutKey(e, 'c')) {
     if (e.repeat) {
-      if (!editingId || contextMenusOpenForShortcut()) consumeShortcutEvent(e);
+      if (!editingId || hasOpenContextMenu()) consumeShortcutEvent(e);
       return;
     }
-    if (contextMenusOpenForShortcut()) {
+    if (hasOpenContextMenu()) {
       consumeShortcutEvent(e);
       runShortcutCommand('copy', () => {
         if (!editingId) copySelected();
@@ -145,7 +132,7 @@ document.addEventListener('keydown', (e) => {
     if (!canTransformSelectedImagesFromKeyboard()) return;
     consumeShortcutEvent(e);
     runShortcutCommand('rotate-image', () => {
-      rotateSelectedImages('cw');
+      rotateSelectedImages();
     });
     return;
   }
@@ -211,7 +198,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (noShortcutModifiers && (e.key === 'Backspace' || e.key === 'Delete')) {
-    if (contextMenusOpenForShortcut()) {
+    if (hasOpenContextMenu()) {
       consumeShortcutEvent(e);
       runShortcutCommand('delete', () => {
         if (hasSelection() && !editingId) deleteSelected();
@@ -233,7 +220,7 @@ document.addEventListener('keydown', (e) => {
 
   if (commandOnly && !editingId && isShortcutKey(e, 'e')) {
     const imageObjs = BoardfishExportUtils.selectedImageObjects();
-    if (contextMenusOpenForShortcut() || imageObjs.length) {
+    if (hasOpenContextMenu() || imageObjs.length) {
       consumeShortcutEvent(e);
       runShortcutCommand('export-image', () => {
         if (!imageObjs.length) return;

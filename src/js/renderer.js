@@ -249,7 +249,7 @@
   }
 
   function recordTextLineDraw(counters, obj, line, lineIndex, stats, ms, deps) {
-    if (!counters || !Number.isFinite(ms) || ms < 0) return;
+    if (!Number.isFinite(ms) || ms < 0) return;
     counters.textLineDrawMs = (counters.textLineDrawMs || 0) + ms;
     counters.maxTextLineDrawMs = Math.max(counters.maxTextLineDrawMs || 0, ms);
     if (ms < SLOW_TEXT_LINE_DRAW_THRESHOLD_MS) return;
@@ -283,7 +283,6 @@
   }
 
   function recordImageDrawWarmStats(counters, selected, firstSourceDraw, firstContextDraw) {
-    if (!counters) return;
     counters.imageSourceDraws = (counters.imageSourceDraws || 0) + 1;
     if (firstSourceDraw) counters.imageSourceFirstDraws = (counters.imageSourceFirstDraws || 0) + 1;
     else counters.imageSourceWarmDraws = (counters.imageSourceWarmDraws || 0) + 1;
@@ -300,8 +299,8 @@
     }
   }
 
-  function recordSlowDrawObject(counters, obj, ms, before, drawn, motion = null, deps = null) {
-    if (!counters || !obj || !Number.isFinite(ms) || ms <= 0) return;
+  function recordSlowDrawObject(counters, obj, ms, before, drawn, motion, deps) {
+    if (!Number.isFinite(ms) || ms <= 0) return;
     const row = {
       id: obj.id || '',
       type: obj.type || '',
@@ -335,15 +334,13 @@
       row.textUnitsPerLine = row.drawnTextLines > 0
         ? Math.round(row.textDrawUnits / row.drawnTextLines * 100) / 100
         : 0;
-      const lineHeightDevicePx = deps
-        ? (Number(deps.lineHeight || 0) || 0) *
-          Math.max(Number(deps.zoom?.()) || 0, 0) *
-          Math.max(Number(deps.dpr?.()) || 1, 1)
-        : 0;
+      const lineHeightDevicePx = (Number(deps.lineHeight || 0) || 0) *
+        Math.max(Number(deps.zoom?.()) || 0, 0) *
+        Math.max(Number(deps.dpr?.()) || 1, 1);
       row.lineHeightDevicePx = Math.round(lineHeightDevicePx * 100) / 100;
     } else if (obj.type === 'image') {
       row.imgKey = obj.data?.imgKey || '';
-      const fullSource = row.imgKey && deps
+      const fullSource = row.imgKey
         ? (deps.imageBitmapCache?.()?.[row.imgKey] || null)
         : null;
       const scaledDelta = drawCounterValue(counters, 'scaledImages') - before.scaledImages;
@@ -351,8 +348,8 @@
       row.objectH = Number(obj.h || 0) || 0;
       row.fullSourceW = fullSource?.width || fullSource?.naturalWidth || '';
       row.fullSourceH = fullSource?.height || fullSource?.naturalHeight || '';
-      row.drawDeviceW = deps ? Math.round(row.objectW * Math.max(Number(deps.zoom?.()) || 0, 0) * Math.max(Number(deps.dpr?.()) || 1, 1) * 100) / 100 : '';
-      row.drawDeviceH = deps ? Math.round(row.objectH * Math.max(Number(deps.zoom?.()) || 0, 0) * Math.max(Number(deps.dpr?.()) || 1, 1) * 100) / 100 : '';
+      row.drawDeviceW = Math.round(row.objectW * Math.max(Number(deps.zoom?.()) || 0, 0) * Math.max(Number(deps.dpr?.()) || 1, 1) * 100) / 100;
+      row.drawDeviceH = Math.round(row.objectH * Math.max(Number(deps.zoom?.()) || 0, 0) * Math.max(Number(deps.dpr?.()) || 1, 1) * 100) / 100;
       row.cropped = drawCounterValue(counters, 'croppedImages') > before.croppedImages;
       row.scaled = drawCounterValue(counters, 'scaledImages') > before.scaledImages;
       row.fullScale = drawCounterValue(counters, 'fullScaleImages') > before.fullScaleImages;
@@ -413,8 +410,7 @@
         if (obj.type !== 'image') return;
 
         const key = obj.data.imgKey;
-        const selected = deps.selectImageSourceForDraw(key, obj, deps.imageBitmapCache()[key], view, !!motion);
-        const img = selected?.source || selected || null;
+        const img = deps.selectImageSourceForDraw(key, obj, deps.imageBitmapCache()[key], view, !!motion);
         if (!(img?.width > 0)) return;
         try {
           drawImageObj(context, obj, img, view, viewportRect);

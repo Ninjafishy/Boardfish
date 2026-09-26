@@ -12,7 +12,6 @@ function noopDebugApi() {
     end() {},
     count() {},
     max() {},
-    wrap: async (_ctx, _command, call) => call(),
   };
 }
 
@@ -42,9 +41,6 @@ function loadImageState(createImageBitmap) {
           getContext() {
             return {
               drawImage() {},
-              getImageData() { return { data: [0, 0, 0, 0] }; },
-              save() {},
-              translate() {},
               scale() {},
               rotate() {},
             };
@@ -52,7 +48,6 @@ function loadImageState(createImageBitmap) {
         };
       },
     },
-    clearTimeout() {},
     setTimeout(callback, ms = 0) {
       timers.push({ callback, ms });
       return timers.length;

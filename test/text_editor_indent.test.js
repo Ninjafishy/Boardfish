@@ -3,7 +3,6 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const vm = require('node:vm');
 
 const { loadLiveTextEditResizeHarness } = require('../test-support/text_editor.js');
@@ -72,11 +71,7 @@ function loadTextEditorIntegrationHelpers() {
     readSource('src/js/text_layout.js') +
       '\n' +
       readSource('src/js/text_editor.js') +
-      'globalThis.createTextSelectionClipboardPayload = createTextSelectionClipboardPayload;\n' +
-      'globalThis.textSelectionPayloadFromBoardfishClipboardValue = textSelectionPayloadFromBoardfishClipboardValue;\n' +
       'globalThis.syncFreshTextEditWidth = syncFreshTextEditWidth;\n' +
-      'globalThis.textEditInputReplacement = textEditInputReplacement;\n' +
-      'globalThis.textEditBlankLineDeleteRange = textEditBlankLineDeleteRange;\n' +
       'globalThis.textNewlineCount = textNewlineCount;\n' +
       'globalThis.replaceTextEditProxyRange = replaceTextEditProxyRange;\n' +
       'globalThis.tryNativeBoardfishTextSelectionPaste = tryNativeBoardfishTextSelectionPaste;\n',
@@ -1467,7 +1462,7 @@ test('context-menu paste rejects over-limit replacement before changing selectio
   const source = readSource('src/js/context_menu.js');
   vm.runInContext(source.slice(source.indexOf('const replaceTextEditSelection ='), source.indexOf('const copyTextEditSelection =')) +
     '\nglobalThis.menuReplace = replaceTextEditSelection;', context);
-  assert.equal(context.menuReplace('TOOLONG', { immediateHistory: true, inputType: 'insertFromPaste' }), false);
+  assert.equal(context.menuReplace('TOOLONG', { inputType: 'insertFromPaste' }), false);
   assert.equal(context.obj.data.content, 'abcdefghij');
   assert.deepEqual([context.proxy.selectionStart, context.proxy.selectionEnd, context.proxy.selectionDirection], [2, 4, 'backward']);
   assert.deepEqual(context.historyStarts, []);

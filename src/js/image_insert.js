@@ -47,14 +47,12 @@ const createWebImageSourceFromBlob = async (file, imgKey) => {
 const rollbackImageInsertSource = (imgKey, source, hadPreviousSource = false, previousSource) => {
   if (
     imgKey
-    && typeof imageStore !== 'undefined'
-    && typeof BoardfishImageStore !== 'undefined'
-    && BoardfishImageStore.getSource?.(imgKey) === source
+    && BoardfishImageStore.getSource(imgKey) === source
   ) {
     if (hadPreviousSource) {
       BoardfishImageStore.setSource(imgKey, previousSource);
     } else {
-      if (typeof removeImageRuntimeCachesForKey === 'function') removeImageRuntimeCachesForKey(imgKey);
+      removeImageRuntimeCachesForKey(imgKey);
       delete imageStore[imgKey];
     }
     return true;
@@ -63,12 +61,7 @@ const rollbackImageInsertSource = (imgKey, source, hadPreviousSource = false, pr
 };
 
 const createImageInsertSourceRollback = (imgKey, source) => {
-  const canCapture = !!(
-    imgKey
-    && typeof imageStore !== 'undefined'
-    && typeof BoardfishImageStore !== 'undefined'
-  );
-  const hadPreviousSource = canCapture && Object.hasOwn(imageStore, imgKey);
+  const hadPreviousSource = !!imgKey && Object.hasOwn(imageStore, imgKey);
   const previousSource = hadPreviousSource ? imageStore[imgKey] : undefined;
   let rolledBack = false;
   return () => {
@@ -174,11 +167,7 @@ fileInput.addEventListener('change', async () => {
   const files = fileInput.files || [];
   const insertPoint = _pendingImageInsertPoint;
   try {
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      await insertImageFiles(files, insertPoint.x, insertPoint.y, 'file-input');
-    } else {
-      await insertImageFiles(files, insertPoint.x, insertPoint.y);
-    }
+    await insertImageFiles(files, insertPoint.x, insertPoint.y);
   } finally {
     _pendingImageInsertPoint = null;
     fileInput.value = '';

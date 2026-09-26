@@ -16,13 +16,7 @@
   }
 
   function createTouchGestureController(options = {}) {
-    const holdDelayMs = Number.isFinite(options.holdDelayMs)
-      ? Math.max(0, options.holdDelayMs)
-      : TOUCH_HOLD_DELAY_MS;
-    const moveThresholdPx = Number.isFinite(options.moveThresholdPx)
-      ? Math.max(0, options.moveThresholdPx)
-      : TOUCH_MOVE_THRESHOLD_PX;
-    const moveThresholdSq = moveThresholdPx * moveThresholdPx;
+    const moveThresholdSq = TOUCH_MOVE_THRESHOLD_PX * TOUCH_MOVE_THRESHOLD_PX;
     const scheduleTimer = options.scheduleTimer || ((callback, delay) => setTimeout(callback, delay));
     const cancelTimer = options.cancelTimer || ((timer) => clearTimeout(timer));
     const active = new Map();
@@ -61,7 +55,7 @@
         if (dx * dx + dy * dy > moveThresholdSq) return;
         mode = 'long-press';
         call('onLongPress', gesturePayload(current));
-      }, holdDelayMs);
+      }, TOUCH_HOLD_DELAY_MS);
     }
 
     function startPinch(sourceEvent = null) {
@@ -76,14 +70,13 @@
     }
 
     function emitPinch(point) {
-      if (mode !== 'pinch' || active.size < 2 || !pinchDistance) return false;
+      if (mode !== 'pinch' || active.size < 2 || !pinchDistance) return;
       const geometry = twoPointerGeometry(active.values());
       geometry.startCenterX = pinchX;
       geometry.startCenterY = pinchY;
       geometry.scale = geometry.distance / pinchDistance;
       geometry.event = point?.sourceEvent || null;
       call('onPinch', geometry);
-      return true;
     }
 
     function updateActivePoint(input, sourceEvent = null) {
@@ -99,7 +92,7 @@
       current.previousY = current.y;
       current.x = x;
       current.y = y;
-      current.sourceEvent = sourceEvent || input.sourceEvent || input;
+      current.sourceEvent = sourceEvent || input;
       return current;
     }
 
@@ -107,9 +100,9 @@
       const pointerId = input?.pointerId ?? input?.identifier;
       const x = input?.clientX;
       const y = input?.clientY;
-      if (pointerId === undefined || pointerId === null || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+      if (pointerId === undefined || pointerId === null || !Number.isFinite(x) || !Number.isFinite(y)) return;
       clearHoldTimer();
-      const event = sourceEvent || input.sourceEvent || input;
+      const event = sourceEvent || input;
       const stored = {
         pointerId, x, y,
         target: input.target || event?.target || null,
@@ -125,39 +118,36 @@
       } else {
         startPinch(event);
       }
-      return true;
     }
 
     function pointerMove(input, sourceEvent = null) {
       const current = updateActivePoint(input, sourceEvent);
-      if (!current) return false;
+      if (!current) return;
 
       if (mode === 'pending') {
         const dx = current.x - current.startX;
         const dy = current.y - current.startY;
-        if (dx * dx + dy * dy <= moveThresholdSq) return true;
+        if (dx * dx + dy * dy <= moveThresholdSq) return;
         clearHoldTimer();
         mode = 'pan';
         call('onPanStart', gesturePayload(current));
         call('onPan', gesturePayload(current, { dx, dy }));
-        return true;
+        return;
       }
 
       if (mode === 'pan') {
         const dx = current.x - current.previousX, dy = current.y - current.previousY;
         if (dx || dy) call('onPan', gesturePayload(current, { dx, dy }));
-        return true;
+        return;
       }
 
       if (current.x - current.previousX || current.y - current.previousY) emitPinch(current);
-      return true;
     }
 
     function pointerMoves(inputs, sourceEvent = null) {
       if (mode !== 'pinch' || active.size < 2) {
-        let handled = false;
-        for (let i = 0; i < (inputs?.length || 0); i++) handled = pointerMove(inputs[i], sourceEvent) || handled;
-        return handled;
+        for (let i = 0; i < (inputs?.length || 0); i++) pointerMove(inputs[i], sourceEvent);
+        return;
       }
 
       // Touch Events expose one coherent snapshot containing both contacts.
@@ -168,7 +158,7 @@
         const current = updateActivePoint(inputs[i], sourceEvent);
         if (current && (current.x - current.previousX || current.y - current.previousY)) lastPoint = current;
       }
-      return lastPoint ? emitPinch(lastPoint) : false;
+      if (lastPoint) emitPinch(lastPoint);
     }
 
     function finishPointer(input, cancelled = false, sourceEvent = null) {
@@ -217,7 +207,7 @@
     }
 
     function cancel() {
-      if (!active.size && mode === 'idle') return false;
+      if (!active.size && mode === 'idle') return;
       const finishedMode = mode;
       const point = active.values().next().value || null;
       clearHoldTimer();
@@ -228,7 +218,6 @@
         call('onPinchEnd');
       }
       call('onGestureEnd', gesturePayload(point));
-      return true;
     }
 
     return Object.freeze({
@@ -247,13 +236,7 @@
     });
   }
 
-  const api = Object.freeze({
-    TOUCH_HOLD_DELAY_MS,
-    TOUCH_MOVE_THRESHOLD_PX,
-    createTouchGestureController,
-  });
-  root.BoardfishTouchInput = api;
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createTouchGestureController };
 
   if (typeof document === 'undefined' || !document.addEventListener || typeof canvas === 'undefined' || !canvas) {
     return;
@@ -267,10 +250,6 @@
 
   function preventTouchDefault(event) {
     if (event?.cancelable) event.preventDefault();
-  }
-
-  function boardNavigationAllowed() {
-    return !isBoardInputBlocked() || isBoardNavigationAllowedWhileBlocked();
   }
 
   function boardPressAllowed() {
@@ -354,7 +333,7 @@
       touchSelectionDrag.move(gesture.x, gesture.y);
       return;
     }
-    if (!boardNavigationAllowed()) return;
+    if (!boardPressAllowed()) return;
     if (typeof BOARDFISH_PRODUCTION === 'undefined') scheduleTransform(BoardfishViewportState.panBy(gesture.dx, gesture.dy), 'touch-pan', gesture.event);
     else scheduleTransform(BoardfishViewportState.panBy(gesture.dx, gesture.dy));
   }
@@ -365,7 +344,7 @@
   }
 
   function applyTouchPinch(gesture) {
-    if (!boardNavigationAllowed()) return;
+    if (!boardPressAllowed()) return;
     const start = touchPinchStartViewport;
     if (!start) return;
     const nextZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, start.zoom * gesture.scale));
@@ -464,7 +443,7 @@
     canvas.addEventListener('touchstart', (event) => {
       preventTouchDefault(event);
       markTouchCompatibilityWindow();
-      if (!boardNavigationAllowed()) return;
+      if (!boardPressAllowed()) return;
       forEachChangedTouch(event, controller.pointerDown);
     }, { passive: false });
     canvas.addEventListener('touchmove', (event) => {

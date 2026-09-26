@@ -135,7 +135,7 @@ function getBoardOpenMetrics(data) {
 }
 
 const isDebugApiEnabledForStep = (api, dbg = null) => {
-  return !!(dbg && api && (api.enabled === true || api.isEnabled?.() === true));
+  return !!(dbg && api.enabled === true);
 };
 
 const isOpenDebugActive = (dbg = null) => {
@@ -143,7 +143,7 @@ const isOpenDebugActive = (dbg = null) => {
 };
 
 const isPillDebugActive = () => {
-  return !!(PillDebug && (PillDebug.enabled === true || PillDebug.isEnabled?.() === true));
+  return PillDebug.enabled === true;
 };
 
 const shouldCollectOpenBoardMetrics = (dbg = null) => {
@@ -193,7 +193,7 @@ async function invokeSaveBoard(fileRef
 ) {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   {
-    const historyFlushed = typeof flushEditHistoryCheckpoint === 'function' && flushEditHistoryCheckpoint();
+    const historyFlushed = flushEditHistoryCheckpoint();
     const path = BoardfishRuntime.describeFileRef(fileRef);
     if (historyFlushed) SaveDebug.step(dbg, 'flush-edit-history', { path, historyIndex });
     const dataStart = performance.now();
@@ -211,7 +211,7 @@ async function invokeSaveBoard(fileRef
     return result;
   }
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (typeof flushEditHistoryCheckpoint === 'function') flushEditHistoryCheckpoint();
+  flushEditHistoryCheckpoint();
   const data = boardDataForSave();
   return BoardfishRuntime.saveBoard(fileRef, data, { imageStore, ...options });
 }
@@ -428,7 +428,6 @@ async function hydrateImageKeysWithLimit(keys
   OpenDebug.step(dbg, `${label}:end`, { count: keys.length, hydrated, concurrency, ms: performance.now() - t0, ...getOpenImageRuntimeDebugMetrics(dbg) });
   return hydrated;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  return anyHydrated;
 }
 
 function createOpenTextWarmupTarget() {
@@ -448,7 +447,7 @@ function warmOpenTextLineForDraw(target, obj, line) {
   if (!target?.context || !line || !String(line.text ?? '').length) return false;
   const context = target.context;
   const dpr = typeof window !== 'undefined' ? (Number(window.devicePixelRatio) || 1) : 1;
-  const viewZoom = typeof zoom !== 'undefined' ? (Number(zoom) || 1) : 1;
+  const viewZoom = Number(zoom) || 1;
   const deviceScale = Math.max(0.25, Math.min(4, viewZoom * dpr));
   const margin = 12;
   const baseX = (Number(obj?.x) || 0) + TEXT_PAD;
@@ -521,7 +520,7 @@ async function hydrateTextDrawCachesForOpen(
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
-function queueVisibleImageHydration(limit = 3) {
+function queueVisibleImageHydration(limit) {
   for (const key of getVisibleImageKeys(limit)) queueImageHydration(key);
 }
 
@@ -667,7 +666,7 @@ function applyBoardData(data
 
   const imageStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  imageStore = data.imageStore || {};
+  imageStore = data.imageStore;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   let deferredInitialCacheImages = 0;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -696,7 +695,7 @@ function applyBoardData(data
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const replaceStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  BoardfishEditorState.replaceBoardObjects(data.objects || []);
+  BoardfishEditorState.replaceBoardObjects(data.objects);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   OpenDebug.step(dbg, 'replaceBoardObjects', { ms: performance.now() - replaceStart, objectCount: objects.length });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */

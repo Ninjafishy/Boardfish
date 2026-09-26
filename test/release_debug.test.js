@@ -26,8 +26,6 @@ const RELEASE_FORBIDDEN_DIAGNOSTIC_HELPERS = Object.freeze([
   'textEditorTextStats',
   'objectCommandTextStats',
   'textClipboardStats',
-  'clipboardTextStats',
-  'clipboardTextMetricsForObjects',
   'selectionResizeTextObjectStats',
   'prewarmVisibleTextLayoutCaches',
   'warmTextLayoutDrawLines',
@@ -43,7 +41,6 @@ const RELEASE_FORBIDDEN_DIAGNOSTIC_MARKERS = Object.freeze([
   'history-push',
   'visibleTextLayoutPrewarm',
   'board-warmup-snapshot-unavailable',
-  'read-board-debug',
   'web-export:pill-start',
   'selection-drag-move-hit',
   'canvas-mousedown-route',
@@ -52,7 +49,6 @@ const RELEASE_FORBIDDEN_DIAGNOSTIC_MARKERS = Object.freeze([
   'keydown-delete-replacement-ready',
   'menu-replace-textarea-mutated',
   'missing-proxy',
-  'selection-fits-dom',
   'stale-dom',
   'sync-skipped',
   'text-edit-input:',
@@ -115,7 +111,7 @@ function readCurrentWebPreviewBundle() {
   const html = readSource('dist-web/index.html');
   const match = html.match(/<script\s+src="(assets\/boardfish-web-preview\.[a-f0-9]{12}\.min\.js)"><\/script>/);
   assert.ok(match, 'web preview index is missing its cache-busted runtime bundle');
-  assert.ok(readSource('dist-web/sw.js').includes(`'./${match[1]}',`), 'service worker is missing its cache-busted runtime bundle');
+  assert.ok(readSource('dist-web/sw.js').includes(`"./${match[1]}"`), 'service worker is missing its cache-busted runtime bundle');
   return readSource(path.join('dist-web', match[1]));
 }
 
@@ -294,7 +290,7 @@ test('web release preview ships minified PWA assets', () => {
 
   assert.match(buildSource, /'web-preview'[\s\S]*scripts: WEB_PREVIEW_SCRIPTS,[\s\S]*bundle: 'assets\/boardfish-web-preview\.min\.js'/);
   assert.match(buildSource, /const bundle = cacheBustedBundlePath\(config\.bundle, result\.code\);/);
-  assert.match(buildSource, /copyFile\(path\.join\(srcRoot, 'manifest\.webmanifest'\)/);
+  assert.match(buildSource, /'manifest\.webmanifest'\][\s\S]*loader: 'css', minify: true/);
   assert.match(buildSource, /writeServiceWorker\(config\.outDir, \[bundle\]\)/);
   assert.match(serverSource, /devMode \? 'src' : 'dist-web'/);
   assert.match(workflowSource, /npm run web:build/);

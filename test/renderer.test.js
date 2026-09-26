@@ -25,19 +25,12 @@ function loadRenderer(overrides = {}) {
 
 function loadMotion(overrides = {}) {
   let currentTime = 0;
-  const timers = [];
   const renderCalls = [];
   const context = {
-    console: { ...console, warn() {} },
     matchMedia: () => ({ matches: false }),
     performance: { now: () => currentTime },
-    requestAnimationFrame: () => 0,
     scheduleRender(board, overlay, source) {
       renderCalls.push({ board, overlay, source });
-    },
-    setTimeout(callback, ms) {
-      timers.push({ callback, ms });
-      return timers.length;
     },
     ...overrides,
   };
@@ -50,7 +43,6 @@ function loadMotion(overrides = {}) {
   return {
     context,
     renderCalls,
-    timers,
     setTime(ms, beginFrame = true) {
       currentTime = ms;
       if (beginFrame) context.BoardfishMotion.beginDraw();
@@ -233,7 +225,7 @@ test('development and production image draws never toggle smoothing for motion o
     };
     const renderer = api.createBoardRenderer({
       imageBitmapCache: () => ({ img: source }),
-      selectImageSourceForDraw: () => ({ source, activeInputFullFallback: mode === 'fallback' }),
+      selectImageSourceForDraw: () => production ? source : { source, activeInputFullFallback: mode === 'fallback' },
     });
     const view = { zoom: 1, dpr: 1 };
     const motion = mode === 'motion' ? { translateX: 1 } : null;
@@ -1597,7 +1589,7 @@ test('text selection jello exposes active full-range draw specs', () => {
   });
 
   const motions = context.BoardfishMotion.beginDraw();
-  assert.deepEqual(plain(motions.get('text-1')), { startedAt: 0, start: 0, end: 17, groupSide: 1, groupSize: 1 });
+  assert.deepEqual(plain(motions.get('text-1')), { startedAt: 0, start: 0, end: 17 });
 
   setTime(500);
   assert.equal(context.BoardfishMotion.beginDraw(), null);

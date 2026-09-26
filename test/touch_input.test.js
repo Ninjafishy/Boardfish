@@ -7,14 +7,12 @@ const assert = require('node:assert/strict');
 const TouchInput = require('../src/js/touch_input.js');
 const touchInputSource = readSource('src/js/touch_input.js');
 
-function makeGestureHarness(overrides = {}) {
+function makeGestureHarness() {
   let clock = 0;
   let timerId = 0;
   const timers = new Map();
   const events = [];
   const controller = TouchInput.createTouchGestureController({
-    holdDelayMs: 500,
-    moveThresholdPx: 8,
     scheduleTimer(callback, delay) {
       const id = ++timerId;
       timers.set(id, { callback, due: clock + delay });
@@ -29,7 +27,6 @@ function makeGestureHarness(overrides = {}) {
     onPan: (event) => events.push({ type: 'pan', ...event }),
     onPinchStart: (event) => events.push({ type: 'pinch-start', ...event }),
     onPinch: (event) => events.push({ type: 'pinch', ...event }),
-    ...overrides,
   });
 
   return {

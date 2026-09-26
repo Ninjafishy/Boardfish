@@ -258,7 +258,7 @@ function enqueueImageDecode(task) {
 function scheduleImageDecodeQueue() {
   if (_imageDecodeScheduled) return;
   _imageDecodeScheduled = true;
-  if (typeof _boardOpening !== 'undefined' && _boardOpening) {
+  if (_boardOpening) {
     setTimeout(processImageDecodeQueue, 0);
   } else {
     requestAnimationFrame(processImageDecodeQueue);
@@ -267,9 +267,7 @@ function scheduleImageDecodeQueue() {
 
 function processImageDecodeQueue() {
   _imageDecodeScheduled = false;
-  const activeLimit = (typeof _boardOpening !== 'undefined' && _boardOpening)
-    ? MAX_OPEN_IMAGE_DECODE_ACTIVE
-    : MAX_IMAGE_DECODE_ACTIVE;
+  const activeLimit = _boardOpening ? MAX_OPEN_IMAGE_DECODE_ACTIVE : MAX_IMAGE_DECODE_ACTIVE;
   const done = () => {
     _imageDecodeActive--;
     if (_imageDecodeQueue.length) scheduleImageDecodeQueue();

@@ -33,7 +33,6 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     BoardfishRuntime: {
       canSaveToExistingTarget(ref) { return ref?.kind === 'web-file-handle'; },
       describeFileRef(ref) { return ref.name; },
-      fileNameFromRef(ref, fallback) { return ref?.name || fallback; },
       async saveFileDialog(defaultName) {
         assert.equal(defaultName, '3ca6d7.bf');
         calls.pickers++;

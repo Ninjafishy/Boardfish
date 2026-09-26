@@ -48,7 +48,6 @@ test('normalizes valid board data from shared v3 fixture', () => {
 
   assert.equal(board.viewport.zoom, 2);
   assert.equal(board.objects[1].data.rotation, 270);
-  assert.equal(Object.hasOwn(board, 'preferences'), false);
 });
 
 test('clamps viewport zoom to 1.0 percent through 10000 percent', () => {
@@ -69,18 +68,6 @@ test('clamps viewport zoom to 1.0 percent through 10000 percent', () => {
 
   assert.equal(belowMin.viewport.zoom, 0.01);
   assert.equal(aboveMax.viewport.zoom, 100);
-});
-
-test('ignores legacy board theme preferences', () => {
-  const board = BoardSchema.normalizeBoardData({
-    version: 3,
-    format: 'boardfish-container',
-    preferences: { theme: 'dark' },
-    imageStore: {},
-    objects: [],
-  });
-
-  assert.equal(Object.hasOwn(board, 'preferences'), false);
 });
 
 test('strips unsupported transient board fields', () => {

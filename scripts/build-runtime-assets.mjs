@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile, copyFile, cp } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile, cp } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -80,11 +80,11 @@ async function resetDir(dir) {
 }
 
 async function copyStaticAssets(outDir) {
-  await copyFile(path.join(srcRoot, 'styles.css'), path.join(outDir, 'styles.css'));
-  await copyFile(path.join(srcRoot, 'boardfish-icon.png'), path.join(outDir, 'boardfish-icon.png'));
-  await cp(path.join(srcRoot, 'fonts'), path.join(outDir, 'fonts'), { recursive: true });
-  await copyFile(path.join(srcRoot, 'manifest.webmanifest'), path.join(outDir, 'manifest.webmanifest'));
-  await copyFile(path.join(srcRoot, 'boardfish-icon-192.png'), path.join(outDir, 'boardfish-icon-192.png'));
+  for (const name of ['boardfish-icon.png', 'boardfish-icon-192.png', 'fonts', 'manifest.webmanifest']) {
+    await cp(path.join(srcRoot, name), path.join(outDir, name), { recursive: true });
+  }
+  const css = await esbuild.transform(await readFile(path.join(srcRoot, 'styles.css'), 'utf8'), { loader: 'css', minify: true });
+  await writeFile(path.join(outDir, 'styles.css'), css.code);
 }
 
 function resolveScriptPath(script) {
@@ -217,11 +217,8 @@ async function writeIndex(outDir, scriptTag, preloadScript) {
 async function writeServiceWorker(outDir, buildAssets) {
   const source = await readFile(path.join(srcRoot, 'sw.js'), 'utf8');
   const assets = buildAssets.map((asset) => `  './${asset}',`).join('\n');
-  const next = source.replace(
-    '  /* BOARDFISH_BUILD_ASSETS */',
-    assets,
-  );
-  await writeFile(path.join(outDir, 'sw.js'), next);
+  const sw = await esbuild.transform(source.replace('  /* BOARDFISH_BUILD_ASSETS */', assets), { minify: true });
+  await writeFile(path.join(outDir, 'sw.js'), sw.code);
 }
 
 function cacheBustedBundlePath(bundle, code) {

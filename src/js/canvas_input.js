@@ -387,9 +387,8 @@ function startMousePan(e) {
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
   function onUp(ev) {
-    if (ev && !ev.__boardfishDragCancel && ev.button !== 0) return;
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    if (collectPanDebug) {
+    if (collectPanDebug && (!ev || ev.__boardfishDragCancel || ev.button === 0)) {
       const panDeltaX = panX - startPanX;
       const panDeltaY = panY - startPanY;
       const panDistancePx = Math.hypot(panDeltaX, panDeltaY);
@@ -468,12 +467,11 @@ function createSelectionDragSession(startClientX, startClientY) {
 
 function startGroupDrag(e) {
   const drag = createSelectionDragSession(e.clientX, e.clientY);
-  if (!drag) return false;
+  if (!drag) return;
   beginDocumentDrag({
     move: (ev) => drag.move(ev.clientX, ev.clientY),
     up: () => drag.finish(),
   });
-  return true;
 }
 
 function startSelectedRegionDrag(e) {
@@ -758,7 +756,6 @@ function startObjectDrag(e, obj) {
     pushHistory('drag', [obj.id]);
   }
   beginDocumentDrag({ move: onMove, up: onUp });
-  return true;
 }
 
 canvas.addEventListener('mousedown', (e) => {

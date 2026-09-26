@@ -53,7 +53,6 @@ function loadTextLayout({
     TextSelDebug: {
       _logHit() {},
     },
-    invalidateOffscreen() {},
     scheduleRender() {},
     syncAllTextAutoHeights() {},
   };
@@ -1323,35 +1322,6 @@ test('text layout reuses prefix widths created while wrapping for auto-height', 
   assert.equal(textLayout.prefixCacheSize, prefixCacheSizeAfterHeight);
 });
 
-test('paragraph prefix cache survives layout clear during resize auto-height', () => {
-  const { context, measured } = loadTextLayout({
-    measureWidth(text) {
-      return String(text).length;
-    },
-  });
-  const textLayout = context.__testTextLayout;
-  const content = Array.from({ length: 40 }, (_, index) => `word token${index} tail`).join('\n');
-  const obj = {
-    id: 'prefix-clear',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 96,
-    h: 1,
-    data: { content },
-  };
-
-  textLayout.getTextLayout(obj);
-  const measuredAfterLayout = measured.length;
-  const paragraphCacheSizeAfterLayout = textLayout.paragraphPrefixCacheSize(obj);
-  obj.w = 104;
-  textLayout.clearTextObjectLayoutRuntime(obj, { minWidth: false, prefix: false });
-
-  assert.equal(textLayout.syncTextAutoHeight(obj), true);
-  assert.equal(textLayout.paragraphPrefixCacheSize(obj), paragraphCacheSizeAfterLayout);
-  assert.equal(measured.length, measuredAfterLayout);
-});
-
 test('auto-height keeps unwrapped logical lines exact without full layout cache', () => {
   const { context } = loadTextLayout({
     measureWidth(text) {
@@ -1410,7 +1380,7 @@ test('viewport text layout exactly matches inclusive visible-line boundaries', (
   const full = textLayout.getTextLayout(obj);
   const viewportRect = { y1: 120, y2: 240 };
   const expected = full.filter((line) => line.y + context.LINE_H >= viewportRect.y1 && line.y <= viewportRect.y2);
-  textLayout.clearTextObjectLayoutRuntime(obj, { minWidth: false, prefix: false });
+  textLayout.clearTextObjectLayoutRuntime(obj);
   textLayout.syncTextAutoHeight(obj);
 
   const visible = textLayout.getTextLayoutForViewport(obj, viewportRect);

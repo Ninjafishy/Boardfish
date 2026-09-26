@@ -6,15 +6,12 @@
   }
 
   function setSource(key, source) {
-    if (!key) return false;
+    if (!key) return;
     const hadSource = Object.hasOwn(imageStore, key);
     const previous = imageStore[key];
     const changed = hadSource && previous !== source;
-    if (changed && typeof invalidateImageSourceCachesForKey === 'function') {
-      invalidateImageSourceCachesForKey(key);
-    }
+    if (changed) invalidateImageSourceCachesForKey(key);
     imageStore[key] = source;
-    return true;
   }
 
   function hasDisplayImage(key) {

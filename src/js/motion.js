@@ -101,7 +101,7 @@
         firedAt,
         waitMs: requestedAt ? firedAt - requestedAt : '',
         removed,
-        source: meta.source || meta.sources || 'motion',
+        source: meta.source || 'motion',
       });
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
@@ -179,7 +179,6 @@
   };
 
   const noteObject = (obj, startedAt, groupSide, groupSize, cohortKey) => {
-    if (!obj?.id) return;
     const existing = objectMotions.get(obj.id);
     const sameCohort = existing?.cohortKey === cohortKey;
     if (sameCohort && startedAt - existing.startedAt >= 0 && startedAt - existing.startedAt < RETRIGGER_MIN_INTERVAL_MS) {
@@ -236,7 +235,7 @@
     const handoff = existing && existing.start === start && existing.end === end
       ? handoffAt(existing, startedAt)
       : null;
-    const motion = { startedAt, start, end, groupSide: 1, groupSize: 1 };
+    const motion = { startedAt, start, end };
     if (handoff) motion.handoff = handoff;
     textSelectionMotions.set(spec.id, motion);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */

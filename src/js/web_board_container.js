@@ -698,7 +698,6 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     return { refreshed, bytes, skipped: '' };
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    return true;
   }
 
   function isWebImageRef(source) {
@@ -835,8 +834,7 @@
     return bytesForImageSource(source);
   }
 
-  async function recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore = {}, containerInput) {
-    const containerBlob = isNativeBlobPart(containerInput?.blob) ? containerInput.blob : containerInput;
+  async function recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore = {}, containerBlob) {
     if (!isNativeBlobPart(containerBlob)) {
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       return { refreshed: 0, bytes: 0, skipped: 'not-blob' };
@@ -991,7 +989,6 @@
         textCharacters,
         boardJsonBytes: boardBytes.length,
         imageBytes,
-        imageEntries,
       });
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       validationMs += nowMs() - phaseStart;
@@ -1007,7 +1004,7 @@
     for (let i = 0; i < imageEntries.length; i++) {
       const entry = imageEntries[i];
       const crc = zip.crcs[i + 1];
-      if (crc !== undefined) cacheImageSourceCrc(entry.source, entry.byteLength, crc);
+      cacheImageSourceCrc(entry.source, entry.byteLength, crc);
     }
     const result = {
       blob: zip.blob,
@@ -1205,20 +1202,16 @@
             ? untypedBlob
             : untypedBlob.slice(0, untypedBlob.size, mime);
         }
+        /* BOARDFISH_DEV_DIAGNOSTICS_START */
         if (verifyImageCrc && Number.isFinite(Number(imageEntry.crc))) {
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
           const crcStart = nowMs();
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
           const view = randomAccessBlob
             ? new Uint8Array(await imageBlob.arrayBuffer())
             : compressedEntryBytes(containerBytes, imageEntry);
           const actualCrc = await crc32Async(view);
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
           imageCrcMs += nowMs() - crcStart;
           imageCrcCount++;
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
           if ((imageEntry.crc >>> 0) !== actualCrc) {
-            /* BOARDFISH_DEV_DIAGNOSTICS_START */
             const warning = {
               type: 'crc-mismatch',
               path: imageEntry.name,
@@ -1227,9 +1220,9 @@
             };
             entryWarnings.push(warning);
             warnings.push(warning);
-            /* BOARDFISH_DEV_DIAGNOSTICS_END */
           }
         }
+        /* BOARDFISH_DEV_DIAGNOSTICS_END */
       } else {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         const imageReadStart = nowMs();

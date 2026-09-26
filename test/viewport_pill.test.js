@@ -36,17 +36,8 @@ function createElement(id = 'el') {
     add(...names) {
       for (const name of names) classes.add(name);
     },
-    remove(...names) {
-      for (const name of names) classes.delete(name);
-    },
     contains(name) {
       return classes.has(name);
-    },
-    toggle(name, force) {
-      const next = force === undefined ? !classes.has(name) : !!force;
-      if (next) classes.add(name);
-      else classes.delete(name);
-      return next;
     },
   };
   return el;
@@ -323,7 +314,6 @@ test('automatic board refreshes sync active overlays while explicit false opts o
 test('viewport frames stay on the native-quality renderer without settle redraws', () => {
   const source = readSource('src/js/viewport.js');
 
-  assert.doesNotMatch(source, /scheduleViewportInputSettleRender|restoreBoardCanvasQualityIfSettled/);
   assert.doesNotMatch(source, /_lastBoardFrameLowLatency|low-latency-frame-settled/);
   assert.match(source, /function syncBoardCanvasBackingStore\(write = true\) \{\s*const dpr = window\.devicePixelRatio \|\| 1;/);
 });

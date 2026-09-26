@@ -11,11 +11,9 @@ test('web image export writes original bytes to a picked folder', async () => {
   const previous = {
     BoardfishImageStore: globalThis.BoardfishImageStore,
     ExportDebug: globalThis.ExportDebug,
-    Blob: globalThis.Blob,
     canvasToPngBlob: globalThis.canvasToPngBlob,
     imageNeedsRendering: globalThis.imageNeedsRendering,
     isWebImageRef: globalThis.isWebImageRef,
-    performance: globalThis.performance,
     renderImageToCanvas: globalThis.renderImageToCanvas,
     renderStoredImageToCanvas: globalThis.renderStoredImageToCanvas,
     readableImageSourceBlob: globalThis.readableImageSourceBlob,
@@ -30,8 +28,6 @@ test('web image export writes original bytes to a picked folder', async () => {
   });
   const writes = [];
   const directoryHandle = {
-    async queryPermission() { return 'granted'; },
-    async requestPermission() { return 'granted'; },
     async getFileHandle(name, options) {
       assert.equal(options.create, true);
       return {
@@ -83,9 +79,7 @@ test('web image export writes original bytes to a picked folder', async () => {
       value() { throw new Error('export should not materialize the encoded PNG'); },
     });
     let fallbackSource = null;
-    globalThis.BoardfishImageStore = { getSource: () => source };
     globalThis.imageNeedsRendering = () => true;
-    globalThis.renderImageToCanvas = () => null;
     globalThis.renderStoredImageToCanvas = async (_obj, value) => {
       fallbackSource = value;
       return { width: 8, height: 8 };
@@ -126,7 +120,6 @@ test('exports recover broken source bytes as PNGs in downloads, folders, and ZIP
     renderImageToCanvas: () => ({ width: 192, height: 192 }),
     renderStoredImageToCanvas: async () => null,
     canvasToPngBlob: async () => rendered,
-    showSaveFilePicker: undefined,
     showDirectoryPicker: undefined,
   };
   for (const [key, value] of Object.entries(overrides)) {

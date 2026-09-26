@@ -528,7 +528,6 @@ var ExportDebug = (() => {
         imageCount: e.meta?.imageCount ?? '',
         keyCount: e.meta?.keyCount ?? '',
         processed: e.meta?.processed ?? '',
-        dataUrlLen: e.meta?.dataUrlLen ?? '',
         savedCount: e.meta?.savedCount ?? '',
         failedCount: e.meta?.failedCount ?? '',
         missingCount: e.meta?.missingCount ?? '',

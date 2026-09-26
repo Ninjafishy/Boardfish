@@ -29,8 +29,7 @@ function setSelectionOverlayScreenRect(element, state, resting, animated, padDev
   _setStyleIfChanged(element, 'height', _cleanOverlay(Math.max(0, snappedHeight + deltaHeight)) + 'px', state);
 }
 
-function selectionOverlayObjectBounds(obj, motion = obj && BoardfishMotion.getLastDrawnObjectMotion(obj)) {
-  if (!obj) return null;
+function selectionOverlayObjectBounds(obj, motion = BoardfishMotion.getLastDrawnObjectMotion(obj)) {
   if (!motion) return null;
   const { scaleX = 1, scaleY = 1, scaleOriginX = 0.5, scaleOriginY = 0.5, translateX = 0, translateY = 0 } = motion;
   const x1 = obj.x + obj.w * scaleOriginX * (1 - scaleX) + translateX;
@@ -69,7 +68,7 @@ function cancelTextMinWidthWarm() {
 
 function scheduleTextMinWidthWarm(obj) {
   cancelTextMinWidthWarm();
-  if (!obj || obj.type !== 'text' || typeof getTextMinWidth !== 'function') return;
+  if (!obj || obj.type !== 'text') return;
   const objectId = obj.id || '';
   if (!objectId) return;
   _textMinWidthWarmObjectId = objectId;
@@ -171,7 +170,6 @@ function isEventInsideUnsavedDialog(e) {
 const _inputEventPointElementCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
 function pointedElementForInputEvent(e) {
-  if (!e || (typeof e !== 'object' && typeof e !== 'function')) return null;
   const cached = _inputEventPointElementCache?.get(e);
   if (cached !== undefined) return cached;
   const x = Number(e?.clientX);
@@ -497,7 +495,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           const minWidthStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           if (dragMinTextW == null) {
-            dragMinTextW = typeof getTextMinWidth === 'function' ? getTextMinWidth(obj) : MIN_OBJECT_SIZE;
+            dragMinTextW = getTextMinWidth(obj);
           }
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
           minTextW = dragMinTextW;

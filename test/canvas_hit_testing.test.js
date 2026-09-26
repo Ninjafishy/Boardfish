@@ -48,7 +48,6 @@ function loadCanvasWheelHarness() {
       addEventListener(type, handler, options) {
         listeners.document.push({ type, handler, options });
       },
-      removeEventListener() {},
     },
     canvas: makeTarget('canvas'),
     boardCanvas: {},
@@ -82,10 +81,7 @@ function loadCanvasWheelHarness() {
     },
     createRafCommitter: () => ({ schedule() {}, flush() {} }),
     beginDocumentDrag() {},
-    isBoardInputBlocked: () => false,
-    isBoardNavigationAllowedWhileBlocked: () => false,
     isMultiSelected: () => false,
-    hasSelection: () => false,
     BoardObjectGeometry: { topObjectAtWorldPoint: () => null },
     toWorld: () => ({ x: 0, y: 0 }),
     deselectAll() {},
@@ -153,14 +149,10 @@ function loadMenuCommandHarness() {
 
   const context = {
     calls: [],
-    timers: [],
     console,
     MenuDebug: { log() {} },
     MENU_COMMANDS: {
       'btn-open': (event) => context.calls.push(event),
-    },
-    setTimeout(callback) {
-      context.timers.push(callback);
     },
   };
 
@@ -239,6 +231,7 @@ function loadTextEditPasteHarness() {
     Promise,
     calls,
     clipboardActivation: true,
+    _jsClipboardWebMaybeStale: false,
     navigator: {
       clipboard: {
         readText() {
@@ -315,7 +308,6 @@ test('pointerup menu commands keep user activation and suppress the follow-up cl
 
   assert.equal(context.runMenuCommand(button, 'pointerup', pointerEvent), true);
   assert.deepEqual(context.calls, [pointerEvent]);
-  assert.deepEqual(context.timers, []);
 
   assert.equal(context.runMenuCommand(button, 'click', { type: 'click', detail: 1 }), true);
   assert.deepEqual(context.calls, [pointerEvent]);
@@ -369,7 +361,6 @@ test('external text Paste starts its clipboard read before user activation expir
   assert.equal(context.calls.internalPasteAttempts, 0);
   assert.equal(context.calls.replacements.length, 1);
   assert.equal(context.calls.replacements[0].text, 'external text');
-  assert.equal(context.calls.replacements[0].options.immediateHistory, true);
   assert.equal(context.calls.replacements[0].options.inputType, 'insertFromPaste');
 });
 
@@ -405,7 +396,6 @@ test('wheel zoom over visible floating UI uses the viewport wheel handler', () =
   assert.doesNotMatch(inputSource, /viewportWheelSurfaces/);
   assert.match(inputSource, /const requestedZoom = zoom \* factor;\s*if \(typeof BOARDFISH_PRODUCTION === 'undefined'\) scheduleTransform\(BoardfishViewportState\.zoomAroundClient\(e\.clientX, e\.clientY, requestedZoom\), 'wheel-zoom', e\);/);
   assert.match(viewportSource, /lastViewportInputAt = now;\s*if \(changed === false && !editingId\) return;/);
-  assert.doesNotMatch(viewportSource, /scheduleViewportInputSettleRender/);
   assert.doesNotMatch(inputSource, /const newZoom = Math\.min\(ZOOM_MAX/);
   assert.match(selectionSource, /document\.elementFromPoint\(x, y\)/);
   assert.match(selectionSource, /if \(e\.target instanceof Node && e\.target\.nodeType === 1\) return false;/);
@@ -516,8 +506,6 @@ test('zoom pill stays out of keyboard focus and Space reset paths', () => {
   assert.match(styles, /#island:hover #isl-zoom\s*\{[\s\S]*background: var\(--firefox-menu-hover-bg\);[\s\S]*\}/);
   assert.match(styles, /#island\[data-mode="message"\] \{[\s\S]*pointer-events: none;[\s\S]*\}/);
   assert.match(styles, /#island\[data-mode="message"\] #isl-zoom\s*\{[\s\S]*--ui-highlight-nudge-transform: translateX\(0\);[\s\S]*background: transparent;[\s\S]*transform: none;[\s\S]*\}/);
-  assert.doesNotMatch(styles, /#island:hover #isl-zoom,\s*#island:focus-visible #isl-zoom/);
-  assert.doesNotMatch(styles, /#island:focus-visible #isl-zoom/);
   assert.doesNotMatch(viewportSource, /island\.setAttribute\('tabindex', '0'\)/);
   assert.doesNotMatch(viewportSource, /island\.setAttribute\('role', 'button'\)/);
   assert.doesNotMatch(contextMenuSource, /island\?\.addEventListener\('keydown'/);
@@ -802,7 +790,7 @@ test('global capture wheel zoom over the zoom pill is handled once by the board'
 test('reset zoom on an empty board zooms to 100 percent around the current center', () => {
   const context = loadResetZoomHarness({ panX: 200, panY: 100, zoom: 2 });
 
-  assert.equal(context.resetZoomToClosestObject(), true);
+  context.resetZoomToClosestObject();
 
   assert.equal(context.zoom, 1);
   assert.equal(context.panX, 350);
@@ -825,7 +813,7 @@ test('reset zoom clears selected and edited objects before zooming', () => {
     zoom: 2,
   });
 
-  assert.equal(context.resetZoomToClosestObject(), true);
+  context.resetZoomToClosestObject();
 
   assert.equal(context.deselectCalls, 1);
   assert.equal(context.selectedIds.size, 0);

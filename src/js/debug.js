@@ -33,9 +33,7 @@ var ClipDebug = (() => {
       total: e.total,
       dt: e.dt,
       ms: e.meta?.ms ?? '',
-      command: e.meta?.command || '',
       path: e.meta?.path || '',
-      reason: e.meta?.reason || '',
       objectId: e.meta?.objectId || '',
       selectedCount: e.meta?.selectedCount ?? '',
       objectCount: e.meta?.objectCount ?? '',
@@ -48,7 +46,6 @@ var ClipDebug = (() => {
       processed: e.meta?.processed ?? '',
       accepted: e.meta?.accepted ?? '',
       historyIndex: e.meta?.historyIndex ?? '',
-      queueMs: e.meta?.queueMs ?? '',
       imgKey: e.meta?.imgKey || '',
       added: e.meta?.added ?? '',
       objectDelta: e.meta?.objectDelta ?? '',
@@ -119,14 +116,6 @@ var ClipDebug = (() => {
       dispatchMs: e.meta?.dispatchMs ?? '',
       heightChanged: e.meta?.heightChanged ?? '',
       restoredMinLinesReset: e.meta?.restoredMinLinesReset ?? '',
-      inputStateObjectHeight: e.meta?.inputStateObjectHeight ?? '',
-      inputStateLogicalLines: e.meta?.inputStateLogicalLines ?? '',
-      inputStateCachedLines: e.meta?.inputStateCachedLines ?? '',
-      inputStateCachedLineSource: e.meta?.inputStateCachedLineSource || '',
-      inputStateExpectedLogicalHeight: e.meta?.inputStateExpectedLogicalHeight ?? '',
-      inputStateExpectedCachedHeight: e.meta?.inputStateExpectedCachedHeight ?? '',
-      inputStateHeightDeltaFromLogical: e.meta?.inputStateHeightDeltaFromLogical ?? '',
-      inputStateHeightDeltaFromCached: e.meta?.inputStateHeightDeltaFromCached ?? '',
       updatedObjectHeight: e.meta?.updatedObjectHeight ?? '',
       updatedLogicalLines: e.meta?.updatedLogicalLines ?? '',
       updatedCachedLines: e.meta?.updatedCachedLines ?? '',
@@ -161,7 +150,6 @@ var ClipDebug = (() => {
       inputEndHeightDeltaFromCached: e.meta?.inputEndHeightDeltaFromCached ?? '',
       proxyScrollHeight: e.meta?.proxyScrollHeight ?? '',
       proxyClientHeight: e.meta?.proxyClientHeight ?? '',
-      renderScheduleMs: e.meta?.renderScheduleMs ?? '',
       renderBoard: e.meta?.renderBoard ?? '',
       renderOverlay: e.meta?.renderOverlay ?? '',
       renderSource: e.meta?.renderSource || '',
@@ -419,7 +407,6 @@ var ClipDebug = (() => {
     const webInsertEnd = latest('web-paste-event:insert-end') || latest('web-paste-browser:insert-end');
     const addObject = latest('paste:objects-add-start') || webInsertEnd;
     const end = latest('end');
-    const textPayload = latest('paste:objects-add-done') || latest('paste:clone-done') || latest('paste:objects-start') || end;
     const objectCountBefore = pasteStart?.meta?.objectCountBefore ?? '';
     const objectCountAfter = end?.meta?.objectCountAfter ?? '';
     const objectDelta = typeof objectCountBefore === 'number' && typeof objectCountAfter === 'number'
@@ -434,7 +421,7 @@ var ClipDebug = (() => {
         : 'unknown';
     const checkpoints = [
       ['pasteStarted', true],
-      ['eventInspected', stepNames.has('event-clipboard:inspect') || !pasteStart.meta?.clipboardData],
+      ['eventInspected', true],
       ['imagePayloadFound', !!blobEvent || !!webInsertEnd],
       ['imagePayloadRead', !!blobEvent || !!webInsertEnd || pathDetected !== 'unknown'],
       ['objectAddStarted', !!addObject],
@@ -451,9 +438,9 @@ var ClipDebug = (() => {
       objectCountBefore,
       objectCountAfter,
       objectDelta,
-      textObjectCount: textPayload?.meta?.textObjectCount ?? '',
-      textCharCount: textPayload?.meta?.textCharCount ?? '',
-      largestTextChars: textPayload?.meta?.largestTextChars ?? '',
+      textObjectCount: end?.meta?.textObjectCount ?? '',
+      textCharCount: end?.meta?.textCharCount ?? '',
+      largestTextChars: end?.meta?.largestTextChars ?? '',
       pathDetected,
       imageSource: blobEvent?.meta?.type || '',
       blobSize: blobEvent?.meta?.blobSize ?? '',
@@ -490,7 +477,6 @@ var ClipDebug = (() => {
     const historyStart = latest('paste:boardHistory-start');
     const historyDone = latest('paste:boardHistory-done');
     const end = latest('end');
-    const textPayload = latest('paste:objects-add-done') || latest('paste:clone-done') || latest('paste:objects-start') || end;
     const imageReadAt = blobEvent?.total ?? webInsertEnd?.total ?? '';
     const objectAt = objectAdd?.total ?? webInsertEnd?.total ?? '';
     const displayAt = webInsertEnd?.total ?? '';
@@ -502,9 +488,9 @@ var ClipDebug = (() => {
       objectAtMs: objectAt,
       displayReadyAtMs: displayAt,
       objectToDisplayMs: typeof objectAt === 'number' && typeof displayAt === 'number' ? Math.round((displayAt - objectAt) * 100) / 100 : '',
-      textObjectCount: textPayload?.meta?.textObjectCount ?? '',
-      textCharCount: textPayload?.meta?.textCharCount ?? '',
-      largestTextChars: textPayload?.meta?.largestTextChars ?? '',
+      textObjectCount: end?.meta?.textObjectCount ?? '',
+      textCharCount: end?.meta?.textCharCount ?? '',
+      largestTextChars: end?.meta?.largestTextChars ?? '',
       cloneMs: cloneDone?.meta?.ms ?? '',
       trimMs: trimDone?.meta?.ms ?? '',
       trimmedTextObjects: trimDone?.meta?.trimmedTextObjects ?? '',
@@ -803,9 +789,9 @@ var ClipDebug = (() => {
       copyImages: copyEnd?.meta?.imageCount ?? copyProgress?.meta?.imageCount ?? '',
       copyTextChars: copyEnd?.meta?.textCharCount ?? copyEnd?.meta?.textLen ?? '',
       pasteObjects: pasteEnd?.meta?.objectCount ?? pasteProgress?.meta?.objectCount ?? '',
-      pasteTextObjects: pasteEnd?.meta?.textObjectCount ?? pasteProgress?.meta?.textObjectCount ?? '',
-      pasteTextChars: pasteEnd?.meta?.textCharCount ?? pasteEnd?.meta?.textLen ?? pasteProgress?.meta?.textCharCount ?? '',
-      largestTextChars: pasteEnd?.meta?.largestTextChars ?? pasteProgress?.meta?.largestTextChars ?? '',
+      pasteTextObjects: pasteEnd?.meta?.textObjectCount ?? '',
+      pasteTextChars: pasteEnd?.meta?.textCharCount ?? pasteEnd?.meta?.textLen ?? '',
+      largestTextChars: pasteEnd?.meta?.largestTextChars ?? '',
       processed: pasteProgress?.meta?.processed ?? copyProgress?.meta?.processed ?? '',
       historyIndex: pasteEnd?.meta?.historyIndex ?? '',
       objectCountBefore: pasteEnd?.meta?.objectCountBefore ?? '',

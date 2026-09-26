@@ -30,9 +30,9 @@ function loadDirtyStateHarness() {
   return context;
 }
 
-function addHistory(context, revision, objects = context.objects) {
+function addHistory(context, revision) {
   context.boardHistory.length = context.historyIndex + 1;
-  context.boardHistory.push({ revision, objects: structuredClone(objects) });
+  context.boardHistory.push({ revision, objects: structuredClone(context.objects) });
   context.historyIndex++;
 }
 

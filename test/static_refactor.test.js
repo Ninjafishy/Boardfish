@@ -128,7 +128,6 @@ test('dark mode icon is local and offline-safe', () => {
   const sw = readSource('src/sw.js');
 
   assert.doesNotMatch(html, /fonts\.googleapis\.com|fonts\.gstatic\.com|Material Symbols|material-symbols-outlined/i);
-  assert.match(html, /id="ctx-btn-dark-mode"[\s\S]*<svg viewBox="0 0 24 24"/);
   assert.doesNotMatch(styles, /material-symbols-outlined/i);
   assert.doesNotMatch(sw, /fonts\.googleapis\.com|fonts\.gstatic\.com/i);
   assert.match(sw, /if \(isCacheFirstAssetUrl\(url\)\)[\s\S]*\[a-f0-9\]\{12\}[\s\S]*cached\.then\(\(hit\) => hit \|\| fetchAndCacheRequest\(event, request, url\)\)/);

@@ -39,37 +39,32 @@
         requestedPrimaryId: primaryId || '',
       });
     }
-    return selectedIds.size;
   }
 
   function addObject(obj) {
     objects.push(obj);
     objectsMap.set(obj.id, obj);
-    return obj;
   }
 
   function removeObjectsById(ids = []) {
     const idsToRemove = ids instanceof Set ? ids : new Set(ids);
     if (!idsToRemove.size) {
       if (selectedId && !selectedIds.has(selectedId)) selectedId = null;
-      return 0;
+      return;
     }
     let write = 0;
-    let removed = 0;
     for (let read = 0; read < objects.length; read++) {
       const obj = objects[read];
       if (idsToRemove.has(obj.id)) {
         objectsMap.delete(obj.id);
         selectedIds.delete(obj.id);
         if (selectedId === obj.id) selectedId = null;
-        removed++;
         continue;
       }
       objects[write++] = obj;
     }
     objects.length = write;
     if (selectedId && !selectedIds.has(selectedId)) selectedId = null;
-    return removed;
   }
 
   function resetObjectCounters() {
@@ -86,8 +81,7 @@
     }
   }
 
-  function setViewportState(viewport = null) {
-    if (!viewport) return;
+  function setViewportState(viewport) {
     BoardfishViewportState.setViewport(viewport);
   }
 
@@ -104,7 +98,6 @@
       obj.data.content = normalizeTextContent(obj.data?.content);
     }
     if (syncTextHeights) syncAllTextAutoHeights();
-    return objects;
   }
 
   function resetBoardObjectState() {
@@ -116,8 +109,8 @@
     resetObjectCounters();
   }
 
-  function setBoardOpening(opening) {
-    _boardOpening = !!opening;
+  function setBoardOpening() {
+    _boardOpening = true;
     updateInputShieldVisual();
   }
 

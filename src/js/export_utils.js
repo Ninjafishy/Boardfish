@@ -151,14 +151,14 @@
   }
 
   async function imageSourceDownloadEntry(source, name) {
-    const webRef = typeof isWebImageRef === 'function' && isWebImageRef(source) && root.BoardfishWebBoardContainer?.bytesForImageSource;
+    const webRef = typeof isWebImageRef === 'function' && isWebImageRef(source);
     try {
       let data, ext, mime;
       if (webRef) {
         data = await readableImageSourceBlob(source);
         ext = source.ext === 'jpeg' ? 'jpg' : (source.ext || 'png');
         mime = source.mime || mimeForImageExt(ext);
-      } else if (typeof source === 'string' && source.startsWith('data:') && root.BoardfishWebBoardContainer?.dataUrlToBytes) {
+      } else if (typeof source === 'string' && source.startsWith('data:')) {
         ext = guessImageExtFromDataUrl(source);
         data = await readableImageSourceBlob(source);
         mime = dataUrlMime(source);

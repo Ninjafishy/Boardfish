@@ -45,7 +45,6 @@
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   function summarizeImageStore(store = {}, deps = {}, { includeRuntime = false } = {}) {
     const imageStoreBytesEstimate = deps.imageStoreBytesEstimate || (() => 0);
-    const imageRefKind = deps.imageRefKind || BoardTypes.imageRefKind;
     const runtime = deps.runtime || {};
     let imageCount = 0;
     let imageStoreBytes = 0;
@@ -63,7 +62,7 @@
       imageCount++;
       const bytes = imageStoreBytesEstimate(src);
       imageStoreBytes += bytes;
-      const kind = imageRefKind(src);
+      const kind = BoardTypes.imageRefKind(src);
       if (kind === 'manifest') manifestRefs++;
       else if (kind === 'data-url' || kind === 'string') dataUrlRefs++;
       else otherRefs++;
@@ -195,14 +194,13 @@
   function getImageStoreDebugSample(store = {}, deps = {}, limit = 12) {
     const rows = [];
     const runtime = deps.runtime || {};
-    const imageRefKind = deps.imageRefKind || BoardTypes.imageRefKind;
     const imageStore = store || {};
     for (const key in imageStore) {
       if (!Object.hasOwn(imageStore, key)) continue;
       const src = imageStore[key];
       rows.push({
         key,
-        kind: imageRefKind(src),
+        kind: BoardTypes.imageRefKind(src),
         path: typeof src?.path === 'string' ? src.path : '',
         mime: typeof src?.mime === 'string' ? src.mime : '',
         ext: typeof src?.ext === 'string' ? src.ext : '',

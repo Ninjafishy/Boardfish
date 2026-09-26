@@ -133,7 +133,6 @@ function updateInputShieldVisual() {
 
 function acquireInputShield(options = {}) {
   const token = {
-    allowBoardNavigation: options.allowBoardNavigation === true,
     keepSelectionOverlay: options.keepSelectionOverlay === true,
     visual: options.visual !== false,
     released: false,
@@ -172,14 +171,6 @@ function isBoardInputBlocked() {
   return _boardOpening || _inputShieldStack.length > 0;
 }
 
-function isBoardNavigationAllowedWhileBlocked() {
-  if (_boardOpening || openingShield.classList.contains('active') || !_inputShieldStack.length) return false;
-  for (const token of _inputShieldStack) {
-    if (!token.allowBoardNavigation) return false;
-  }
-  return true;
-}
-
 function shouldKeepSelectionOverlayWhileBlocked() {
   if (_boardOpening) return false;
   for (const token of _inputShieldStack) {
@@ -190,15 +181,14 @@ function shouldKeepSelectionOverlayWhileBlocked() {
 
 async function runShieldedPillTask({
   releaseInputShield,
-  startMessage = null,
-  successMessage = null,
+  startMessage,
+  successMessage,
   task,
 }) {
   try {
-    if (startMessage) startPillTask({ message: startMessage });
-    const result = await task();
+    startPillTask({ message: startMessage });
+    await task();
     finishPillTask({ beforeFinish: releaseInputShield, finalMsg: successMessage });
-    return result;
   } catch (err) {
     finishPillTask({ beforeFinish: releaseInputShield });
     throw err;
@@ -219,7 +209,7 @@ async function newBoard() {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const dbg = OpenDebug.start('newBoard', { objectCount: objects.length });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  BoardfishEditorState.setBoardOpening(true);
+  BoardfishEditorState.setBoardOpening();
   beginOpeningFreeze();
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const openingStart = performance.now();

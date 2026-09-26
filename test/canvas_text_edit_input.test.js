@@ -10,7 +10,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
   const selectedIds = selected ? new Set([obj.id]) : new Set();
   const dragHandlers = [];
   const deferredTimers = [];
-  const animationFrames = [];
   const canvasListeners = new Map();
   const context = {
     console,
@@ -20,22 +19,16 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
       classList: { add() {}, remove() {} },
     },
     boardCanvas: {},
-    document: { activeElement: null, addEventListener() {}, removeEventListener() {} },
+    document: { activeElement: null, addEventListener() {} },
     TouchEvent: touchInput ? function TouchEvent() {} : undefined,
     navigator: { maxTouchPoints: touchInput ? 5 : 0 },
-    requestAnimationFrame(fn) {
-      animationFrames.push(fn);
-      return animationFrames.length;
-    },
     setTimeout(fn) {
       deferredTimers.push(fn);
       return deferredTimers.length;
     },
     clearTimeout() {},
     flushDeferredTasks() {
-      while (animationFrames.length || deferredTimers.length) {
-        const frames = animationFrames.splice(0);
-        for (const fn of frames) fn();
+      while (deferredTimers.length) {
         const timers = deferredTimers.splice(0);
         for (const fn of timers) fn();
       }
@@ -47,11 +40,9 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
     panX: 0,
     panY: 0,
     isBoardInputBlocked: () => false,
-    isBoardNavigationAllowedWhileBlocked: () => false,
     entered: [],
     enterOptions: [],
     history: [],
-    menus: [],
     selections: [],
     renders: [],
     logs: [],
@@ -83,7 +74,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
     withRenderSource(_source, fn) { fn(); },
     drawBoard() {},
     updateSelectionOverlay() {},
-    markDirty(obj) { context.dirty = obj.id; },
     pushHistory(reason) { context.history.push(reason); },
     enterEdit(id, options = {}) {
       context.entered.push(id);
@@ -163,7 +153,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
         return changed;
       },
     },
-    showTextEditContextMenuAt(clientX, clientY) { context.menus.push({ clientX, clientY }); },
   };
   context.latestDrag = () => dragHandlers[dragHandlers.length - 1];
   context.dispatchCanvas = (type, event) => {
@@ -203,10 +192,7 @@ function loadRubberBandHarness() {
     canvas: { addEventListener() {}, classList: { add() {}, remove() {} } },
     boardCanvas: {},
     document: {
-      visibilityState: 'visible',
-      hidden: false,
       addEventListener(type, fn) { addListener(documentListeners, type, fn); },
-      removeEventListener() {},
     },
     objects,
     objectsMap: new Map(objects.map((obj) => [obj.id, obj])),
@@ -220,7 +206,6 @@ function loadRubberBandHarness() {
     rubberBandCommits: [],
     cleaned: 0,
     deselected: 0,
-    motions: [],
     renders: [],
     selections: [],
     beginRubberBandDrag() {
@@ -248,9 +233,6 @@ function loadRubberBandHarness() {
         for (const id of ids) selectedIds.add(id);
       },
     },
-    BoardfishMotion: {
-      applyCopyFeedback(payload) { context.motions.push(payload); },
-    },
     scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
     ViewportDebug: { isEnabled: () => false, start() { return {}; }, count() {}, end() {}, timing() {} },
     BoardfishViewportState: { zoomAroundClient() {}, panBy() {} },
@@ -267,10 +249,7 @@ function loadRubberBandHarness() {
       context.flushRubberBandFrame = flush;
       return { schedule(...nextArgs) { args = nextArgs; }, flush };
     },
-    isBoardInputBlocked: () => false,
-    isBoardNavigationAllowedWhileBlocked: () => false,
     isMultiSelected: () => false,
-    hasSelection: () => false,
     BoardObjectGeometry: { topObjectAtWorldPoint: () => null },
     toWorld: () => ({ x: 0, y: 0 }),
   };
@@ -298,7 +277,6 @@ test('rubber-band selection honors shared drag cancellation without selecting ob
   assert.equal(context.rubberBand.style.display, 'none');
   assert.equal(context.cleaned, 0);
   assert.deepEqual(context.selections, []);
-  assert.deepEqual(context.motions, []);
 });
 
 test('rubber-band selection still selects objects on normal mouse release', () => {
@@ -311,7 +289,6 @@ test('rubber-band selection still selects objects on normal mouse release', () =
   assert.equal(context._rubberBandDragActive, false);
   assert.equal(context.rubberBand.style.display, 'none');
   assert.deepEqual(context.selections, [['image-1']]);
-  assert.deepEqual(context.motions, []);
 });
 
 test('rubber-band selection commits only the latest move in an animation frame', () => {
@@ -553,7 +530,6 @@ test('releasing a dragged text highlight does not open the text edit menu', () =
 
   assert.deepEqual(context.editProxy.selection, [1, 4]);
   assert.equal(context.renders.length, renderCount);
-  assert.deepEqual(context.menus, []);
 });
 
 test('ending text edit makes its active selection drag inert', () => {
@@ -599,7 +575,6 @@ test('releasing a caret-only text click does not open the text edit menu', () =>
   context.latestDrag().up?.({ button: 0, clientX: 12, clientY: 22 });
 
   assert.deepEqual(context.editProxy.selection, [2, 2]);
-  assert.deepEqual(context.menus, []);
 });
 
 test('text click stores visual line preference at wrapped line start', () => {

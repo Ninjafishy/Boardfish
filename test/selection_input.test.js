@@ -7,7 +7,6 @@ const vm = require('node:vm');
 
 
 function createElement(id = 'el') {
-  const attrs = new Map();
   return {
     id,
     style: {},
@@ -16,14 +15,11 @@ function createElement(id = 'el') {
     classList: {
       contains() { return false; },
       add() {},
-      remove() {},
       toggle() {},
     },
     appendChild() {},
     addEventListener() {},
     contains() { return false; },
-    getAttribute(name) { return attrs.has(name) ? attrs.get(name) : null; },
-    setAttribute(name, value) { attrs.set(name, String(value)); },
     querySelectorAll() { return []; },
   };
 }
@@ -56,7 +52,6 @@ function loadSelectionInputHarness(objects, options = {}) {
     console,
     window: { devicePixelRatio: options.devicePixelRatio ?? 1 },
     document: {
-      getElementById: (id) => createElement(id),
       createElement: () => createElement(),
       addEventListener(type, fn) { addListener(documentListeners, type, fn); },
     },
@@ -69,14 +64,11 @@ function loadSelectionInputHarness(objects, options = {}) {
     Node: function Node() {},
     selOverlay: createElement('sel-overlay'),
     multiSelOverlay: createElement('multi-sel-overlay'),
-    rubberBand: createElement('rubber-band'),
     ctxMenu: createElement('ctx-menu'),
     objCtxMenu: createElement('obj-ctx-menu'),
     textCtxMenu: createElement('text-ctx-menu'),
     ctxActions: createElement('ctx-actions'),
     island: createElement('island'),
-    openingShield: createElement('opening-shield'),
-    dialogOverlay: createElement('dialog-overlay'),
     unsavedDialog: createElement('dialog'),
     _boardOpening: false,
     _inputShieldStack: [],
@@ -84,7 +76,6 @@ function loadSelectionInputHarness(objects, options = {}) {
     selectedId: options.selectedId ?? (objects.length === 1 ? objects[0].id : null),
     objectsMap: byId,
     editingId: null,
-    zCounter: 1,
     zoom: 1,
     panX: 0,
     panY: 0,
@@ -104,7 +95,6 @@ function loadSelectionInputHarness(objects, options = {}) {
     motionLookups: 0,
     renders: [],
     syncedTextIds: [],
-    motionPulses: [],
     isMultiSelected: () => selectedIds.size > 1,
     selectedBounds: () => objectBounds(objects),
     hasSelection: () => selectedIds.size > 0,
@@ -153,18 +143,12 @@ function loadSelectionInputHarness(objects, options = {}) {
       delete obj._textEditPreservedMinLines;
       return true;
     },
-    markDirty(obj) { context.dirty.push(obj.id); },
     pushHistory(reason, dirty, beforeEditState) {
       for (const item of dirty || []) context.dirty.push(item?.obj?.id ?? item?.id ?? item);
       context.history.push(reason);
       context.historyOptions.push({ beforeEditState });
     },
     BoardfishMotion: {
-      applyCopyFeedback(payload = {}) {
-        if (!payload.selection) return false;
-        context.motionPulses.push({});
-        return true;
-      },
       hasLastDrawnObjectMotions() {
         return !!options.objectMotions?.size;
       },
@@ -291,7 +275,6 @@ test('multi-selection resize leaves text objects unchanged', () => {
   assert.deepEqual(context.syncedTextIds, []);
   assert.deepEqual(context.dirty, ['image-a']);
   assert.deepEqual(context.history, ['multi-resize']);
-  assert.deepEqual(context.motionPulses, []);
 });
 
 test('multi-selection resize anchors the opposite rectangle corner', () => {
@@ -525,7 +508,6 @@ test('single image resize uses the smaller implied scale and anchors the opposit
   assert.equal(Math.round(image.y + image.h), 100);
   assert.equal(context.drawBoardCalls, 1);
   assert.deepEqual(context.renders, []);
-  assert.deepEqual(context.motionPulses, []);
 });
 
 test('single text horizontal resize anchors the opposite side after auto-height sync', () => {
@@ -553,7 +535,6 @@ test('single text horizontal resize anchors the opposite side after auto-height 
   assert.equal(text.y, 0);
   assert.equal(text.w, 240);
   assert.equal(text.h, 80);
-  assert.deepEqual(context.motionPulses, []);
 });
 
 test('resizing an undo-restored text edit releases its preserved height minimum', () => {

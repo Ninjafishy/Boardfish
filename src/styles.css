@@ -210,7 +210,6 @@ body {
   border-radius: var(--menu-shell-radius);
   box-shadow: var(--firefox-menu-shadow);
   color: var(--firefox-menu-text);
-  font-family: inherit;
   padding: var(--menu-shell-padding);
   overflow: hidden;
   user-select: none;
@@ -481,7 +480,6 @@ body {
 #opening-shield.active { display: block; }
 #opening-shield.opening-freeze {
   overflow: hidden;
-  background: var(--canvas-bg);
 }
 #opening-shield.opening-freeze *,
 #opening-shield.opening-freeze *::before,
@@ -523,7 +521,6 @@ body {
   width: 250px;
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
 #dialog-title {

@@ -21,14 +21,12 @@ function loadDuplicateHarness({ realLimits = false } = {}) {
     messages: [],
   };
   const context = {
-    console,
     calls,
     editingId: null,
     objects: sourceObjects,
     selectedIds: new Set(sourceObjects.map((obj) => obj.id)),
     objectsMap: new Map(sourceObjects.map((obj) => [obj.id, obj])),
     zCounter: 10,
-    window: { innerWidth: 1000, innerHeight: 800 },
     BoardfishWebLimits: {
       canAddObjects() { return true; },
       canAcceptAdditionalContentBytes() { return true; },
@@ -59,9 +57,6 @@ function loadDuplicateHarness({ realLimits = false } = {}) {
     },
     pushHistory(reason) {
       calls.histories.push(reason);
-    },
-    toWorld() {
-      return { x: 0, y: 0 };
     },
   };
   if (realLimits) {

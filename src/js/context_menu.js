@@ -191,7 +191,7 @@ var MENU_COMMANDS = {
   },
   'obj-btn-move-to-back': () => { closeObjCtxMenu('command:move-to-back'); sendSelectedToBack(); },
   'obj-btn-flip': () => { flipSelectedImages(); },
-  'obj-btn-rotate': () => { rotateSelectedImages('cw'); },
+  'obj-btn-rotate': () => { rotateSelectedImages(); },
   'obj-btn-save-image': () => { closeObjCtxMenu('command:save-image'); saveSelectedImage(); },
   'obj-btn-save-images': () => { closeObjCtxMenu('command:save-images'); showInputShield({ keepSelectionOverlay: true }); saveSelectedImages(); },
   'text-btn-copy': () => { closeTextCtxMenu('command:copy'); copyTextEditSelection(); },
@@ -215,12 +215,12 @@ const readTextClipboardForEditMenu = async () => {
   return '';
 };
 
-const replaceTextEditSelection = (text, { immediateHistory = false, inputType = 'insertText' } = {}) => {
+const replaceTextEditSelection = (text, { inputType }) => {
   const collectDiagnostics = typeof BOARDFISH_PRODUCTION === 'undefined';
   const selection = getTextEditSelectionState();
   if (!selection || !_editEl) return false;
-  const inputTypeValue = String(inputType || '').toLowerCase();
-  const replacementText = inputTypeValue.includes('paste') && typeof textForTextObjectPaste === 'function'
+  const inputTypeValue = inputType.toLowerCase();
+  const replacementText = inputTypeValue.includes('paste')
     ? textForTextObjectPaste(text)
     : normalizeTextContent(text);
   if (inputTypeValue.includes('paste') && !replacementText) return false;
@@ -240,9 +240,7 @@ const replaceTextEditSelection = (text, { immediateHistory = false, inputType = 
   if (collectDiagnostics && typeof nextTextEditInputDebugSeq === 'function') {
     replacementState._debugSeq = nextTextEditInputDebugSeq();
   }
-  if (immediateHistory) {
-    beginTextEditHistoryAction(editingId, replacementState);
-  }
+  beginTextEditHistoryAction(editingId, replacementState);
   _editEl?._boardfishSetPendingInputState?.(replacementState);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const debugNow = typeof textEditorDebugNow === 'function' ? textEditorDebugNow : () => Date.now();
@@ -316,25 +314,14 @@ const deleteTextEditSelection = () => {
     focusTextEditProxy();
     return;
   }
-  replaceTextEditSelection('', { immediateHistory: true, inputType: 'deleteContentBackward' });
+  replaceTextEditSelection('', { inputType: 'deleteContentBackward' });
 };
 
 const pasteTextIntoEditSelection = async () => {
-  const hasBoardfishTextPayload = (
-    typeof currentBoardfishTextSelectionClipboardPayload === 'function' &&
-    !!currentBoardfishTextSelectionClipboardPayload()
-  );
+  const hasBoardfishTextPayload = !!currentBoardfishTextSelectionClipboardPayload();
   const pasteOptions = {};
-  const pendingBoardfishPaste = (
-    hasBoardfishTextPayload &&
-    typeof pasteBoardfishTextSelectionIntoEditSelection === 'function'
-  ) ? pasteBoardfishTextSelectionIntoEditSelection(pasteOptions) : null;
-  const pendingExternalText = (
-    !hasBoardfishTextPayload || (
-      typeof _jsClipboardWebMaybeStale !== 'undefined' &&
-      _jsClipboardWebMaybeStale
-    )
-  ) ? readTextClipboardForEditMenu() : null;
+  const pendingBoardfishPaste = hasBoardfishTextPayload ? pasteBoardfishTextSelectionIntoEditSelection(pasteOptions) : null;
+  const pendingExternalText = !hasBoardfishTextPayload || _jsClipboardWebMaybeStale ? readTextClipboardForEditMenu() : null;
   if (pendingBoardfishPaste && (await pendingBoardfishPaste || pasteOptions.limitRejected)) {
     focusTextEditProxy();
     return;
@@ -345,7 +332,7 @@ const pasteTextIntoEditSelection = async () => {
     return;
   }
   clearJsClipboard();
-  replaceTextEditSelection(text, { immediateHistory: true, inputType: 'insertFromPaste' });
+  replaceTextEditSelection(text, { inputType: 'insertFromPaste' });
 };
 
 function menuCommandFromButton(button) {
@@ -384,7 +371,6 @@ function contextMenuSurfaceById(id) {
   if (id === 'ctx-menu') return ctxMenu;
   if (id === 'obj-ctx-menu') return objCtxMenu;
   if (id === 'text-ctx-menu') return textCtxMenu;
-  return null;
 }
 
 function hasOpenContextMenu() {
@@ -456,7 +442,6 @@ function resetZoomToClosestObject() {
   let closestText = null;
   let closestTextDistanceSq = Infinity;
   for (const obj of objects) {
-    if (obj?.type !== 'image' && obj?.type !== 'text') continue;
     const dx = center.x - (obj.x + obj.w / 2);
     const dy = center.y - (obj.y + obj.h / 2);
     const candidateDistanceSq = dx * dx + dy * dy;
@@ -470,9 +455,7 @@ function resetZoomToClosestObject() {
       closestTextDistanceSq = candidateDistanceSq;
     }
   }
-  const targetType = closestImage ? 'image' : 'text';
   const object = closestImage || closestText;
-  const distanceSq = closestImage ? closestImageDistanceSq : closestTextDistanceSq;
   const targetZoom = 1;
   if (!object) {
     const changed = BoardfishViewportState.setZoomPan(
@@ -490,7 +473,7 @@ function resetZoomToClosestObject() {
       panY,
       zoom,
     });
-    return true;
+    return;
   }
   const objectCenterX = object.x + object.w / 2;
   const objectCenterY = object.y + object.h / 2;
@@ -503,8 +486,8 @@ function resetZoomToClosestObject() {
   else scheduleTransform(changed);
   ViewportDebug.end(dbg, {
     objectId: object.id,
-    objectType: targetType,
-    distanceSq,
+    objectType: object.type,
+    distanceSq: closestImage ? closestImageDistanceSq : closestTextDistanceSq,
     centerX: center.x,
     centerY: center.y,
     objectCenterX,
@@ -513,7 +496,6 @@ function resetZoomToClosestObject() {
     panY,
     zoom,
   });
-  return true;
 }
 
 const resetZoomFromPill = (e) => {

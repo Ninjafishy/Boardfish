@@ -3,7 +3,6 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const vm = require('node:vm');
 const { loadReadableImageSourceBlob, pngBytes } = require('../test-support/image_output.js');
 const WebContainer = require('../src/js/web_board_container.js');
@@ -28,15 +27,11 @@ function loadClipboardStateHarness() {
       addEventListener() {},
       visibilityState: 'visible',
     },
-    performance: { now: () => 0 },
     window: {
       addEventListener() {},
     },
     ClipDebug: {
       step() {},
-      wrap(_dbg, _command, task) {
-        return task();
-      },
     },
     setTimeout,
   };
@@ -128,9 +123,6 @@ function loadClipboardExportHarness(options = {}) {
       addEventListener() {},
       visibilityState: 'visible',
     },
-    window: {
-      addEventListener() {},
-    },
     performance: {
       now() {
         nowMs += 1;
@@ -205,9 +197,6 @@ function loadClipboardExportHarness(options = {}) {
     readableImageSourceBlob: options.readableImageSourceBlob || loadReadableImageSourceBlob({
       container: { ...WebContainer, ...options.BoardfishWebBoardContainer },
     }),
-    normalizeTextContent(value) {
-      return String(value ?? '').replace(/\r\n?/g, '\n');
-    },
     renderImageToCanvas() {
       calls.renderImageToCanvas++;
       return options.renderedCanvas || null;
@@ -228,7 +217,6 @@ function loadClipboardExportHarness(options = {}) {
       while (last >= first && !/\S/.test(lines[last])) last--;
       return first <= last ? lines.slice(first, last + 1).join('\n') : '';
     },
-    resizeCanvas() {},
     scheduleRender(board, overlay, sourceName) {
       calls.renders.push({ board, overlay, source: sourceName });
     },
@@ -262,7 +250,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
   };
   const calls = {
     added: [],
-    editCalls: [],
     histories: [],
     clones: 0,
     selections: [],
@@ -290,10 +277,10 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     },
     _jsClipboardWebMaybeStale: false,
     _pasteInProgress: false,
+    clearTextObjectLayoutRuntime() {},
     historyIndex: 0,
     zCounter: 1,
     BoardfishClipboardIO: {
-      describeClipboardData() { return {}; },
       readBoardfishClipboardTokenFromEvent() { return ''; },
       readBoardfishClipboardTokenFromBrowser() { calls.histories.push('browser-token-read'); return Promise.resolve({ checked: true, token: '' }); },
     },
@@ -306,9 +293,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
         calls.selections.push({ ids, options });
       },
     },
-    BoardfishImageStore: {
-      setSource() {},
-    },
     BoardfishMotion: {
       applyCopyFeedback() {},
     },
@@ -317,7 +301,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
       canAcceptAdditionalContentBytes() { return true; },
       canAcceptAdditionalTextCharacters() { return true; },
       textCharacterCount(text) { return Array.from(String(text ?? '')).length; },
-      imageSourceByteLength() { return 0; },
       textByteLength(text) {
         calls.textBytes.push(String(text ?? ''));
         return String(text ?? '').length;
@@ -338,13 +321,9 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     newId() {
       return 'text-pasted';
     },
-    resizeCanvas() {},
     scheduleRender() {},
     pushHistory(reason) {
       calls.histories.push(reason);
-    },
-    enterEdit(id, options = {}) {
-      calls.editCalls.push({ id, options });
     },
     syncTextAutoHeight(obj) {
       calls.synced.push(obj.id);
@@ -405,6 +384,7 @@ function loadTextEditCopyHarness(value, options = {}) {
     _editEl: editProxy,
     objectsMap: new Map([['text-1', { id: 'text-1', type: 'text', data: { content: value } }]]),
     setJsClipboard(clipboard) { calls.clipboard = clipboard; },
+    getJsClipboardWebToken: () => '',
     calls,
     BoardfishClipboardIO: {
       copyTextToClipboard(text) {
@@ -425,12 +405,6 @@ function loadTextEditCopyHarness(value, options = {}) {
     focusTextEditProxyNow(proxy) { proxy?.focus({ preventScroll: true }); },
     scheduleRender(board, overlay, sourceName) {
       calls.renders.push({ board, overlay, source: sourceName });
-    },
-    textForClipboard(text) {
-      const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
-      let last = lines.length - 1;
-      while (last >= 0 && !/\S/.test(lines[last])) last--;
-      return last >= 0 ? lines.slice(0, last + 1).join('\n') : '';
     },
     textSelectionForClipboard(text) {
       const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
@@ -591,39 +565,16 @@ test('clipboard IO preserves rich representations and supports direct-only clipb
     assert.match(imageHtml, /boardfish-clipboard:bf-image/);
     assert.match(imageHtml, /<img src="data:image\/png;base64,AQID" alt="">/);
 
-    const directBlob = new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' });
-    const directResult = await ClipboardIO.copyImageBlobToClipboard(directBlob, 'bf-direct-image');
-    assert.equal(writes.length, 3);
-    assert.deepEqual(Object.keys(writes[2].parts), ['image/png', 'text/html']);
-    assert.equal(writes[2].parts['image/png'], directBlob);
-    assert.equal(directResult.boardfishTokenWritten, true);
-    assert.match(await (await writes[2].parts['text/html']).text(), /boardfish-clipboard:bf-direct-image/);
-    class DirectBlobOnlyClipboardItem {
-      constructor(parts) {
-        if (Object.values(parts).some((part) => typeof part?.then === 'function')) {
-          throw new TypeError('promised clipboard representations are unsupported');
-        }
-        this.parts = parts;
-      }
-    }
-    globalThis.ClipboardItem = DirectBlobOnlyClipboardItem;
-    const fallbackBlob = new Blob([new Uint8Array([10, 11, 12])], { type: 'image/png' });
-    const fallbackResult = await ClipboardIO.copyImageBlobToClipboard(fallbackBlob, 'bf-fallback-image');
-    assert.equal(writes.length, 4);
-    assert.deepEqual(Object.keys(writes[3].parts), ['image/png']);
-    assert.equal(writes[3].parts['image/png'], fallbackBlob);
-    assert.equal(fallbackResult.boardfishTokenWritten, false);
-
     const textResult = await ClipboardIO.copyTextToClipboard(
       'A&<\r\nB\rC\nD',
       null,
       { boardfishToken: 'bf-rich-text' },
     );
     assert.equal(textResult.boardfishTokenWritten, true);
-    assert.equal(writes.length, 5);
-    assert.equal(await writes[4].parts['text/plain'].text(), 'A&<\r\nB\rC\nD');
+    assert.equal(writes.length, 3);
+    assert.equal(await writes[2].parts['text/plain'].text(), 'A&<\r\nB\rC\nD');
     assert.equal(
-      await writes[4].parts['text/html'].text(),
+      await writes[2].parts['text/html'].text(),
       '<!--boardfish-clipboard:bf-rich-text--><div>A&amp;&lt;<br>B<br>C<br>D</div>',
     );
   } finally {
@@ -1011,7 +962,6 @@ test('pasting Boardfish text objects strips whitespace-only edge lines from the 
   assert.deepEqual(context.calls.textBytes, ['first line\nsecond line']);
   assert.equal(sourceTextObject.data.content, '   \n\t\nfirst line\nsecond line\n   \n\t');
   assert.deepEqual(context.calls.histories, ['paste-objects']);
-  assert.deepEqual(context.calls.editCalls, []);
 });
 
 test('object-limit rejection happens before pasted text trimming and measurement', async () => {
