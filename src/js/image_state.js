@@ -20,6 +20,7 @@ function newImgKey() {
 }
 
 const isWebImageRef = (src) => !!globalThis.BoardfishWebBoardContainer?.isWebImageRef?.(src);
+const isImageSource = (src) => typeof src === 'string' ? !!src : isWebImageRef(src);
 
 function imageStoreBytesEstimate(src) {
   if (typeof src === 'string') return src.length;
@@ -128,7 +129,7 @@ async function readableImageSourceBlob(source) {
 }
 
 async function renderStoredImageToCanvas(obj, source = imageStore[obj?.data?.imgKey]) {
-  if (!isWebImageRef(source) && (typeof source !== 'string' || !source)) return null;
+  if (!isImageSource(source)) return null;
   const bitmap = await createImageBitmapForSource(source).catch(() => null);
   if (!bitmap) return null;
   const canvas = renderImageToCanvas(obj, bitmap);
@@ -189,8 +190,7 @@ function queueImageHydration(key
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) {
   const source = imageStore[key];
-  if (!source || imageBitmapCache[key] || _imageHydrationQueue.has(key)) return;
-  if (typeof source !== 'string' && !isWebImageRef(source)) return;
+  if (imageBitmapCache[key] || _imageHydrationQueue.has(key) || !isImageSource(source)) return;
   _imageHydrationQueue.set(key
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     , dbg
@@ -276,7 +276,7 @@ function cacheImage(key, src
   , dbg = null
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) {
-  if (!isWebImageRef(src) && (typeof src !== 'string' || !src)) return;
+  if (!isImageSource(src)) return;
   let ready;
   if (!imageBitmapFailed.delete(key) && (ready = imageReadyPromises.get(key))) return ready;
   const generation = _imageStoreGeneration;

@@ -203,38 +203,29 @@
     });
   }
 
+  const unlessAborted = (picker) => picker.catch((err) => {
+    if (isAbortError(err)) return null;
+    throw err;
+  });
+
   async function openFileDialog() {
-    if (hasOpenFileSystemAccess()) {
-      try {
-        const handles = await root.showOpenFilePicker({
-          multiple: false,
-          types: BOARD_FILE_TYPES,
-          excludeAcceptAllOption: false,
-        });
-        return handles?.[0] ? webFileHandleRef(handles[0]) : null;
-      } catch (err) {
-        if (isAbortError(err)) return null;
-        throw err;
-      }
-    }
-    return pickFileWithInput('.bf');
+    if (!hasOpenFileSystemAccess()) return pickFileWithInput('.bf');
+    const handles = await unlessAborted(root.showOpenFilePicker({
+      multiple: false,
+      types: BOARD_FILE_TYPES,
+      excludeAcceptAllOption: false,
+    }));
+    return handles?.[0] ? webFileHandleRef(handles[0]) : null;
   }
 
   async function saveFileDialog(defaultName = 'board.bf') {
-    if (hasSaveFileSystemAccess()) {
-      try {
-        const handle = await root.showSaveFilePicker({
-          suggestedName: defaultName,
-          types: BOARD_FILE_TYPES,
-          excludeAcceptAllOption: false,
-        });
-        return handle ? webFileHandleRef(handle) : null;
-      } catch (err) {
-        if (isAbortError(err)) return null;
-        throw err;
-      }
-    }
-    return webDownloadRef(defaultName);
+    if (!hasSaveFileSystemAccess()) return webDownloadRef(defaultName);
+    const handle = await unlessAborted(root.showSaveFilePicker({
+      suggestedName: defaultName,
+      types: BOARD_FILE_TYPES,
+      excludeAcceptAllOption: false,
+    }));
+    return handle ? webFileHandleRef(handle) : null;
   }
 
   async function fileFromRef(ref) {

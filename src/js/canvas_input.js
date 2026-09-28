@@ -461,11 +461,7 @@ function startGroupDrag(e) {
 }
 
 function startSelectedRegionDrag(e) {
-  if (editingId || !selectedIds.size) return false;
-  const bounds = selectedBounds();
-  if (!bounds) return false;
-  const point = toWorld(e.clientX, e.clientY);
-  if (!rectContainsPoint(bounds, point)) return false;
+  if (editingId || !rectContainsPoint(selectedBounds(), toWorld(e.clientX, e.clientY))) return false;
   return createSelectionDragSession(e.clientX, e.clientY);
 }
 
@@ -506,14 +502,9 @@ function startRubberBandSelection(e, additive) {
     hideRubberBandSelectionVisual();
     if (ev?.__boardfishRubberBandCancel || ev?.__boardfishDragCancel) return;
     if (!rbActive) return;
-    const x1 = Math.min(rbStartX, ev.clientX), y1 = Math.min(rbStartY, ev.clientY);
-    const x2 = Math.max(rbStartX, ev.clientX), y2 = Math.max(rbStartY, ev.clientY);
-    const rbRect = {
-      x1: (x1 - panX) / zoom,
-      y1: (y1 - panY) / zoom,
-      x2: (x2 - panX) / zoom,
-      y2: (y2 - panY) / zoom,
-    };
+    const a = toWorld(Math.min(rbStartX, ev.clientX), Math.min(rbStartY, ev.clientY));
+    const b = toWorld(Math.max(rbStartX, ev.clientX), Math.max(rbStartY, ev.clientY));
+    const rbRect = { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
     const nextSelection = additive ? new Set(selectedIds) : new Set();
     for (const o of objects) {
       if (objectIntersectsRect(o, rbRect)) {

@@ -95,6 +95,7 @@ html {
 body {
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--canvas-bg);
   user-select: none;
@@ -108,10 +109,6 @@ body {
   direction: var(--text-direction);
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
-}
-
-@supports (height: 100dvh) {
-  body { height: 100dvh; }
 }
 
 #canvas {
@@ -274,6 +271,8 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .ctx-action-item:hover, .ctx-item:hover, #island:hover #isl-zoom { background: var(--firefox-menu-hover-bg); }
+  #dlg-discard:hover { background: var(--danger-hover-bg); }
   :where(.ctx-item:hover, .ui-highlight-nudge:hover, #island:hover .ui-highlight-nudge) {
     --ui-highlight-nudge-transform: translateX(var(--highlight-nudge-x));
   }
@@ -307,9 +306,6 @@ body {
   transition: transform var(--smooth-slide-duration) var(--smooth-slide-ease);
 }
 .ctx-action-item:focus-visible { background: var(--firefox-menu-hover-bg); }
-@media (hover: hover) and (pointer: fine) {
-  .ctx-action-item:hover { background: var(--firefox-menu-hover-bg); }
-}
 .ctx-action-item.hotspot-active,
 .ctx-action-item[aria-pressed="true"] { background: var(--menu-active-bg); }
 .ctx-action-icon svg {
@@ -358,11 +354,6 @@ body {
   line-height: inherit;
   justify-self: end;
   white-space: nowrap;
-}
-@media (hover: hover) and (pointer: fine) {
-  .ctx-item:hover {
-    background: var(--firefox-menu-hover-bg);
-  }
 }
 .ctx-item:focus-visible {
   background: var(--firefox-menu-hover-bg);
@@ -418,12 +409,6 @@ body {
 
 #island.visible {
   display: flex;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  #island:hover #isl-zoom {
-    background: var(--firefox-menu-hover-bg);
-  }
 }
 
 #island:active #isl-zoom {
@@ -540,11 +525,6 @@ body {
 #dlg-discard {
   background: var(--danger-bg);
   color: var(--danger-text);
-}
-@media (hover: hover) and (pointer: fine) {
-  #dlg-discard:hover {
-    background: var(--danger-hover-bg);
-  }
 }
 #dlg-discard:focus-visible {
   background: var(--danger-hover-bg);

@@ -417,13 +417,13 @@
         } catch {}
       } else {
       if (obj.type === 'text') {
-        const layoutStart = counters && typeof performance !== 'undefined' ? performance.now() : 0;
+        const layoutStart = counters ? performance.now() : 0;
         const layout = getTextLayoutForDraw(obj, viewportRect);
         const totalLayoutLines = counters
           ? Math.max(layout.length, Math.trunc(Number(layout.totalLines)) || layout.length)
           : 0;
         if (counters) {
-          const layoutMs = typeof performance !== 'undefined' ? performance.now() - layoutStart : 0;
+          const layoutMs = performance.now() - layoutStart;
           const chars = String(obj.data?.content || '').length;
           counters.textLayoutObjects = (counters.textLayoutObjects || 0) + 1;
           counters.textLayoutMs = (counters.textLayoutMs || 0) + layoutMs;
@@ -438,7 +438,7 @@
         for (const line of layout) {
           layoutLineIndex++;
           drawnLineCount++;
-          const lineDrawStart = counters && typeof performance !== 'undefined' ? performance.now() : 0;
+          const lineDrawStart = counters ? performance.now() : 0;
           const drawStats = deps.drawTextLineRange(
             context,
             line,
@@ -448,7 +448,7 @@
             counters ? TEXT_DRAW_STATS_ENABLED : TEXT_DRAW_STATS_DISABLED,
           );
           if (counters && drawStats) addTextDrawStats(counters, drawStats);
-          if (counters && typeof performance !== 'undefined') {
+          if (counters) {
             recordTextLineDraw(counters, obj, line, layoutLineIndex, drawStats, performance.now() - lineDrawStart, deps);
           }
         }
@@ -568,7 +568,7 @@
           ? applyObjectMotion(context, obj, viewportRect, motion, counters)
           : viewportRect;
         let drawn = false;
-        const objectDrawStart = counters && typeof performance !== 'undefined' ? performance.now() : 0;
+        const objectDrawStart = counters ? performance.now() : 0;
         const before = counters ? {
           textLayoutMs: drawCounterValue(counters, 'textLayoutMs'),
           textLines: drawCounterValue(counters, 'textLines'),
@@ -604,7 +604,7 @@
           drawn = drawSingleObj(context, obj, counters, objectViewportRect, view, motion);
         } finally {
           if (motion) context.restore();
-          if (counters && typeof performance !== 'undefined') {
+          if (counters) {
             recordSlowDrawObject(counters, obj, performance.now() - objectDrawStart, before, drawn, motion, deps);
           }
         }

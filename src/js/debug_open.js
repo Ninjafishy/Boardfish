@@ -288,46 +288,61 @@ var OpenDebug = (() => {
       .reduce((max, event) => Math.max(max, numberValue(event.meta?.[field])), 0));
   }
 
-  function optimizationReport(options = {}) {
-    const limit = Math.max(1, Math.min(200, Math.floor(Number(options.limit) || 40)));
+  function openRunSteps() {
     const rows = latestOpenEvents();
     const findStep = (step) => rows.find(e => e.step === step) || null;
-    const findLastStep = (step) => debugLast(rows, e => e.step === step) || null;
-    const fileDialog = rows.find(e => e.step === 'invoke:ok' && /web_open_file_dialog/.test(e.meta?.command || '')) || null;
-    const readStart = rows.find(e => e.step === 'invoke:start' && /web_read_board/.test(e.meta?.command || '')) || null;
-    const read = rows.find(e => e.step === 'invoke:ok' && /web_read_board/.test(e.meta?.command || '')) || null;
-    const shape = findStep('read-board-shape');
-    const cacheStartAll = findStep('cacheImage:start-all');
-    const applyState = findStep('apply-state');
+    const invoke = (step, command) => rows.find(e => e.step === step && command.test(e.meta?.command || '')) || null;
+    const s = {
+      rows,
+      findStep,
+      read: invoke('invoke:ok', /web_read_board/),
+      shape: findStep('read-board-shape'),
+      applyState: findStep('apply-state'),
+      cacheStartAll: findStep('cacheImage:start-all'),
+      initialPolicy: findStep('hydrate-initial-policy'),
+      initialRender: findStep('initial-applyTransform'),
+      shieldRemoved: findStep('opening-shield:removed'),
+      endEvent: debugLast(rows, e => e.step === 'end') || null,
+    };
+    const fileDialog = invoke('invoke:ok', /web_open_file_dialog/);
+    const criticalEnd = s.shieldRemoved || s.initialRender || s.endEvent;
+    const since = (from) => from && criticalEnd ? roundMs(numberValue(criticalEnd.total) - numberValue(from.total)) : '';
+    s.head = {
+      mode: s.initialPolicy?.meta?.mode || 'all-before-interaction',
+      objectCount: s.shape?.meta?.objectCount ?? s.endEvent?.meta?.objectCount ?? '',
+      imageCount: s.shape?.meta?.imageCount ?? s.endEvent?.meta?.imageCount ?? '',
+    };
+    s.picker = {
+      filePickerMs: fileDialog?.meta?.ms ?? fileDialog?.dt ?? '',
+      timeToFileSelectedMs: fileDialog?.total ?? '',
+      appCriticalPathMs: since(invoke('invoke:start', /web_read_board/)),
+      postReadCriticalPathMs: since(s.read),
+    };
+    return s;
+  }
+
+  function pushFilePickerFinding(findings, row) {
+    if (numberValue(row.filePickerMs) > 250) {
+      findings.push(`File picker/user selection took ${roundMs(row.filePickerMs)}ms and is separated from appCriticalPathMs (${roundMs(row.appCriticalPathMs)}ms).`);
+    }
+  }
+
+  function optimizationReport(options = {}) {
+    const limit = Math.max(1, Math.min(200, Math.floor(Number(options.limit) || 40)));
+    const { rows, findStep, read, shape, cacheStartAll, applyState, initialPolicy, initialRender, shieldRemoved, endEvent, head, picker } = openRunSteps();
     const replaceObjects = findStep('replaceBoardObjects');
     const restoreViewport = findStep('restore-counters-viewport');
     const historyReset = findStep('reset-boardHistory-markSaved');
-    const initialPolicy = findStep('hydrate-initial-policy');
-    const initialRender = findStep('initial-applyTransform');
-    const shieldRemoved = findStep('opening-shield:removed');
-    const endEvent = findLastStep('end');
     const decodeQueueStarts = rows.filter(e => e.step === 'cache-image:decode-queue:start');
     const cacheDoneRows = rows.filter(e => e.step === 'cache-image:done');
     const bitmapRows = rows.filter(e => e.step === 'cache-image:createImageBitmap');
     const cacheErrors = rows.filter(e => /cache-image:.*:error$/.test(e.step || ''));
     const summaryRow = {
-      mode: initialPolicy?.meta?.mode || 'all-before-interaction',
-      objectCount: shape?.meta?.objectCount ?? endEvent?.meta?.objectCount ?? '',
-      imageCount: shape?.meta?.imageCount ?? endEvent?.meta?.imageCount ?? '',
-      imageObjectCount: shape?.meta?.imageObjectCount ?? '',
-      textObjectCount: shape?.meta?.textObjectCount ?? '',
-      textCharCount: shape?.meta?.textCharCount ?? '',
-      largestTextChars: shape?.meta?.largestTextChars ?? '',
+      ...head,
+      ...debugPick(shape?.meta, 'imageObjectCount textObjectCount textCharCount largestTextChars'),
       imageStoreMB: shape?.meta?.imageStoreBytes ? Math.round(numberValue(shape.meta.imageStoreBytes) / 1024 / 1024 * 100) / 100 : '',
       criticalPathMs: shieldRemoved?.total ?? initialRender?.total ?? endEvent?.total ?? '',
-      filePickerMs: fileDialog?.meta?.ms ?? fileDialog?.dt ?? '',
-      timeToFileSelectedMs: fileDialog?.total ?? '',
-      appCriticalPathMs: readStart && (shieldRemoved || initialRender || endEvent)
-        ? roundMs(numberValue((shieldRemoved || initialRender || endEvent)?.total) - numberValue(readStart.total))
-        : '',
-      postReadCriticalPathMs: read && (shieldRemoved || initialRender || endEvent)
-        ? roundMs(numberValue((shieldRemoved || initialRender || endEvent)?.total) - numberValue(read.total))
-        : '',
+      ...picker,
       timeToInitialRenderMs: initialRender?.total ?? '',
       readInvokeMs: read?.meta?.ms ?? read?.dt ?? '',
       rustTotalMs: read?.meta?.rust?.total_ms ?? '',
@@ -383,9 +398,7 @@ var OpenDebug = (() => {
     const findings = [];
     const top = candidateRows[0];
     if (top) findings.push(`Largest measured critical opening cost: ${top.phase} (${roundMs(top.ms)}ms, ${top.detail}).`);
-    if (numberValue(summaryRow.filePickerMs) > 250) {
-      findings.push(`File picker/user selection took ${roundMs(summaryRow.filePickerMs)}ms and is separated from appCriticalPathMs (${roundMs(summaryRow.appCriticalPathMs)}ms).`);
-    }
+    pushFilePickerFinding(findings, summaryRow);
     if (numberValue(summaryRow.rustImageReadMs) > 100) findings.push('Board file image extraction is material; compare smaller/compressed images or lazy extraction.');
     if (numberValue(summaryRow.decodeQueueWaitMaxMs) > 50) findings.push('Image decode queue wait is visible; tune open hydration concurrency only after checking bitmap decode time.');
     if (numberValue(summaryRow.bitmapDecodeMaxMs) > 100) findings.push('At least one bitmap decode is slow; inspect the largest images and their dimensions.');
@@ -430,34 +443,10 @@ var OpenDebug = (() => {
   }
 
   function report() {
-    const rows = latestOpenEvents();
-    const findStep = (step) => rows.find(e => e.step === step) || null;
-    const findLastStep = (step) => debugLast(rows, e => e.step === step) || null;
-    const initialPolicy = findStep('hydrate-initial-policy');
-    const initialRender = findStep('initial-applyTransform');
-    const endEvent = findLastStep('end');
-    const fileDialog = rows.find(e => e.step === 'invoke:ok' && /web_open_file_dialog/.test(e.meta?.command || '')) ||
-      null;
-    const readStart = rows.find(e => e.step === 'invoke:start' && /web_read_board/.test(e.meta?.command || '')) ||
-      null;
-    const read = rows.find(e => e.step === 'invoke:ok' && /web_read_board/.test(e.meta?.command || '')) ||
-      null;
-    const shape = findStep('read-board-shape');
-    const applyState = findStep('apply-state');
-    const cacheStartAll = findStep('cacheImage:start-all');
-    const openingShieldRemoved = findStep('opening-shield:removed');
+    const { rows, read, applyState, cacheStartAll, initialPolicy, initialRender, shieldRemoved, endEvent, head, picker } = openRunSteps();
     const summaryRow = {
-      mode: initialPolicy?.meta?.mode || 'all-before-interaction',
-      objectCount: shape?.meta?.objectCount ?? endEvent?.meta?.objectCount ?? '',
-      imageCount: shape?.meta?.imageCount ?? endEvent?.meta?.imageCount ?? '',
-      filePickerMs: fileDialog?.meta?.ms ?? fileDialog?.dt ?? '',
-      timeToFileSelectedMs: fileDialog?.total ?? '',
-      appCriticalPathMs: readStart && (openingShieldRemoved || initialRender || endEvent)
-        ? roundMs(numberValue((openingShieldRemoved || initialRender || endEvent)?.total) - numberValue(readStart.total))
-        : '',
-      postReadCriticalPathMs: read && (openingShieldRemoved || initialRender || endEvent)
-        ? roundMs(numberValue((openingShieldRemoved || initialRender || endEvent)?.total) - numberValue(read.total))
-        : '',
+      ...head,
+      ...picker,
       readInvokeMs: read?.meta?.ms ?? read?.dt ?? '',
       rustTotalMs: read?.meta?.rust?.total_ms ?? '',
       rustImageReadMs: read?.meta?.rust?.image_read_ms ?? '',
@@ -477,13 +466,11 @@ var OpenDebug = (() => {
       initialScaledFallbackFull: initialRender?.meta?.scaledFallbackFull ?? '',
       initialCulledImages: initialRender?.meta?.culledImages ?? '',
       timeToInitialRenderMs: initialRender?.total ?? '',
-      shieldRemoveMs: openingShieldRemoved?.meta?.ms ?? '',
+      shieldRemoveMs: shieldRemoved?.meta?.ms ?? '',
       timeToOpenEndMs: endEvent?.total ?? '',
     };
     const findings = [];
-    if (numberValue(summaryRow.filePickerMs) > 250) {
-      findings.push(`File picker/user selection took ${roundMs(summaryRow.filePickerMs)}ms and is separated from appCriticalPathMs (${roundMs(summaryRow.appCriticalPathMs)}ms).`);
-    }
+    pushFilePickerFinding(findings, summaryRow);
     if (Number(summaryRow.initialRenderMs) > 50) {
       if (Number(summaryRow.initialDrawMs) > 50 || Number(summaryRow.initialDrawBoardMs) > 50) {
         findings.push('Initial render is over budget due mostly to first canvas draw.');

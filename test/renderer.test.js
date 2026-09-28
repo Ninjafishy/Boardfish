@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
 function loadRenderer(overrides = {}) {
-  const context = { ...overrides };
+  const context = { performance, ...overrides };
   vm.createContext(context);
   let source = readSource('src/js/renderer.js');
   if (overrides.BOARDFISH_PRODUCTION) source = source.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '');

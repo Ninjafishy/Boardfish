@@ -401,11 +401,8 @@ var ManualPerfDebug = (() => {
   }
 
   async function copyLast() {
-    if (!lastReport) {
-      console.warn('[Boardfish Perf] No Report Available. Run finishDebug({ perf: ["report"] }).');
-      return false;
-    }
     const text = json();
+    if (!text) return false;
     try {
       await navigator.clipboard.writeText(text);
       console.info(`[Boardfish perf] Copied ${text.length} chars to clipboard.`);
@@ -487,14 +484,7 @@ var ManualPerfDebug = (() => {
       panEvents: panZoom.panEvents ?? '',
       zoomEvents: panZoom.zoomEvents ?? '',
       blockedEvents: panZoom.blockedEvents ?? '',
-      frames: frame.frames ?? '',
-      inputFrames: frame.inputFrames ?? '',
-      transformFrames: frame.transformFrames ?? '',
-      slowFramesOver16ms: frame.slowFramesOver16ms ?? '',
-      maxFrameMs: frame.maxFrameMs ?? '',
-      avgInputAgeMs: frame.avgInputAgeMs ?? '',
-      maxInputAgeMs: frame.maxInputAgeMs ?? '',
-      maxQueueMs: frame.maxQueueMs ?? '',
+      ...debugPick(frame, 'frames inputFrames transformFrames slowFramesOver16ms maxFrameMs avgInputAgeMs maxInputAgeMs maxQueueMs'),
       wheelEvents: wheel.bufferedWheelEvents ?? '',
       wheelPanEvents: wheel.panEvents ?? '',
       wheelZoomEvents: wheel.zoomEvents ?? '',
@@ -971,11 +961,7 @@ var ManualPerfDebug = (() => {
       key: event?.key || '',
       code: event?.code || '',
       repeat: !!event?.repeat,
-      deltaX: event?.deltaX ?? '',
-      deltaY: event?.deltaY ?? '',
-      clientX: event?.clientX ?? '',
-      clientY: event?.clientY ?? '',
-      buttons: event?.buttons ?? '',
+      ...debugPick(event, 'deltaX deltaY clientX clientY buttons'),
       ctrlKey: !!event?.ctrlKey,
       metaKey: !!event?.metaKey,
       defaultPrevented: !!event?.defaultPrevented,
@@ -1274,9 +1260,7 @@ var ManualPerfDebug = (() => {
       resizeDrags: resize.dragCount ?? '',
       resizeMoves: resize.moves ?? '',
       resizeCommits: resize.applyCommits ?? '',
-      liveAutoHeightCommits: resize.liveAutoHeightCommits ?? '',
-      liveBoardRenderCommits: resize.liveBoardRenderCommits ?? '',
-      cacheKeyedAutoHeightCommits: resize.cacheKeyedAutoHeightCommits ?? '',
+      ...debugPick(resize, 'liveAutoHeightCommits liveBoardRenderCommits cacheKeyedAutoHeightCommits'),
       maxResizeGapMs: resize.maxGapMs ?? '',
       resizeGapsOver32ms: resize.gapsOver32ms ?? '',
       maxResizeEventAgeMs: resize.maxEventAgeMs ?? '',
@@ -1305,20 +1289,14 @@ var ManualPerfDebug = (() => {
       endWrappedLineIndexWidthCacheSize: report.endSnapshot?.wrappedLineIndexWidthCacheSize ?? '',
       maxWrappedLineIndexWidthCacheSize: resize.maxWrappedLineIndexWidthCacheSize ?? '',
       domEvents: events.events ?? '',
-      pointermove: events.pointermove ?? '',
-      mousemove: events.mousemove ?? '',
-      beforeinput: events.beforeinput ?? '',
-      input: events.input ?? '',
+      ...debugPick(events, 'pointermove mousemove beforeinput input'),
       maxDomEventGapMs: events.maxGapMs ?? '',
       inputRuns: input.inputRuns ?? '',
       maxInputHandlerMs: input.maxInputTotalMs ?? '',
       maxInputStepMs: input.maxStepMs ?? '',
       worstInputStep: input.worstStep?.step ?? '',
       maxTextareaMutationMs: input.maxTextareaMutationMs ?? '',
-      frames: frame.frames ?? '',
-      slowFramesOver16ms: frame.slowFramesOver16ms ?? '',
-      maxFrameMs: frame.maxFrameMs ?? '',
-      maxInputAgeMs: frame.maxInputAgeMs ?? '',
+      ...debugPick(frame, 'frames slowFramesOver16ms maxFrameMs maxInputAgeMs'),
       maxDrawMs: draw.maxDrawMs ?? '',
       maxEditLayoutMs: draw.maxEditLayoutMs ?? '',
       historyMaxEnterEditMs: historySummary.maxEnterEditMs ?? '',
@@ -1486,11 +1464,7 @@ var ManualPerfDebug = (() => {
         ? {
             step: worstStep.step || '',
             inputType: worstStep.inputType || '',
-            seq: worstStep.seq ?? '',
-            ms: worstStep.ms ?? '',
-            totalMs: worstStep.totalMs ?? '',
-            removedChars: worstStep.removedChars ?? '',
-            selectedChars: worstStep.selectedChars ?? '',
+            ...debugPick(worstStep, 'seq ms totalMs removedChars selectedChars'),
           }
         : null,
       maxInputTotalMs: round(maxInputTotalMs),
@@ -1693,16 +1667,10 @@ var ManualPerfDebug = (() => {
     const draw = report.viewport?.drawSummary || {};
     const historySummary = report.history?.textUndoRedo?.summary || {};
     return {
-      events: eventSummary.events ?? '',
-      beforeinput: eventSummary.beforeinput ?? '',
-      input: eventSummary.input ?? '',
-      paste: eventSummary.paste ?? '',
+      ...debugPick(eventSummary, 'events beforeinput input paste'),
       undoShortcuts: eventSummary.shortcuts?.undo ?? '',
       redoShortcuts: eventSummary.shortcuts?.redo ?? '',
-      wheel: eventSummary.wheel ?? '',
-      pointermove: eventSummary.pointermove ?? '',
-      mousemove: eventSummary.mousemove ?? '',
-      selectionchange: eventSummary.selectionchange ?? '',
+      ...debugPick(eventSummary, 'wheel pointermove mousemove selectionchange'),
       maxEventGapMs: eventSummary.maxGapMs ?? '',
       gapsOver32ms: eventSummary.gapsOver32ms ?? '',
       inputRuns: inputStepSummary.inputRuns ?? '',
@@ -1712,10 +1680,7 @@ var ManualPerfDebug = (() => {
       worstInputStep: inputStepSummary.worstStep?.step ?? '',
       maxRemovedChars: inputStepSummary.maxRemovedChars ?? '',
       maxSelectedCharsInInput: inputStepSummary.maxSelectedChars ?? '',
-      maxHeightDeltaFromLogical: inputStepSummary.maxHeightDeltaFromLogical ?? '',
-      maxHeightDeltaFromCached: inputStepSummary.maxHeightDeltaFromCached ?? '',
-      maxTextareaMutationMs: inputStepSummary.maxTextareaMutationMs ?? '',
-      maxRenderScheduleMs: inputStepSummary.maxRenderScheduleMs ?? '',
+      ...debugPick(inputStepSummary, 'maxHeightDeltaFromLogical maxHeightDeltaFromCached maxTextareaMutationMs maxRenderScheduleMs'),
       valueLengthStart: report.startSnapshot?.valueLength ?? '',
       valueLengthEnd: report.endSnapshot?.valueLength ?? '',
       maxValueLength: eventSummary.maxValueLength ?? '',
@@ -1733,18 +1698,9 @@ var ManualPerfDebug = (() => {
       heightDeltaFromLogicalEnd: report.endSnapshot?.heightDeltaFromLogical ?? '',
       heightDeltaFromCachedEnd: report.endSnapshot?.heightDeltaFromCached ?? '',
       layoutCacheLinesEnd: report.endSnapshot?.layoutCacheLines ?? '',
-      frames: frame.frames ?? '',
-      slowFramesOver16ms: frame.slowFramesOver16ms ?? '',
-      maxFrameMs: frame.maxFrameMs ?? '',
-      maxInputAgeMs: frame.maxInputAgeMs ?? '',
-      maxDrawMs: draw.maxDrawMs ?? '',
-      maxEditingOverlayMs: draw.maxEditingOverlayMs ?? '',
-      maxEditLayoutMs: draw.maxEditLayoutMs ?? '',
-      maxEditTextDrawMs: draw.maxEditTextDrawMs ?? '',
-      maxEditSelectionMs: draw.maxEditSelectionMs ?? '',
-      maxEditCaretMs: draw.maxEditCaretMs ?? '',
-      maxEditVisibleLines: draw.maxEditVisibleLines ?? '',
-      maxEditCulledLines: draw.maxEditCulledLines ?? '',
+      ...debugPick(frame, 'frames slowFramesOver16ms maxFrameMs maxInputAgeMs'),
+      ...debugPick(draw, 'maxDrawMs maxEditingOverlayMs maxEditLayoutMs maxEditTextDrawMs maxEditSelectionMs maxEditCaretMs maxEditVisibleLines'),
+      ...debugPick(draw, 'maxEditCulledLines'),
       historyUndoCount: historySummary.undoCount ?? '',
       historyRedoCount: historySummary.redoCount ?? '',
       historyMaxUndoMs: historySummary.maxUndoMs ?? '',
@@ -1763,21 +1719,7 @@ var ManualPerfDebug = (() => {
   function textEditBegin(options = {}) {
     if (debugToolsDisabled()) return null;
     setTextEditMathListeners(false);
-    BoardfishDebug.viewport.enable({
-      verbose: false,
-      rawInput: options.rawInput !== false,
-      eventLoopGapThresholdMs: options.eventLoopGapThresholdMs,
-    });
-    BoardfishDebug.viewport.reset();
-    if (options.history !== false && BoardfishDebug.history?.enable && BoardfishDebug.history?.reset) {
-      BoardfishDebug.history.enable({ verbose: false });
-      BoardfishDebug.history.reset();
-    }
-    markers.length = 0;
-    textEditEvents.length = 0;
-    textEditInputSteps.length = 0;
-    textEditLastEventAt = 0;
-    textEditInputStepLastAt = 0;
+    resetTextRecorders({ ...options, textSelection: false });
     const id = `text-edit-${nextTextEditMathSessionId++}`;
     const traceTextInput = options.traceTextInput !== false;
     textEditSession = {
@@ -1864,27 +1806,9 @@ var ManualPerfDebug = (() => {
   function textResizeBegin(options = {}) {
     if (debugToolsDisabled()) return null;
     setTextEditMathListeners(false);
-    BoardfishDebug.viewport.enable({
-      verbose: false,
-      rawInput: options.rawInput !== false,
-      eventLoopGapThresholdMs: options.eventLoopGapThresholdMs,
-    });
-    BoardfishDebug.viewport.reset();
-    if (options.history !== false && BoardfishDebug.history?.enable && BoardfishDebug.history?.reset) {
-      BoardfishDebug.history.enable({ verbose: false });
-      BoardfishDebug.history.reset();
-    }
-    if (options.textSelection !== false && typeof TextSelDebug !== 'undefined') {
-      TextSelDebug.enable?.({ verbose: false });
-      TextSelDebug.reset?.();
-    }
-    markers.length = 0;
+    resetTextRecorders(options);
     textResizeEvents.length = 0;
-    textEditEvents.length = 0;
-    textEditInputSteps.length = 0;
     textResizeLastEventAt = 0;
-    textEditLastEventAt = 0;
-    textEditInputStepLastAt = 0;
     const id = `text-resize-${nextTextResizeSessionId++}`;
     const startedAt = new Date().toISOString();
     const startedAtMs = performance.now();
@@ -2403,7 +2327,7 @@ var ManualPerfDebug = (() => {
     };
   }
 
-  function resetLargeTextPanningRecorders(options = {}) {
+  function resetTextRecorders(options = {}) {
     BoardfishDebug.viewport.enable({
       verbose: false,
       rawInput: options.rawInput !== false,
@@ -2440,7 +2364,7 @@ var ManualPerfDebug = (() => {
 
     await animationFrame();
     await animationFrame();
-    resetLargeTextPanningRecorders(options);
+    resetTextRecorders(options);
 
     const layoutPrewarm = options.prewarmLayout === false || typeof prewarmVisibleTextLayoutCaches !== 'function'
       ? null
@@ -2571,25 +2495,11 @@ var ManualPerfDebug = (() => {
       mousemove: eventSummary.mousemove ?? '',
       maxDomEventGapMs: eventSummary.maxGapMs ?? '',
       domGapsOver32ms: eventSummary.gapsOver32ms ?? '',
-      frames: frame.frames ?? '',
-      inputFrames: frame.inputFrames ?? '',
-      slowFramesOver16ms: frame.slowFramesOver16ms ?? '',
-      maxFrameMs: frame.maxFrameMs ?? '',
-      maxInputAgeMs: frame.maxInputAgeMs ?? '',
-      maxQueueMs: frame.maxQueueMs ?? '',
-      rawInputEvents: frame.rawInputEvents ?? '',
+      ...debugPick(frame, 'frames inputFrames slowFramesOver16ms maxFrameMs maxInputAgeMs maxQueueMs rawInputEvents'),
       wheelPanEvents: wheel.panEvents ?? '',
       maxWheelGapMs: wheel.maxWheelGapMs ?? '',
-      avgDrawMs: draw.avgDrawMs ?? '',
-      maxDrawMs: draw.maxDrawMs ?? '',
-      maxObjectLoopMs: draw.maxObjectLoopMs ?? '',
-      maxEditingOverlayMs: draw.maxEditingOverlayMs ?? '',
-      maxEditLayoutMs: draw.maxEditLayoutMs ?? '',
-      maxEditTextDrawMs: draw.maxEditTextDrawMs ?? '',
-      maxEditSelectionMs: draw.maxEditSelectionMs ?? '',
-      maxEditSelectedChars: draw.maxEditSelectedChars ?? '',
-      maxEditSelectionLines: draw.maxEditSelectionLines ?? '',
-      maxEditSelectionVisibleLines: draw.maxEditSelectionVisibleLines ?? '',
+      ...debugPick(draw, 'avgDrawMs maxDrawMs maxObjectLoopMs maxEditingOverlayMs maxEditLayoutMs maxEditTextDrawMs maxEditSelectionMs'),
+      ...debugPick(draw, 'maxEditSelectedChars maxEditSelectionLines maxEditSelectionVisibleLines'),
       avgTransformMs: transform.avgTotalMs ?? '',
       maxTransformMs: transform.maxTotalMs ?? '',
       viewportEvents: Array.isArray(report.viewportEvents) ? report.viewportEvents.length : '',

@@ -267,11 +267,7 @@ var ExportDebug = (() => {
       massive.lastError = String(meta.error);
     }
     pushTop(s.slowestBatches, {
-      batchIndex: meta.batchIndex ?? '',
-      keyCount: meta.keyCount ?? '',
-      savedCount: meta.savedCount ?? '',
-      failedCount: meta.failedCount ?? '',
-      missingCount: meta.missingCount ?? '',
+      ...debugPick(meta, 'batchIndex keyCount savedCount failedCount missingCount'),
       method: meta.method || '',
       ms: Math.round((meta.ms || 0) * 100) / 100,
     }, 'ms');
@@ -574,9 +570,7 @@ var ExportDebug = (() => {
       watchTick: watch?.meta?.tick ?? '',
       watchElapsedMs: watch?.meta?.elapsedMs ?? '',
       watchLagMs: watch?.meta?.lagMs ?? '',
-      savedCount: done?.meta?.savedCount ?? '',
-      failedCount: done?.meta?.failedCount ?? '',
-      missingCount: done?.meta?.missingCount ?? '',
+      ...debugPick(done?.meta, 'savedCount failedCount missingCount'),
       uiText: massive?.progressUi?.currentText ?? '',
       uiFirstNonZeroAtMs: massive?.progressUi?.firstNonZeroAtMs ?? '',
       resolveProcessed: massive?.resolve?.processed ?? '',

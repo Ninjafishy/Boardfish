@@ -27,9 +27,10 @@ var ClipDebug = (() => {
   const step = core.step;
   const end = core.end;
 
-  function debugRow(e, { includeId = false, includeSkipped = false } = {}) {
+  function debugRow(e, includeSkipped = true) {
     return {
-      ...(includeId ? { id: e.id, op: e.op } : {}),
+      id: e.id,
+      op: e.op,
       step: e.step,
       total: e.total,
       dt: e.dt,
@@ -82,37 +83,36 @@ var ClipDebug = (() => {
     return events.slice();
   }
 
-  function summary() {
-    const rows = events.filter(e => e.step && e.step !== 'start').map(e => debugRow(e, { includeId: true }));
+  function stepRows(filter, includeSkipped) {
+    const rows = events.filter(e => e.step && e.step !== 'start' && filter(e)).map(e => debugRow(e, includeSkipped));
     console.table(rows);
     return rows;
   }
+  const summary = () => stepRows(() => true, false);
+  const phaseSummary = () => stepRows(() => true);
+  const copyBreakdown = () => stepRows(e => e.op === 'copySelected' || e.op === 'copyTextEditSelection');
 
-  function phaseSummary() {
-    const rows = events.filter(e => e.step && e.step !== 'start').map(e => debugRow(e, { includeId: true, includeSkipped: true }));
-    console.table(rows);
-    return rows;
-  }
-
-  function copyBreakdown() {
-    const rows = events
-      .filter(e => (e.op === 'copySelected' || e.op === 'copyTextEditSelection') && e.step && e.step !== 'start')
-      .map(e => debugRow(e, { includeId: true, includeSkipped: true }));
-    console.table(rows);
-    return rows;
+  function lastRunOf(op, runsKey) {
+    const starts = events.filter(e => e.op === op && e.step === 'start');
+    const start = starts[starts.length - 1];
+    if (!start) {
+      const empty = { [runsKey]: 0, verdict: `no ${op} events captured` };
+      console.table([empty]);
+      return { empty };
+    }
+    const run = events.filter(e => e.id === start.id && e.op === op);
+    return {
+      starts,
+      start,
+      run,
+      latest: (stepName) => debugLast(run, e => e.step === stepName),
+      first: (stepName) => run.find(e => e.step === stepName),
+    };
   }
 
   function copyPanReport() {
-    const copyStarts = events.filter(e => e.op === 'copySelected' && e.step === 'start');
-    const copyStart = copyStarts[copyStarts.length - 1];
-    if (!copyStart) {
-      const empty = { copyRuns: 0, verdict: 'no copySelected events captured' };
-      console.table([empty]);
-      return empty;
-    }
-
-    const run = events.filter(e => e.id === copyStart.id);
-    const latest = (stepName) => debugLast(run, e => e.step === stepName);
+    const { empty, starts: copyStarts, start: copyStart, run, latest } = lastRunOf('copySelected', 'copyRuns');
+    if (empty) return empty;
     const copyEnd = latest('end');
     const copyDoneAt = copyEnd?.at ?? run[run.length - 1]?.at ?? copyStart.at;
     const copyWindowRows = events.filter(e => e.at >= copyStart.at && e.at <= copyDoneAt + 1);
@@ -294,7 +294,7 @@ var ClipDebug = (() => {
       summary,
       timeline: timeline.slice(0, 200),
       rawInputRows: rawInputRows.slice(0, 200),
-      copyRows: copyWindowRows.map(e => debugRow(e, { includeId: true, includeSkipped: true })),
+      copyRows: copyWindowRows.map(e => debugRow(e)),
     };
   }
 
@@ -306,16 +306,9 @@ var ClipDebug = (() => {
   }
 
   function largePasteReport() {
-    const pasteStarts = events.filter(e => e.op === 'pasteAtPos' && e.step === 'start');
-    const pasteStart = pasteStarts[pasteStarts.length - 1];
-    if (!pasteStart) {
-      const empty = { pasteRuns: 0, verdict: 'no pasteAtPos events captured' };
-      console.table([empty]);
-      return empty;
-    }
-    const run = events.filter(e => e.id === pasteStart.id);
+    const { empty, starts: pasteStarts, start: pasteStart, run, latest } = lastRunOf('pasteAtPos', 'pasteRuns');
+    if (empty) return empty;
     const stepNames = new Set(run.map(e => e.step));
-    const latest = (stepName) => debugLast(run, e => e.step === stepName);
     const firstError = run.find(e => /(?:error|miss|empty)$/i.test(e.step) || e.meta?.error);
     const blobEvent = latest('event-image-blob') || latest('browser-image-blob');
     const webInsertEnd = latest('web-paste-event:insert-end') || latest('web-paste-browser:insert-end');
@@ -352,9 +345,7 @@ var ClipDebug = (() => {
       objectCountBefore,
       objectCountAfter,
       objectDelta,
-      textObjectCount: end?.meta?.textObjectCount ?? '',
-      textCharCount: end?.meta?.textCharCount ?? '',
-      largestTextChars: end?.meta?.largestTextChars ?? '',
+      ...debugPick(end?.meta, 'textObjectCount textCharCount largestTextChars'),
       pathDetected,
       imageSource: blobEvent?.meta?.type || '',
       blobSize: blobEvent?.meta?.blobSize ?? '',
@@ -368,20 +359,12 @@ var ClipDebug = (() => {
     };
     console.table([out]);
     console.table(checkpoints.map(([checkpoint, ok]) => ({ checkpoint, ok })));
-    return { summary: out, checkpoints: checkpoints.map(([checkpoint, ok]) => ({ checkpoint, ok })), rows: run.map(e => debugRow(e, { includeId: true, includeSkipped: true })) };
+    return { summary: out, checkpoints: checkpoints.map(([checkpoint, ok]) => ({ checkpoint, ok })), rows: run.map(e => debugRow(e)) };
   }
 
   function pasteBreakdown() {
-    const pasteStarts = events.filter(e => e.op === 'pasteAtPos' && e.step === 'start');
-    const pasteStart = pasteStarts[pasteStarts.length - 1];
-    if (!pasteStart) {
-      const empty = { pasteRuns: 0, verdict: 'no pasteAtPos events captured' };
-      console.table([empty]);
-      return empty;
-    }
-    const run = events.filter(e => e.id === pasteStart.id);
-    const latest = (stepName) => debugLast(run, e => e.step === stepName);
-    const first = (stepName) => run.find(e => e.step === stepName);
+    const { empty, starts: pasteStarts, run, latest, first } = lastRunOf('pasteAtPos', 'pasteRuns');
+    if (empty) return empty;
     const blobEvent = latest('event-image-blob') || latest('browser-image-blob');
     const objectAdd = latest('paste:objects-add-start');
     const webInsertEnd = latest('web-paste-event:insert-end') || latest('web-paste-browser:insert-end');
@@ -402,9 +385,7 @@ var ClipDebug = (() => {
       objectAtMs: objectAt,
       displayReadyAtMs: displayAt,
       objectToDisplayMs: typeof objectAt === 'number' && typeof displayAt === 'number' ? Math.round((displayAt - objectAt) * 100) / 100 : '',
-      textObjectCount: end?.meta?.textObjectCount ?? '',
-      textCharCount: end?.meta?.textCharCount ?? '',
-      largestTextChars: end?.meta?.largestTextChars ?? '',
+      ...debugPick(end?.meta, 'textObjectCount textCharCount largestTextChars'),
       cloneMs: cloneDone?.meta?.ms ?? '',
       trimMs: trimDone?.meta?.ms ?? '',
       trimmedTextObjects: trimDone?.meta?.trimmedTextObjects ?? '',
@@ -424,7 +405,7 @@ var ClipDebug = (() => {
         : 'paste did not add an image; inspect rows',
     };
     console.table([out]);
-    return { summary: out, rows: run.map(e => debugRow(e, { includeId: true, includeSkipped: true })) };
+    return { summary: out, rows: run.map(e => debugRow(e)) };
   }
 
   function latestMetaValue(run, names) {
@@ -438,17 +419,8 @@ var ClipDebug = (() => {
   }
 
   function textPasteLagReport(options = {}) {
-    const pasteStarts = events.filter(e => e.op === 'pasteTextEditSelection' && e.step === 'start');
-    const pasteStart = pasteStarts[pasteStarts.length - 1];
-    if (!pasteStart) {
-      const empty = { pasteRuns: 0, verdict: 'no pasteTextEditSelection events captured' };
-      console.table([empty]);
-      return empty;
-    }
-
-    const run = events.filter(e => e.id === pasteStart.id && e.op === pasteStart.op);
-    const latest = (stepName) => debugLast(run, e => e.step === stepName);
-    const first = (stepName) => run.find(e => e.step === stepName);
+    const { empty, starts: pasteStarts, start: pasteStart, run, latest, first } = lastRunOf('pasteTextEditSelection', 'pasteRuns');
+    if (empty) return empty;
     const summarizePasteRun = (start) => {
       const runEvents = events.filter(e => e.id === start.id && e.op === start.op);
       const runLatest = (stepName) => debugLast(runEvents, e => e.step === stepName);
@@ -577,11 +549,7 @@ var ClipDebug = (() => {
       inputEventAgeMs: inputStart?.meta?.eventAgeMs ?? '',
       inputHandlerMs: inputEnd?.meta?.totalMs ?? inputEnd?.dt ?? '',
       dispatchMs: dispatch?.meta?.dispatchMs ?? '',
-      setRangeTextMs: rangeText?.meta?.setRangeTextMs ?? '',
-      valueAssignMs: rangeText?.meta?.valueAssignMs ?? '',
-      valueBuildMs: rangeText?.meta?.valueBuildMs ?? '',
-      valueSetMs: rangeText?.meta?.valueSetMs ?? '',
-      selectionSetMs: rangeText?.meta?.selectionSetMs ?? '',
+      ...debugPick(rangeText?.meta, 'setRangeTextMs valueAssignMs valueBuildMs valueSetMs selectionSetMs'),
       textareaMutationMs: rangeText?.meta?.textareaMutationMs ?? rangeText?.meta?.setRangeTextMs ?? '',
       textareaMutationMethod: rangeText?.meta?.textareaMutationMethod || '',
       historyRecordMs: history?.dt ?? '',
@@ -622,12 +590,12 @@ var ClipDebug = (() => {
     const rowLimit = Math.max(1, Number(options.limit) || 200);
     console.table([summary]);
     if (runSummaries.length > 1) console.table(runSummaries.slice(-rowLimit));
-    console.table(run.map(e => debugRow(e, { includeId: true, includeSkipped: true })).slice(-rowLimit));
+    console.table(run.map(e => debugRow(e)).slice(-rowLimit));
     if (frameRows.length) console.table(frameRows.slice(-Math.min(rowLimit, 80)));
     return {
       summary,
       runSummaries,
-      rows: run.map(e => debugRow(e, { includeId: true, includeSkipped: true })),
+      rows: run.map(e => debugRow(e)),
       frameRows: frameRows.slice(-rowLimit),
       rawInputRows: rawInputRows.slice(-rowLimit),
       eventLoopRows: eventLoopRows.slice(-rowLimit),
@@ -638,7 +606,7 @@ var ClipDebug = (() => {
     const textOps = new Set(['copySelected', 'copyTextEditSelection', 'pasteAtPos', 'pasteTextEditSelection']);
     const rows = events
       .filter(e => textOps.has(e.op) && e.step && e.step !== 'start')
-      .map(e => debugRow(e, { includeId: true, includeSkipped: true }));
+      .map(e => debugRow(e));
     const latestRun = (ops) => {
       const starts = events.filter(e => ops.includes(e.op) && e.step === 'start');
       const start = starts[starts.length - 1];
@@ -706,9 +674,7 @@ var ClipDebug = (() => {
       pasteTextChars: pasteEnd?.meta?.textCharCount ?? pasteEnd?.meta?.textLen ?? '',
       largestTextChars: pasteEnd?.meta?.largestTextChars ?? '',
       processed: pasteProgress?.meta?.processed ?? copyProgress?.meta?.processed ?? '',
-      historyIndex: pasteEnd?.meta?.historyIndex ?? '',
-      objectCountBefore: pasteEnd?.meta?.objectCountBefore ?? '',
-      objectCountAfter: pasteEnd?.meta?.objectCountAfter ?? '',
+      ...debugPick(pasteEnd?.meta, 'historyIndex objectCountBefore objectCountAfter'),
       error: last?.meta?.error || '',
     };
     console.table([out]);
@@ -1136,28 +1102,15 @@ var ViewportDebug = (() => {
     return Math.round(numeric * factor) / factor;
   }
 
-  function wheelDeltaModeLabel(mode) {
-    if (mode === 1) return 'line';
-    if (mode === 2) return 'page';
-    return 'pixel';
-  }
-
-  function wheelDeltaPixelScale(mode) {
-    if (mode === 1) return 16;
-    if (mode === 2) {
-      const pageHeight = typeof window !== 'undefined' ? Number(window.innerHeight) : 1;
-      return Math.max(1, pageHeight || 1);
-    }
-    return 1;
-  }
-
   function wheelEventMeta(event = null) {
     if (!event || !('deltaY' in event || 'deltaX' in event)) return {};
     const deltaMode = Number(event.deltaMode) || 0;
-    const scale = wheelDeltaPixelScale(deltaMode);
+    const [deltaModeLabel, scale] = deltaMode === 1 ? ['line', 16]
+      : deltaMode === 2 ? ['page', Math.max(1, (typeof window !== 'undefined' ? Number(window.innerHeight) : 1) || 1)]
+      : ['pixel', 1];
     return {
       deltaMode,
-      deltaModeLabel: wheelDeltaModeLabel(deltaMode),
+      deltaModeLabel,
       deltaZ: event.deltaZ ?? '',
       wheelDeltaXPx: (Number(event.deltaX) || 0) * scale,
       wheelDeltaYPx: (Number(event.deltaY) || 0) * scale,
@@ -1215,15 +1168,7 @@ var ViewportDebug = (() => {
       deltaX: event?.deltaX ?? '',
       deltaY: event?.deltaY ?? '',
       ...wheelEventMeta(event),
-      button: event?.button ?? '',
-      buttons: event?.buttons ?? '',
-      clientX: event?.clientX ?? '',
-      clientY: event?.clientY ?? '',
-      movementX: event?.movementX ?? '',
-      movementY: event?.movementY ?? '',
-      offsetX: event?.offsetX ?? '',
-      offsetY: event?.offsetY ?? '',
-      pointerId: event?.pointerId ?? '',
+      ...debugPick(event, 'button buttons clientX clientY movementX movementY offsetX offsetY pointerId'),
       pointerType: event?.pointerType || '',
       pressure: event?.pressure ?? '',
       isPrimary: event?.isPrimary ?? '',
@@ -1592,6 +1537,7 @@ var ViewportDebug = (() => {
     for (let i = 1; i < rows.length; i++) gaps.push(rows[i].at - rows[i - 1].at);
     const sum = (values) => values.reduce((n, value) => n + (Number(value) || 0), 0);
     const max = (values) => values.reduce((n, value) => Math.max(n, Number(value) || 0), 0);
+    const avg = (values) => values.length ? round(sum(values) / values.length) : 0;
     const absDeltaY = rows.map(row => Math.abs(Number(row.deltaY) || 0));
     const zoomStepPct = zoomRows.map(row => {
       const before = Number(row.zoom) || 0;
@@ -1610,14 +1556,14 @@ var ViewportDebug = (() => {
       bufferedWheelEvents: rows.length,
       zoomEvents: zoomRows.length,
       panEvents: rows.filter(row => row.mode === 'pan').length,
-      avgWheelGapMs: gaps.length ? round(sum(gaps) / gaps.length) : 0,
+      avgWheelGapMs: avg(gaps),
       maxWheelGapMs: round(max(gaps)),
       gapsOver16ms: gaps.filter(gap => gap > 16.7).length,
       gapsOver32ms: gaps.filter(gap => gap > 32).length,
       gapsOver80ms: gaps.filter(gap => gap > 80).length,
-      avgAbsDeltaY: absDeltaY.length ? round(sum(absDeltaY) / absDeltaY.length) : 0,
+      avgAbsDeltaY: avg(absDeltaY),
       maxAbsDeltaY: round(max(absDeltaY)),
-      avgZoomStepPct: zoomStepPct.length ? round(sum(zoomStepPct) / zoomStepPct.length) : 0,
+      avgZoomStepPct: avg(zoomStepPct),
       maxZoomStepPct: round(max(zoomStepPct)),
       directionChanges,
       firstAt: rows[0]?.at ?? '',
@@ -1635,21 +1581,10 @@ var ViewportDebug = (() => {
       at: row.at,
       gapMs: idx ? Math.round((row.at - list[idx - 1].at) * 100) / 100 : '',
       mode: row.mode || '',
-      deltaX: row.deltaX ?? '',
-      deltaY: row.deltaY ?? '',
-      deltaMode: row.deltaMode ?? '',
-      wheelDeltaXPx: row.wheelDeltaXPx ?? '',
-      wheelDeltaYPx: row.wheelDeltaYPx ?? '',
+      ...debugPick(row, 'deltaX deltaY deltaMode wheelDeltaXPx wheelDeltaYPx'),
       ctrl: !!row.ctrlKey,
       meta: !!row.metaKey,
-      zoom: row.zoom ?? '',
-      newZoom: row.newZoom ?? '',
-      panX: row.panX ?? '',
-      panY: row.panY ?? '',
-      panDeltaX: row.panDeltaX ?? '',
-      panDeltaY: row.panDeltaY ?? '',
-      zoomDeltaPct: row.zoomDeltaPct ?? '',
-      handlerMs: row.handlerMs ?? '',
+      ...debugPick(row, 'zoom newZoom panX panY panDeltaX panDeltaY zoomDeltaPct handlerMs'),
     }));
     console.table(recent);
     return recent;
@@ -1823,57 +1758,15 @@ var ViewportDebug = (() => {
       .map(e => ({ ms: e.total, ...(e.meta || {}) }));
     const retainedSlowDraws = slowRecords
       .map(e => ({
-        frameMs: e.frameMs,
+        ...e.steps?.drawBoard?.meta,
         drawMs: e.steps?.drawBoard?.ms ?? e.steps?.drawBoard?.meta?.totalMeasuredMs ?? 0,
-        objectLoopMs: e.steps?.drawBoard?.meta?.objectLoopMs ?? 0,
-        croppedImages: e.steps?.drawBoard?.meta?.croppedImages ?? 0,
-        scaledFallbackFull: e.steps?.drawBoard?.meta?.scaledFallbackFull ?? 0,
-        activeInputFullFallbackImages: e.steps?.drawBoard?.meta?.activeInputFullFallbackImages ?? 0,
-        motionObjects: e.steps?.drawBoard?.meta?.motionObjects ?? 0,
-        motionImages: e.steps?.drawBoard?.meta?.motionImages ?? 0,
-        motionText: e.steps?.drawBoard?.meta?.motionText ?? 0,
-        motionTranslatedObjects: e.steps?.drawBoard?.meta?.motionTranslatedObjects ?? 0,
-        motionScaledObjects: e.steps?.drawBoard?.meta?.motionScaledObjects ?? 0,
-        motionScaledImages: e.steps?.drawBoard?.meta?.motionScaledImages ?? 0,
-        motionFullScaleImages: e.steps?.drawBoard?.meta?.motionFullScaleImages ?? 0,
-        motionFullFallbackImages: e.steps?.drawBoard?.meta?.motionFullFallbackImages ?? 0,
-        motionActiveInputFullFallbackImages: e.steps?.drawBoard?.meta?.motionActiveInputFullFallbackImages ?? 0,
-        imageSourceFirstDraws: e.steps?.drawBoard?.meta?.imageSourceFirstDraws ?? 0,
-        imageSourceWarmDraws: e.steps?.drawBoard?.meta?.imageSourceWarmDraws ?? 0,
-        imageContextFirstDraws: e.steps?.drawBoard?.meta?.imageContextFirstDraws ?? 0,
-        imageContextWarmDraws: e.steps?.drawBoard?.meta?.imageContextWarmDraws ?? 0,
-        scaledImageContextFirstDraws: e.steps?.drawBoard?.meta?.scaledImageContextFirstDraws ?? 0,
-        fullScaleImageContextFirstDraws: e.steps?.drawBoard?.meta?.fullScaleImageContextFirstDraws ?? 0,
-        drawnTextLines: e.steps?.drawBoard?.meta?.drawnTextLines ?? 0,
-        culledTextLines: e.steps?.drawBoard?.meta?.culledTextLines ?? 0,
-        textDrawUnits: e.steps?.drawBoard?.meta?.textDrawUnits ?? 0,
-        textDrawCalls: e.steps?.drawBoard?.meta?.textDrawCalls ?? 0,
-        textRuns: e.steps?.drawBoard?.meta?.textRuns ?? 0,
-        textSkippedTabs: e.steps?.drawBoard?.meta?.textSkippedTabs ?? 0,
-        textSkippedSpaces: e.steps?.drawBoard?.meta?.textSkippedSpaces ?? 0,
-        textPlanCacheHits: e.steps?.drawBoard?.meta?.textPlanCacheHits ?? 0,
-        textPlanCacheMisses: e.steps?.drawBoard?.meta?.textPlanCacheMisses ?? 0,
-        textLineDrawMs: e.steps?.drawBoard?.meta?.textLineDrawMs ?? 0,
-        maxTextLineDrawMs: e.steps?.drawBoard?.meta?.maxTextLineDrawMs ?? 0,
-        slowTextLineDrawCount: e.steps?.drawBoard?.meta?.slowTextLineDrawCount ?? 0,
-        maxTextDrawUnitsPerLine: e.steps?.drawBoard?.meta?.maxTextDrawUnitsPerLine ?? 0,
-        maxTextDrawCallsPerLine: e.steps?.drawBoard?.meta?.maxTextDrawCallsPerLine ?? 0,
-        maxTextRunsPerLine: e.steps?.drawBoard?.meta?.maxTextRunsPerLine ?? 0,
-        textDirectDraws: e.steps?.drawBoard?.meta?.textDirectDraws ?? 0,
-        editLayoutMs: e.steps?.drawBoard?.meta?.editLayoutMs ?? 0,
-        editTextDrawMs: e.steps?.drawBoard?.meta?.editTextDrawMs ?? 0,
-        editSelectionMs: e.steps?.drawBoard?.meta?.editSelectionMs ?? 0,
-        editCaretMs: e.steps?.drawBoard?.meta?.editCaretMs ?? 0,
-        editVisibleLines: e.steps?.drawBoard?.meta?.editVisibleLines ?? 0,
-        editCulledLines: e.steps?.drawBoard?.meta?.editCulledLines ?? 0,
-        editSelectedChars: e.steps?.drawBoard?.meta?.editSelectedChars ?? 0,
-        editSelectionLines: e.steps?.drawBoard?.meta?.editSelectionLines ?? 0,
-        editSelectionVisibleLines: e.steps?.drawBoard?.meta?.editSelectionVisibleLines ?? 0,
       }))
       .filter(row => Number(row.drawMs) > 0);
     const sum = (field) => draws.reduce((n, row) => n + (Number(row[field]) || 0), 0);
     const max = (field) => draws.reduce((n, row) => Math.max(n, Number(row[field]) || 0), 0);
     const slowMax = (field) => retainedSlowDraws.reduce((n, row) => Math.max(n, Number(row[field]) || 0), 0);
+    const avg = (field) => draws.length ? Math.round(sum(field) / draws.length * 100) / 100 : 0;
+    const peak = (field) => Math.max(max(field), slowMax(field));
     const recentMaxDrawMs = Math.round(max('ms') * 100) / 100;
     const retainedMaxSlowDrawMs = Math.round(slowMax('drawMs') * 100) / 100;
     const recentMaxObjectLoopMs = Math.round(max('objectLoopMs') * 100) / 100;
@@ -1883,127 +1776,127 @@ var ViewportDebug = (() => {
     const out = {
       draws: draws.length,
       retainedSlowDraws: retainedSlowDraws.length,
-      avgDrawMs: draws.length ? Math.round(sum('ms') / draws.length * 100) / 100 : 0,
+      avgDrawMs: avg('ms'),
       maxDrawMs: Math.max(recentMaxDrawMs, retainedMaxSlowDrawMs),
       recentMaxDrawMs,
       retainedMaxSlowDrawMs,
-      avgDrawnImages: draws.length ? Math.round(sum('drawnImages') / draws.length * 100) / 100 : 0,
+      avgDrawnImages: avg('drawnImages'),
       maxDrawnImages: max('drawnImages'),
-      avgTestedObjects: draws.length ? Math.round(sum('testedObjects') / draws.length * 100) / 100 : 0,
+      avgTestedObjects: avg('testedObjects'),
       maxTestedObjects: max('testedObjects'),
-      avgVisibleObjects: draws.length ? Math.round(sum('visibleObjects') / draws.length * 100) / 100 : 0,
+      avgVisibleObjects: avg('visibleObjects'),
       maxVisibleObjects: max('visibleObjects'),
-      avgObjectLoopMs: draws.length ? Math.round(sum('objectLoopMs') / draws.length * 100) / 100 : 0,
+      avgObjectLoopMs: avg('objectLoopMs'),
       maxObjectLoopMs: Math.max(recentMaxObjectLoopMs, retainedMaxSlowObjectLoopMs),
       recentMaxObjectLoopMs,
       retainedMaxSlowObjectLoopMs,
-      avgBackgroundSetupMs: draws.length ? Math.round(sum('backgroundSetupMs') / draws.length * 100) / 100 : 0,
+      avgBackgroundSetupMs: avg('backgroundSetupMs'),
       maxBackgroundSetupMs: Math.round(max('backgroundSetupMs') * 100) / 100,
-      avgOffscreenBlitMs: draws.length ? Math.round(sum('offscreenBlitMs') / draws.length * 100) / 100 : 0,
+      avgOffscreenBlitMs: avg('offscreenBlitMs'),
       maxOffscreenBlitMs: Math.round(max('offscreenBlitMs') * 100) / 100,
-      avgEditingOverlayMs: draws.length ? Math.round(sum('editingOverlayMs') / draws.length * 100) / 100 : 0,
+      avgEditingOverlayMs: avg('editingOverlayMs'),
       maxEditingOverlayMs: Math.round(max('editingOverlayMs') * 100) / 100,
-      avgCulledImages: draws.length ? Math.round(sum('culledImages') / draws.length * 100) / 100 : 0,
+      avgCulledImages: avg('culledImages'),
       maxCulledImages: max('culledImages'),
-      avgBitmapImages: draws.length ? Math.round(sum('bitmapImages') / draws.length * 100) / 100 : 0,
-      avgScaledImages: draws.length ? Math.round(sum('scaledImages') / draws.length * 100) / 100 : 0,
+      avgBitmapImages: avg('bitmapImages'),
+      avgScaledImages: avg('scaledImages'),
       maxScaledImages: max('scaledImages'),
-      avgFullScaleImages: draws.length ? Math.round(sum('fullScaleImages') / draws.length * 100) / 100 : 0,
+      avgFullScaleImages: avg('fullScaleImages'),
       maxFullScaleImages: max('fullScaleImages'),
-      avgScaledFallbackFull: draws.length ? Math.round(sum('scaledFallbackFull') / draws.length * 100) / 100 : 0,
-      maxScaledFallbackFull: Math.max(max('scaledFallbackFull'), slowMax('scaledFallbackFull')),
-      avgActiveInputFullFallbackImages: draws.length ? Math.round(sum('activeInputFullFallbackImages') / draws.length * 100) / 100 : 0,
-      maxActiveInputFullFallbackImages: Math.max(max('activeInputFullFallbackImages'), slowMax('activeInputFullFallbackImages')),
-      avgMotionObjects: draws.length ? Math.round(sum('motionObjects') / draws.length * 100) / 100 : 0,
-      maxMotionObjects: Math.max(max('motionObjects'), slowMax('motionObjects')),
-      avgMotionImages: draws.length ? Math.round(sum('motionImages') / draws.length * 100) / 100 : 0,
-      maxMotionImages: Math.max(max('motionImages'), slowMax('motionImages')),
-      avgMotionText: draws.length ? Math.round(sum('motionText') / draws.length * 100) / 100 : 0,
-      maxMotionText: Math.max(max('motionText'), slowMax('motionText')),
-      avgMotionTranslatedObjects: draws.length ? Math.round(sum('motionTranslatedObjects') / draws.length * 100) / 100 : 0,
-      maxMotionTranslatedObjects: Math.max(max('motionTranslatedObjects'), slowMax('motionTranslatedObjects')),
-      avgMotionScaledObjects: draws.length ? Math.round(sum('motionScaledObjects') / draws.length * 100) / 100 : 0,
-      maxMotionScaledObjects: Math.max(max('motionScaledObjects'), slowMax('motionScaledObjects')),
-      avgMotionScaledImages: draws.length ? Math.round(sum('motionScaledImages') / draws.length * 100) / 100 : 0,
-      maxMotionScaledImages: Math.max(max('motionScaledImages'), slowMax('motionScaledImages')),
-      avgMotionFullScaleImages: draws.length ? Math.round(sum('motionFullScaleImages') / draws.length * 100) / 100 : 0,
-      maxMotionFullScaleImages: Math.max(max('motionFullScaleImages'), slowMax('motionFullScaleImages')),
-      avgMotionFullFallbackImages: draws.length ? Math.round(sum('motionFullFallbackImages') / draws.length * 100) / 100 : 0,
-      maxMotionFullFallbackImages: Math.max(max('motionFullFallbackImages'), slowMax('motionFullFallbackImages')),
-      avgMotionActiveInputFullFallbackImages: draws.length ? Math.round(sum('motionActiveInputFullFallbackImages') / draws.length * 100) / 100 : 0,
-      maxMotionActiveInputFullFallbackImages: Math.max(max('motionActiveInputFullFallbackImages'), slowMax('motionActiveInputFullFallbackImages')),
+      avgScaledFallbackFull: avg('scaledFallbackFull'),
+      maxScaledFallbackFull: peak('scaledFallbackFull'),
+      avgActiveInputFullFallbackImages: avg('activeInputFullFallbackImages'),
+      maxActiveInputFullFallbackImages: peak('activeInputFullFallbackImages'),
+      avgMotionObjects: avg('motionObjects'),
+      maxMotionObjects: peak('motionObjects'),
+      avgMotionImages: avg('motionImages'),
+      maxMotionImages: peak('motionImages'),
+      avgMotionText: avg('motionText'),
+      maxMotionText: peak('motionText'),
+      avgMotionTranslatedObjects: avg('motionTranslatedObjects'),
+      maxMotionTranslatedObjects: peak('motionTranslatedObjects'),
+      avgMotionScaledObjects: avg('motionScaledObjects'),
+      maxMotionScaledObjects: peak('motionScaledObjects'),
+      avgMotionScaledImages: avg('motionScaledImages'),
+      maxMotionScaledImages: peak('motionScaledImages'),
+      avgMotionFullScaleImages: avg('motionFullScaleImages'),
+      maxMotionFullScaleImages: peak('motionFullScaleImages'),
+      avgMotionFullFallbackImages: avg('motionFullFallbackImages'),
+      maxMotionFullFallbackImages: peak('motionFullFallbackImages'),
+      avgMotionActiveInputFullFallbackImages: avg('motionActiveInputFullFallbackImages'),
+      maxMotionActiveInputFullFallbackImages: peak('motionActiveInputFullFallbackImages'),
       avgScaledImageScale: sum('scaledImages') ? Math.round(sum('scaledImageScaleTotal') / sum('scaledImages') * 1000) / 1000 : 1,
       avgTargetImageScale: sum('scaledImages') ? Math.round(sum('scaledImageTargetScaleTotal') / sum('scaledImages') * 1000) / 1000 : 1,
-      avgImageSourceFirstDraws: draws.length ? Math.round(sum('imageSourceFirstDraws') / draws.length * 100) / 100 : 0,
-      maxImageSourceFirstDraws: Math.max(max('imageSourceFirstDraws'), slowMax('imageSourceFirstDraws')),
-      avgImageSourceWarmDraws: draws.length ? Math.round(sum('imageSourceWarmDraws') / draws.length * 100) / 100 : 0,
-      maxImageSourceWarmDraws: Math.max(max('imageSourceWarmDraws'), slowMax('imageSourceWarmDraws')),
-      avgImageContextFirstDraws: draws.length ? Math.round(sum('imageContextFirstDraws') / draws.length * 100) / 100 : 0,
-      maxImageContextFirstDraws: Math.max(max('imageContextFirstDraws'), slowMax('imageContextFirstDraws')),
-      avgImageContextWarmDraws: draws.length ? Math.round(sum('imageContextWarmDraws') / draws.length * 100) / 100 : 0,
-      maxImageContextWarmDraws: Math.max(max('imageContextWarmDraws'), slowMax('imageContextWarmDraws')),
-      avgScaledImageContextFirstDraws: draws.length ? Math.round(sum('scaledImageContextFirstDraws') / draws.length * 100) / 100 : 0,
-      maxScaledImageContextFirstDraws: Math.max(max('scaledImageContextFirstDraws'), slowMax('scaledImageContextFirstDraws')),
-      avgFullScaleImageContextFirstDraws: draws.length ? Math.round(sum('fullScaleImageContextFirstDraws') / draws.length * 100) / 100 : 0,
-      maxFullScaleImageContextFirstDraws: Math.max(max('fullScaleImageContextFirstDraws'), slowMax('fullScaleImageContextFirstDraws')),
-      avgMissingImages: draws.length ? Math.round(sum('missingImages') / draws.length * 100) / 100 : 0,
+      avgImageSourceFirstDraws: avg('imageSourceFirstDraws'),
+      maxImageSourceFirstDraws: peak('imageSourceFirstDraws'),
+      avgImageSourceWarmDraws: avg('imageSourceWarmDraws'),
+      maxImageSourceWarmDraws: peak('imageSourceWarmDraws'),
+      avgImageContextFirstDraws: avg('imageContextFirstDraws'),
+      maxImageContextFirstDraws: peak('imageContextFirstDraws'),
+      avgImageContextWarmDraws: avg('imageContextWarmDraws'),
+      maxImageContextWarmDraws: peak('imageContextWarmDraws'),
+      avgScaledImageContextFirstDraws: avg('scaledImageContextFirstDraws'),
+      maxScaledImageContextFirstDraws: peak('scaledImageContextFirstDraws'),
+      avgFullScaleImageContextFirstDraws: avg('fullScaleImageContextFirstDraws'),
+      maxFullScaleImageContextFirstDraws: peak('fullScaleImageContextFirstDraws'),
+      avgMissingImages: avg('missingImages'),
       maxMissingImages: max('missingImages'),
-      avgErroredImages: draws.length ? Math.round(sum('erroredImages') / draws.length * 100) / 100 : 0,
-      avgCroppedImages: draws.length ? Math.round(sum('croppedImages') / draws.length * 100) / 100 : 0,
+      avgErroredImages: avg('erroredImages'),
+      avgCroppedImages: avg('croppedImages'),
       maxRetainedSlowCroppedImages: slowMax('croppedImages'),
-      avgDrawnText: draws.length ? Math.round(sum('drawnText') / draws.length * 100) / 100 : 0,
-      avgCulledText: draws.length ? Math.round(sum('culledText') / draws.length * 100) / 100 : 0,
-      avgTextLayoutMs: draws.length ? Math.round(sum('textLayoutMs') / draws.length * 100) / 100 : 0,
+      avgDrawnText: avg('drawnText'),
+      avgCulledText: avg('culledText'),
+      avgTextLayoutMs: avg('textLayoutMs'),
       maxTextLayoutMs: Math.round(max('maxTextLayoutMs') * 100) / 100,
-      avgTextLayoutObjects: draws.length ? Math.round(sum('textLayoutObjects') / draws.length * 100) / 100 : 0,
+      avgTextLayoutObjects: avg('textLayoutObjects'),
       maxTextCharCount: max('textCharCount'),
       largestTextChars: max('largestTextChars'),
       largestTextLayoutLines: max('largestTextLayoutLines'),
-      avgTextLines: draws.length ? Math.round(sum('textLines') / draws.length * 100) / 100 : 0,
-      avgDrawnTextLines: draws.length ? Math.round(sum('drawnTextLines') / draws.length * 100) / 100 : 0,
-      maxDrawnTextLines: Math.max(max('drawnTextLines'), slowMax('drawnTextLines')),
-      avgCulledTextLines: draws.length ? Math.round(sum('culledTextLines') / draws.length * 100) / 100 : 0,
-      maxCulledTextLines: Math.max(max('culledTextLines'), slowMax('culledTextLines')),
-      avgTextDrawUnits: draws.length ? Math.round(sum('textDrawUnits') / draws.length * 100) / 100 : 0,
-      maxTextDrawUnits: Math.max(max('textDrawUnits'), slowMax('textDrawUnits')),
-      avgTextDrawCalls: draws.length ? Math.round(sum('textDrawCalls') / draws.length * 100) / 100 : 0,
-      maxTextDrawCalls: Math.max(max('textDrawCalls'), slowMax('textDrawCalls')),
+      avgTextLines: avg('textLines'),
+      avgDrawnTextLines: avg('drawnTextLines'),
+      maxDrawnTextLines: peak('drawnTextLines'),
+      avgCulledTextLines: avg('culledTextLines'),
+      maxCulledTextLines: peak('culledTextLines'),
+      avgTextDrawUnits: avg('textDrawUnits'),
+      maxTextDrawUnits: peak('textDrawUnits'),
+      avgTextDrawCalls: avg('textDrawCalls'),
+      maxTextDrawCalls: peak('textDrawCalls'),
       textDrawCallReductionPct: textDrawUnits > 0
         ? Math.round((1 - textDrawCalls / textDrawUnits) * 10000) / 100
         : 0,
-      avgTextRuns: draws.length ? Math.round(sum('textRuns') / draws.length * 100) / 100 : 0,
-      maxTextRuns: Math.max(max('textRuns'), slowMax('textRuns')),
-      avgTextSkippedTabs: draws.length ? Math.round(sum('textSkippedTabs') / draws.length * 100) / 100 : 0,
-      maxTextSkippedTabs: Math.max(max('textSkippedTabs'), slowMax('textSkippedTabs')),
-      avgTextSkippedSpaces: draws.length ? Math.round(sum('textSkippedSpaces') / draws.length * 100) / 100 : 0,
-      maxTextSkippedSpaces: Math.max(max('textSkippedSpaces'), slowMax('textSkippedSpaces')),
-      avgTextPlanCacheHits: draws.length ? Math.round(sum('textPlanCacheHits') / draws.length * 100) / 100 : 0,
-      maxTextPlanCacheHits: Math.max(max('textPlanCacheHits'), slowMax('textPlanCacheHits')),
-      avgTextPlanCacheMisses: draws.length ? Math.round(sum('textPlanCacheMisses') / draws.length * 100) / 100 : 0,
-      maxTextPlanCacheMisses: Math.max(max('textPlanCacheMisses'), slowMax('textPlanCacheMisses')),
-      avgTextLineDrawMs: draws.length ? Math.round(sum('textLineDrawMs') / draws.length * 100) / 100 : 0,
-      maxTextLineDrawMs: Math.round(Math.max(max('maxTextLineDrawMs'), slowMax('maxTextLineDrawMs')) * 100) / 100,
-      maxSlowTextLineDrawCount: Math.max(max('slowTextLineDrawCount'), slowMax('slowTextLineDrawCount')),
-      maxTextDrawUnitsPerLine: Math.max(max('maxTextDrawUnitsPerLine'), slowMax('maxTextDrawUnitsPerLine')),
-      maxTextDrawCallsPerLine: Math.max(max('maxTextDrawCallsPerLine'), slowMax('maxTextDrawCallsPerLine')),
-      maxTextRunsPerLine: Math.max(max('maxTextRunsPerLine'), slowMax('maxTextRunsPerLine')),
-      avgTextDirectDraws: draws.length ? Math.round(sum('textDirectDraws') / draws.length * 100) / 100 : 0,
-      maxTextDirectDraws: Math.max(max('textDirectDraws'), slowMax('textDirectDraws')),
-      avgEditLayoutMs: draws.length ? Math.round(sum('editLayoutMs') / draws.length * 100) / 100 : 0,
-      maxEditLayoutMs: Math.round(Math.max(max('editLayoutMs'), slowMax('editLayoutMs')) * 100) / 100,
-      avgEditTextDrawMs: draws.length ? Math.round(sum('editTextDrawMs') / draws.length * 100) / 100 : 0,
-      maxEditTextDrawMs: Math.round(Math.max(max('editTextDrawMs'), slowMax('editTextDrawMs')) * 100) / 100,
-      avgEditSelectionMs: draws.length ? Math.round(sum('editSelectionMs') / draws.length * 100) / 100 : 0,
-      maxEditSelectionMs: Math.round(Math.max(max('editSelectionMs'), slowMax('editSelectionMs')) * 100) / 100,
-      maxEditSelectedChars: Math.max(max('editSelectedChars'), slowMax('editSelectedChars')),
-      maxEditSelectionLines: Math.max(max('editSelectionLines'), slowMax('editSelectionLines')),
-      maxEditSelectionVisibleLines: Math.max(max('editSelectionVisibleLines'), slowMax('editSelectionVisibleLines')),
-      avgEditCaretMs: draws.length ? Math.round(sum('editCaretMs') / draws.length * 100) / 100 : 0,
-      maxEditCaretMs: Math.round(Math.max(max('editCaretMs'), slowMax('editCaretMs')) * 100) / 100,
-      avgEditVisibleLines: draws.length ? Math.round(sum('editVisibleLines') / draws.length * 100) / 100 : 0,
-      maxEditVisibleLines: Math.max(max('editVisibleLines'), slowMax('editVisibleLines')),
-      avgEditCulledLines: draws.length ? Math.round(sum('editCulledLines') / draws.length * 100) / 100 : 0,
-      maxEditCulledLines: Math.max(max('editCulledLines'), slowMax('editCulledLines')),
+      avgTextRuns: avg('textRuns'),
+      maxTextRuns: peak('textRuns'),
+      avgTextSkippedTabs: avg('textSkippedTabs'),
+      maxTextSkippedTabs: peak('textSkippedTabs'),
+      avgTextSkippedSpaces: avg('textSkippedSpaces'),
+      maxTextSkippedSpaces: peak('textSkippedSpaces'),
+      avgTextPlanCacheHits: avg('textPlanCacheHits'),
+      maxTextPlanCacheHits: peak('textPlanCacheHits'),
+      avgTextPlanCacheMisses: avg('textPlanCacheMisses'),
+      maxTextPlanCacheMisses: peak('textPlanCacheMisses'),
+      avgTextLineDrawMs: avg('textLineDrawMs'),
+      maxTextLineDrawMs: Math.round(peak('maxTextLineDrawMs') * 100) / 100,
+      maxSlowTextLineDrawCount: peak('slowTextLineDrawCount'),
+      maxTextDrawUnitsPerLine: peak('maxTextDrawUnitsPerLine'),
+      maxTextDrawCallsPerLine: peak('maxTextDrawCallsPerLine'),
+      maxTextRunsPerLine: peak('maxTextRunsPerLine'),
+      avgTextDirectDraws: avg('textDirectDraws'),
+      maxTextDirectDraws: peak('textDirectDraws'),
+      avgEditLayoutMs: avg('editLayoutMs'),
+      maxEditLayoutMs: Math.round(peak('editLayoutMs') * 100) / 100,
+      avgEditTextDrawMs: avg('editTextDrawMs'),
+      maxEditTextDrawMs: Math.round(peak('editTextDrawMs') * 100) / 100,
+      avgEditSelectionMs: avg('editSelectionMs'),
+      maxEditSelectionMs: Math.round(peak('editSelectionMs') * 100) / 100,
+      maxEditSelectedChars: peak('editSelectedChars'),
+      maxEditSelectionLines: peak('editSelectionLines'),
+      maxEditSelectionVisibleLines: peak('editSelectionVisibleLines'),
+      avgEditCaretMs: avg('editCaretMs'),
+      maxEditCaretMs: Math.round(peak('editCaretMs') * 100) / 100,
+      avgEditVisibleLines: avg('editVisibleLines'),
+      maxEditVisibleLines: peak('editVisibleLines'),
+      avgEditCulledLines: avg('editCulledLines'),
+      maxEditCulledLines: peak('editCulledLines'),
     };
     console.table([out]);
     return out;
@@ -2188,99 +2081,37 @@ var ViewportDebug = (() => {
 
   function slowFrames(limit = 20) {
     const rows = slowRecords
-      .map(e => ({
-        id: e.id,
-        frameMs: e.frameMs ?? '',
-        queueMs: e.queueMs ?? '',
-        inputAgeMs: e.inputAgeMs ?? '',
-        inputSource: e.inputSource ?? '',
-        rafGap: e.rafGap ?? '',
-        sources: e.sources ?? '',
-        doTransform: e.doTransform ?? '',
-        doBoard: e.doBoard ?? '',
-        doOverlay: e.doOverlay ?? '',
-        applyTransformCallMs: e.steps?.applyTransformCall?.ms ?? '',
-        drawBoardMs: e.steps?.drawBoard?.ms ?? '',
-        objectLoopMs: e.steps?.drawBoard?.meta?.objectLoopMs ?? '',
-        backgroundSetupMs: e.steps?.drawBoard?.meta?.backgroundSetupMs ?? '',
-        offscreenBlitMs: e.steps?.drawBoard?.meta?.offscreenBlitMs ?? '',
-        editingOverlayMs: e.steps?.drawBoard?.meta?.editingOverlayMs ?? '',
-        testedObjects: e.steps?.drawBoard?.meta?.testedObjects ?? '',
-        visibleObjects: e.steps?.drawBoard?.meta?.visibleObjects ?? '',
-        drawnImages: e.steps?.drawBoard?.meta?.drawnImages ?? '',
-        drawnText: e.steps?.drawBoard?.meta?.drawnText ?? '',
-        textLayoutMs: e.steps?.drawBoard?.meta?.textLayoutMs ?? '',
-        maxTextLayoutMs: e.steps?.drawBoard?.meta?.maxTextLayoutMs ?? '',
-        textLayoutObjects: e.steps?.drawBoard?.meta?.textLayoutObjects ?? '',
-        textCharCount: e.steps?.drawBoard?.meta?.textCharCount ?? '',
-        largestTextChars: e.steps?.drawBoard?.meta?.largestTextChars ?? '',
-        largestTextLayoutLines: e.steps?.drawBoard?.meta?.largestTextLayoutLines ?? '',
-        textLines: e.steps?.drawBoard?.meta?.textLines ?? '',
-        drawnTextLines: e.steps?.drawBoard?.meta?.drawnTextLines ?? '',
-        culledTextLines: e.steps?.drawBoard?.meta?.culledTextLines ?? '',
-        textDrawUnits: e.steps?.drawBoard?.meta?.textDrawUnits ?? '',
-        textDrawCalls: e.steps?.drawBoard?.meta?.textDrawCalls ?? '',
-        textRuns: e.steps?.drawBoard?.meta?.textRuns ?? '',
-        textSkippedTabs: e.steps?.drawBoard?.meta?.textSkippedTabs ?? '',
-        textSkippedSpaces: e.steps?.drawBoard?.meta?.textSkippedSpaces ?? '',
-        textPlanCacheHits: e.steps?.drawBoard?.meta?.textPlanCacheHits ?? '',
-        textPlanCacheMisses: e.steps?.drawBoard?.meta?.textPlanCacheMisses ?? '',
-        textLineDrawMs: e.steps?.drawBoard?.meta?.textLineDrawMs ?? '',
-        maxTextLineDrawMs: e.steps?.drawBoard?.meta?.maxTextLineDrawMs ?? '',
-        slowTextLineDrawCount: e.steps?.drawBoard?.meta?.slowTextLineDrawCount ?? '',
-        maxTextDrawUnitsPerLine: e.steps?.drawBoard?.meta?.maxTextDrawUnitsPerLine ?? '',
-        maxTextDrawCallsPerLine: e.steps?.drawBoard?.meta?.maxTextDrawCallsPerLine ?? '',
-        maxTextRunsPerLine: e.steps?.drawBoard?.meta?.maxTextRunsPerLine ?? '',
-        textDirectDraws: e.steps?.drawBoard?.meta?.textDirectDraws ?? '',
-        editLayoutMs: e.steps?.drawBoard?.meta?.editLayoutMs ?? '',
-        editTextDrawMs: e.steps?.drawBoard?.meta?.editTextDrawMs ?? '',
-        editSelectionMs: e.steps?.drawBoard?.meta?.editSelectionMs ?? '',
-        editCaretMs: e.steps?.drawBoard?.meta?.editCaretMs ?? '',
-        editLayoutLines: e.steps?.drawBoard?.meta?.editLayoutLines ?? '',
-        editVisibleLines: e.steps?.drawBoard?.meta?.editVisibleLines ?? '',
-        editCulledLines: e.steps?.drawBoard?.meta?.editCulledLines ?? '',
-        editSelectionRuns: e.steps?.drawBoard?.meta?.editSelectionRuns ?? '',
-        editSelectedChars: e.steps?.drawBoard?.meta?.editSelectedChars ?? '',
-        editSelectionLines: e.steps?.drawBoard?.meta?.editSelectionLines ?? '',
-        editSelectionVisibleLines: e.steps?.drawBoard?.meta?.editSelectionVisibleLines ?? '',
-        editCaretDrawn: e.steps?.drawBoard?.meta?.editCaretDrawn ?? '',
-        bitmapImages: e.steps?.drawBoard?.meta?.bitmapImages ?? '',
-        scaledImages: e.steps?.drawBoard?.meta?.scaledImages ?? '',
-        scaledFallbackFull: e.steps?.drawBoard?.meta?.scaledFallbackFull ?? '',
-        activeInputFullFallbackImages: e.steps?.drawBoard?.meta?.activeInputFullFallbackImages ?? '',
-        motionObjects: e.steps?.drawBoard?.meta?.motionObjects ?? '',
-        motionImages: e.steps?.drawBoard?.meta?.motionImages ?? '',
-        motionText: e.steps?.drawBoard?.meta?.motionText ?? '',
-        motionTranslatedObjects: e.steps?.drawBoard?.meta?.motionTranslatedObjects ?? '',
-        motionScaledObjects: e.steps?.drawBoard?.meta?.motionScaledObjects ?? '',
-        motionScaledImages: e.steps?.drawBoard?.meta?.motionScaledImages ?? '',
-        motionFullScaleImages: e.steps?.drawBoard?.meta?.motionFullScaleImages ?? '',
-        motionFullFallbackImages: e.steps?.drawBoard?.meta?.motionFullFallbackImages ?? '',
-        motionActiveInputFullFallbackImages: e.steps?.drawBoard?.meta?.motionActiveInputFullFallbackImages ?? '',
-        imageSourceFirstDraws: e.steps?.drawBoard?.meta?.imageSourceFirstDraws ?? '',
-        imageSourceWarmDraws: e.steps?.drawBoard?.meta?.imageSourceWarmDraws ?? '',
-        imageContextFirstDraws: e.steps?.drawBoard?.meta?.imageContextFirstDraws ?? '',
-        imageContextWarmDraws: e.steps?.drawBoard?.meta?.imageContextWarmDraws ?? '',
-        scaledImageContextFirstDraws: e.steps?.drawBoard?.meta?.scaledImageContextFirstDraws ?? '',
-        fullScaleImageContextFirstDraws: e.steps?.drawBoard?.meta?.fullScaleImageContextFirstDraws ?? '',
-        fullScaleImages: e.steps?.drawBoard?.meta?.fullScaleImages ?? '',
-        missingImages: e.steps?.drawBoard?.meta?.missingImages ?? '',
-        croppedImages: e.steps?.drawBoard?.meta?.croppedImages ?? '',
-        culledImages: e.steps?.drawBoard?.meta?.culledImages ?? '',
-        culledText: e.steps?.drawBoard?.meta?.culledText ?? '',
-        slowDrawObjects: (e.steps?.drawBoard?.meta?.slowDrawObjects || [])
-          .map(row => `${row.type || ''}:${row.id || ''}${row.imgKey ? ':' + row.imgKey : ''}:${row.ms ?? ''}ms`)
-          .join(' | '),
-        slowDrawObjectRows: (e.steps?.drawBoard?.meta?.slowDrawObjects || []).map(row => ({ ...row })),
-        slowTextLineDraws: (e.steps?.drawBoard?.meta?.slowTextLineDraws || [])
-          .map(row => `${row.objectId || row.id || ''}:${row.logicalLineIndex ?? ''}:${row.ms ?? ''}ms`)
-          .join(' | '),
-        slowTextLineRows: (e.steps?.drawBoard?.meta?.slowTextLineDraws || []).map(row => ({ ...row })),
-        canvasW: e.steps?.drawBoard?.meta?.canvasW ?? '',
-        canvasH: e.steps?.drawBoard?.meta?.canvasH ?? '',
-        zoom: e.steps?.drawBoard?.meta?.zoom ?? e.zoom ?? '',
-        updateSelectionOverlayMs: e.steps?.updateSelectionOverlay?.ms ?? '',
-      }))
+      .map((e) => {
+        const draw = e.steps?.drawBoard, meta = draw?.meta;
+        return {
+          id: e.id,
+          ...debugPick(e, 'frameMs queueMs inputAgeMs inputSource rafGap sources doTransform doBoard doOverlay'),
+          applyTransformCallMs: e.steps?.applyTransformCall?.ms ?? '',
+          drawBoardMs: draw?.ms ?? '',
+          ...debugPick(meta, 'objectLoopMs backgroundSetupMs offscreenBlitMs editingOverlayMs testedObjects visibleObjects drawnImages drawnText'),
+          ...debugPick(meta, 'textLayoutMs maxTextLayoutMs textLayoutObjects textCharCount largestTextChars largestTextLayoutLines textLines'),
+          ...debugPick(meta, 'drawnTextLines culledTextLines textDrawUnits textDrawCalls textRuns textSkippedTabs textSkippedSpaces'),
+          ...debugPick(meta, 'textPlanCacheHits textPlanCacheMisses textLineDrawMs maxTextLineDrawMs slowTextLineDrawCount maxTextDrawUnitsPerLine'),
+          ...debugPick(meta, 'maxTextDrawCallsPerLine maxTextRunsPerLine textDirectDraws editLayoutMs editTextDrawMs editSelectionMs editCaretMs'),
+          ...debugPick(meta, 'editLayoutLines editVisibleLines editCulledLines editSelectionRuns editSelectedChars editSelectionLines'),
+          ...debugPick(meta, 'editSelectionVisibleLines editCaretDrawn bitmapImages scaledImages scaledFallbackFull activeInputFullFallbackImages'),
+          ...debugPick(meta, 'motionObjects motionImages motionText motionTranslatedObjects motionScaledObjects motionScaledImages'),
+          ...debugPick(meta, 'motionFullScaleImages motionFullFallbackImages motionActiveInputFullFallbackImages imageSourceFirstDraws'),
+          ...debugPick(meta, 'imageSourceWarmDraws imageContextFirstDraws imageContextWarmDraws scaledImageContextFirstDraws'),
+          ...debugPick(meta, 'fullScaleImageContextFirstDraws fullScaleImages missingImages croppedImages culledImages culledText'),
+          slowDrawObjects: (meta?.slowDrawObjects || [])
+            .map(row => `${row.type || ''}:${row.id || ''}${row.imgKey ? ':' + row.imgKey : ''}:${row.ms ?? ''}ms`)
+            .join(' | '),
+          slowDrawObjectRows: (meta?.slowDrawObjects || []).map(row => ({ ...row })),
+          slowTextLineDraws: (meta?.slowTextLineDraws || [])
+            .map(row => `${row.objectId || row.id || ''}:${row.logicalLineIndex ?? ''}:${row.ms ?? ''}ms`)
+            .join(' | '),
+          slowTextLineRows: (meta?.slowTextLineDraws || []).map(row => ({ ...row })),
+          ...debugPick(meta, 'canvasW canvasH'),
+          zoom: meta?.zoom ?? e.zoom ?? '',
+          updateSelectionOverlayMs: e.steps?.updateSelectionOverlay?.ms ?? '',
+        };
+      })
       .sort((a, b) => (b.frameMs || 0) - (a.frameMs || 0))
       .slice(0, limit);
     console.table(rows);
@@ -2294,12 +2125,7 @@ var ViewportDebug = (() => {
       .slice(0, limit)
       .map(e => ({
         id: e.id,
-        frameMs: e.frameMs ?? '',
-        queueMs: e.queueMs ?? '',
-        inputAgeMs: e.inputAgeMs ?? '',
-        inputSource: e.inputSource ?? '',
-        rafGap: e.rafGap ?? '',
-        sources: e.sources ?? '',
+        ...debugPick(e, 'frameMs queueMs inputAgeMs inputSource rafGap sources'),
         start: {
           panX: e.panX,
           panY: e.panY,
@@ -2339,13 +2165,14 @@ var ViewportDebug = (() => {
       .map(e => ({ ...(starts.get(e.id) || {}), ...(stepsById.get(e.id) || {}), totalMs: e.total }));
     const sum = (field) => rows.reduce((n, row) => n + (Number(row[field]) || 0), 0);
     const max = (field) => rows.reduce((n, row) => Math.max(n, Number(row[field]) || 0), 0);
+    const avg = (field) => rows.length ? Math.round(sum(field) / rows.length * 100) / 100 : 0;
     const out = {
       transforms: rows.length,
-      avgTotalMs: rows.length ? Math.round(sum('totalMs') / rows.length * 100) / 100 : 0,
+      avgTotalMs: avg('totalMs'),
       maxTotalMs: Math.round(max('totalMs') * 100) / 100,
-      avgDrawBoardMs: rows.length ? Math.round(sum('drawBoard') / rows.length * 100) / 100 : 0,
+      avgDrawBoardMs: avg('drawBoard'),
       maxDrawBoardMs: Math.round(max('drawBoard') * 100) / 100,
-      avgOverlayMs: rows.length ? Math.round(sum('updateSelectionOverlay') / rows.length * 100) / 100 : 0,
+      avgOverlayMs: avg('updateSelectionOverlay'),
       maxOverlayMs: Math.round(max('updateSelectionOverlay') * 100) / 100,
     };
     console.table([out]);
@@ -2461,10 +2288,10 @@ var ViewportDebug = (() => {
       const match = progress.find(row => row.at >= start.at && row.id === start.id && row.objectType === start.objectType);
       if (match) firstProgressLatencies.push(match.at - start.at);
     }
-    const sumValues = (items, field) => items.reduce((value, row) => value + (Number(row[field]) || 0), 0);
-    const maxValue = (items, field) => items.reduce((value, row) => Math.max(value, Number(row[field]) || 0), 0);
-    const sumList = (items) => items.reduce((value, item) => value + (Number(item) || 0), 0);
-    const maxList = (items) => items.reduce((value, item) => Math.max(value, Number(item) || 0), 0);
+    const num = (item, field) => Number(field ? item[field] : item) || 0;
+    const sumValues = (items, field) => items.reduce((value, row) => value + num(row, field), 0);
+    const maxValue = (items, field) => items.reduce((value, row) => Math.max(value, num(row, field)), 0);
+    const avgOf = (items, field) => items.length ? round(sumValues(items, field) / items.length) : 0;
     const out = {
       motionEvents: rows.length,
       starts: jiggleStarts.length,
@@ -2478,21 +2305,21 @@ var ViewportDebug = (() => {
       motionFrames: frames.length,
       slowMotionFramesOver16ms: frames.filter(row => row.slow || Number(row.frameMs) > 16.7).length,
       motionDraws: draws.length,
-      avgMotionFrameMs: frames.length ? round(sumValues(frames, 'frameMs') / frames.length) : 0,
+      avgMotionFrameMs: avgOf(frames, 'frameMs'),
       maxMotionFrameMs: round(maxValue(frames, 'frameMs')),
-      avgMotionRafGapMs: frames.length ? round(sumValues(frames, 'rafGap') / frames.length) : 0,
+      avgMotionRafGapMs: avgOf(frames, 'rafGap'),
       maxMotionRafGapMs: round(maxValue(frames, 'rafGap')),
-      avgMotionQueueMs: frames.length ? round(sumValues(frames, 'queueMs') / frames.length) : 0,
+      avgMotionQueueMs: avgOf(frames, 'queueMs'),
       maxMotionQueueMs: round(maxValue(frames, 'queueMs')),
-      avgProgressGapMs: progressGaps.length ? round(sumList(progressGaps) / progressGaps.length) : 0,
-      maxProgressGapMs: round(maxList(progressGaps)),
+      avgProgressGapMs: avgOf(progressGaps),
+      maxProgressGapMs: round(maxValue(progressGaps)),
       progressGapsOver16ms: progressGaps.filter(gap => gap > 16.7).length,
       progressGapsOver32ms: progressGaps.filter(gap => gap > 32).length,
-      avgFirstProgressLatencyMs: firstProgressLatencies.length ? round(sumList(firstProgressLatencies) / firstProgressLatencies.length) : 0,
-      maxFirstProgressLatencyMs: round(maxList(firstProgressLatencies)),
-      avgMotionDrawMs: draws.length ? round(sumValues(draws, 'drawMs') / draws.length) : 0,
+      avgFirstProgressLatencyMs: avgOf(firstProgressLatencies),
+      maxFirstProgressLatencyMs: round(maxValue(firstProgressLatencies)),
+      avgMotionDrawMs: avgOf(draws, 'drawMs'),
       maxMotionDrawMs: round(maxValue(draws, 'drawMs')),
-      avgMotionObjectLoopMs: draws.length ? round(sumValues(draws, 'objectLoopMs') / draws.length) : 0,
+      avgMotionObjectLoopMs: avgOf(draws, 'objectLoopMs'),
       maxMotionObjectLoopMs: round(maxValue(draws, 'objectLoopMs')),
       maxMotionImages: maxValue(draws, 'motionImages'),
       maxMotionScaledImages: maxValue(draws, 'motionScaledImages'),
@@ -2528,16 +2355,7 @@ var ViewportDebug = (() => {
         id: row.id || '',
         objectType: row.objectType || '',
         action: row.action || '',
-        t: row.t ?? '',
-        translateX: row.translateX ?? '',
-        translateY: row.translateY ?? '',
-        scaleX: row.scaleX ?? '',
-        scaleY: row.scaleY ?? '',
-        opacity: row.opacity ?? '',
-        waitMs: row.waitMs ?? '',
-        duration: row.duration ?? '',
-        jelloObjectMotions: row.jelloObjectMotions ?? '',
-        textSelectionJelloMotions: row.textSelectionJelloMotions ?? '',
+        ...debugPick(row, 't translateX translateY scaleX scaleY opacity waitMs duration jelloObjectMotions textSelectionJelloMotions'),
       });
     }
     for (const e of events) {

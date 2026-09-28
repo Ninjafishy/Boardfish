@@ -207,8 +207,7 @@ const isEventInsideViewportWheelSurface = (e) => {
 function isShieldInputAllowed(e) {
   if (isUnsavedDialogOpen()) return isEventInsideUnsavedDialog(e);
   if (isEventInsideVisibleContextMenu(e)) return true;
-  if (_boardOpening || !_inputShieldStack.length) return false;
-  return _rubberBandDragActive &&
+  return !_boardOpening && _rubberBandDragActive &&
     _inputShieldStack.length === 1 &&
     (e.type === 'mousemove' || (e.type === 'mouseup' && e.button === 0));
 }
@@ -300,7 +299,7 @@ function updateSelectionOverlay() {
   if (!(screenX1 < width && screenX2 > 0 && screenY1 < height && screenY2 > 0)) return hideSelectionOverlay();
 
   const multiSelected = isMultiSelected();
-  let imageEdgePad = 0;
+  let imageEdgePad = firstSelectedObj.type === 'image' ? SELECTION_IMAGE_EDGE_OVERDRAW_DEVICE_PX : 0;
   if (!multiSelected) {
     multiSelOverlay.classList.toggle('visible', false);
   } else {
@@ -330,9 +329,6 @@ function updateSelectionOverlay() {
     }
     multiSelOverlay.classList.toggle('visible', true);
   }
-  imageEdgePad ||= firstSelectedObj.type === 'image'
-    ? SELECTION_IMAGE_EDGE_OVERDRAW_DEVICE_PX
-    : 0;
   setSelectionOverlayScreenRect(
     selOverlay,
     _selOverlayStyleState,
@@ -351,13 +347,12 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
 
       const dir = handle.dataset.dir;
       const resizeEast = dir.includes('e'), resizeWest = dir.includes('w');
-      const resizeSouth = dir.includes('s'), resizeNorth = dir.includes('n');
       const startX = e.clientX, startY = e.clientY;
+      const obj = objectsMap.get(selectedId);
 
-      // ── Multi-select: scale non-text objects proportionally within the bounding box ──
-      if (isMultiSelected()) {
+      // ── Images and multi-select: scale non-text objects proportionally within the bounding box ──
+      if (isMultiSelected() || obj?.type !== 'text') {
         const bounds = selectedBounds();
-        if (!bounds) return;
         const handlePoint = boundsCornerPoint(bounds, dir);
         const anchorPoint = boundsCornerPoint(bounds, oppositeSelectionDir(dir));
         if (!handlePoint || !anchorPoint) return;
@@ -416,17 +411,10 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         return;
       }
 
-      // ── Single select ──
-      if (!selectedId) return;
-      const obj = objectsMap.get(selectedId);
-      if (!obj) return;
-
-      const { x: ox, y: oy, w: ow, h: oh, type } = obj;
-      const MIN_OBJECT_SIZE = 100;
-      const isText = type === 'text';
-      const minScale = type === 'image' && Math.min(1, Math.max(MIN_OBJECT_SIZE / ow, MIN_OBJECT_SIZE / oh));
+      // ── Single text: resize width only ──
+      const { x: ox, y: oy, w: ow, h: oh } = obj;
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const resizeDebugActive = isText && !!selectionInputPerfDebugApi()?.isTextResizeTraceActive?.();
+      const resizeDebugActive = !!selectionInputPerfDebugApi()?.isTextResizeTraceActive?.();
       const resizeDebugBase = resizeDebugActive
         ? {
             ...selectionResizeTextObjectStats(obj),
@@ -462,29 +450,18 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         let minWidthMs = '';
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-        if (type === 'image') {
-          const scale = Math.max(minScale, Math.min(
-            (resizeEast ? ow + dx : ow - dx) / ow,
-            (resizeSouth ? oh + dy : oh - dy) / oh,
-          ));
-          w = ow * scale;
-          h = oh * scale;
-          if (resizeWest) x = ox + ow - w;
-          if (resizeNorth) y = oy + oh - h;
-        } else {
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          const minWidthStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
-          if (dragMinTextW == null) {
-            dragMinTextW = getTextMinWidth(obj);
-          }
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          minTextW = dragMinTextW;
-          if (resizeDebugDragId) minWidthMs = selectionResizeDebugRound(selectionResizeDebugNow() - minWidthStartedAt);
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
-          if (resizeEast) w = Math.max(dragMinTextW, ow + dx);
-          if (resizeWest) { w = Math.max(dragMinTextW, ow - dx); x = ox + ow - w; }
+        /* BOARDFISH_DEV_DIAGNOSTICS_START */
+        const minWidthStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+        if (dragMinTextW == null) {
+          dragMinTextW = getTextMinWidth(obj);
         }
+        /* BOARDFISH_DEV_DIAGNOSTICS_START */
+        minTextW = dragMinTextW;
+        if (resizeDebugDragId) minWidthMs = selectionResizeDebugRound(selectionResizeDebugNow() - minWidthStartedAt);
+        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+        if (resizeEast) w = Math.max(dragMinTextW, ow + dx);
+        if (resizeWest) { w = Math.max(dragMinTextW, ow - dx); x = ox + ow - w; }
 
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         if (resizeDebugDragId) {
@@ -526,15 +503,14 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           });
         }
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        const render = !isText || obj.w !== w;
+        const render = obj.w !== w;
         obj.x = x;
         obj.y = y;
         obj.w = w;
-        if (!isText) obj.h = h;
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         let autoHeightDebug = null;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        if (isText && render) {
+        if (render) {
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
           const clearStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
           const clearLayoutMs = resizeDebugDragId ? selectionResizeDebugRound(selectionResizeDebugNow() - clearStartedAt) : '';

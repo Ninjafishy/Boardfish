@@ -446,13 +446,15 @@ const textEditBlankLineDeleteRange = (text = '', index, keyOrInputType = '') => 
   const pos = Math.max(0, Math.min(Math.trunc(Number(index)) || 0, text.length));
   const backward = keyOrInputType === 'Backspace' || keyOrInputType.includes('Backward');
   if (backward ? pos > 0 && !' \t\n'.includes(text[pos - 1]) : !' \t\n'.includes(text[pos] || '\n')) return null;
+  // Intentional: do not replace with textEditLineStartAt(). At pos 0 with an
+  // empty first line this yields start 1, so Backspace there does nothing
+  // instead of deleting that line. Keep this behavior.
   const before = text.lastIndexOf('\n', Math.max(0, pos - 1));
   const start = before < 0 ? 0 : before + 1;
   const after = text.indexOf('\n', pos);
   const end = after < 0 ? text.length : after;
   if (!/^[ \t]*$/.test(text.slice(start, end))) return null;
   if (backward && pos > start) return { start: pos - 1, end: pos, insertedText: '' };
-  if (backward && start > 0) return { start: start - 1, end, insertedText: '' };
   if (!backward && end < text.length) return { start, end: end + 1, insertedText: '' };
   if (start > 0) return { start: start - 1, end, insertedText: '' };
   if (end < text.length) return { start, end: end + 1, insertedText: '' };
@@ -580,7 +582,7 @@ const applyTextEditNavigationSelection = (obj, proxy, selection, index, lineStar
   } else {
     setTextEditProxySelectionRange(proxy, index, index, 'none');
   }
-  rememberTextEditNavigationSelection(obj, proxy, index, lineStartIndex);
+  if (obj) rememberTextEditNavigationSelection(obj, proxy, index, lineStartIndex);
 };
 
 const textEditVisibleSelectionReplacementRange = (content, selection = {}) => {
@@ -1700,36 +1702,32 @@ function enterEdit(id, {
       return;
     }
 
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'c' && proxy.selectionStart !== proxy.selectionEnd) {
-      e.preventDefault();
-      copyTextEditSelectionFromProxy(id, proxy);
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'x' && proxy.selectionStart !== proxy.selectionEnd) {
+    const shortcutKey = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase();
+    const cut = shortcutKey === 'x';
+    if ((cut || shortcutKey === 'c') && proxy.selectionStart !== proxy.selectionEnd) {
       e.preventDefault();
       const selection = textEditSelectionState(proxy);
-      BoardfishMotion.cancelTextSelectionMotion(id);
-      copyTextEditSelectionFromProxy(id, proxy, selection, { animateCopy: false });
-      const deletion = selection;
+      if (cut) BoardfishMotion.cancelTextSelectionMotion(id);
+      copyTextEditSelectionFromProxy(id, proxy, selection, { animateCopy: !cut });
+      if (!cut) return;
       const inputType = 'deleteByCut';
       pendingInputState = {
         ...selection,
         value: textEditProxyValue(proxy),
         inputType,
         replacement: {
-          start: deletion.start,
-          end: deletion.end,
+          start: selection.start,
+          end: selection.end,
           insertedText: '',
         },
       };
       beginTextEditHistoryAction(id, pendingInputState);
-      proxy.setRangeText('', deletion.start, deletion.end, 'start');
+      proxy.setRangeText('', selection.start, selection.end, 'start');
       dispatchTextEditInputEvent(proxy, inputType);
       return;
     }
 
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'a') {
+    if (shortcutKey === 'a') {
       e.preventDefault();
       flushEditHistoryCheckpoint();
       const currentProxyValue = textEditProxyValue(proxy);
@@ -1749,14 +1747,9 @@ function enterEdit(id, {
       const selection = textEditSelectionState(proxy);
       syncTextEditProxyDomValue(proxy, currentProxyValue, selection);
       const moveRight = e.key === 'ArrowRight';
-      let reference = moveRight ? selection.end : selection.start;
-      if (e.shiftKey) {
-        const backward = selection.direction === 'backward';
-        reference = backward ? selection.start : selection.end;
-      }
       const nextPosition = textEditWordBoundary(
         currentProxyValue,
-        reference,
+        (e.shiftKey ? selection.direction === 'backward' : !moveRight) ? selection.start : selection.end,
         moveRight ? 'right' : 'left',
       );
       const layout = getTextLayout(obj);
@@ -1914,15 +1907,10 @@ function enterEdit(id, {
       if (!layout.length) { scheduleRender(true, false); return; }
 
       const isUp = e.key === 'ArrowUp';
+      const selection = textEditSelectionState(proxy);
 
       // Which end of the selection to navigate from
-      let refPos;
-      if (e.shiftKey) {
-        const d = proxy.selectionDirection;
-        refPos = d === 'backward' ? proxy.selectionStart : proxy.selectionEnd;
-      } else {
-        refPos = isUp ? proxy.selectionStart : proxy.selectionEnd;
-      }
+      const refPos = (e.shiftKey ? selection.direction === 'backward' : isUp) ? selection.start : selection.end;
 
       // Find the line containing refPos
       let lo = 0, hi = layout.length - 1;
@@ -1948,18 +1936,7 @@ function enterEdit(id, {
         newPos = layoutHitTestCaret([layout[targetIdx]], caretX, layout[targetIdx].y, obj).index;
       }
 
-      if (e.shiftKey) {
-        const d = proxy.selectionDirection;
-        const anchorPos = d === 'backward' ? proxy.selectionEnd : proxy.selectionStart;
-        setTextEditProxySelectionRange(
-          proxy,
-          Math.min(anchorPos, newPos), Math.max(anchorPos, newPos),
-          anchorPos <= newPos ? 'forward' : 'backward'
-        );
-      } else {
-        setTextEditProxySelectionRange(proxy, newPos, newPos, 'none');
-      }
-
+      applyTextEditNavigationSelection(null, proxy, selection, newPos, null, e.shiftKey);
       scheduleRender(true, false);
       return;
     }

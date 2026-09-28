@@ -529,15 +529,6 @@ function suppressContextMenuSurface(e) {
 }
 for (const menu of contextMenuStopSurfaces) menu.addEventListener('contextmenu', suppressContextMenuSurface);
 
-function isContextMenuSurfaceEvent(e) {
-  return !!(e?.target instanceof Node && (
-    ctxMenu.contains(e.target) ||
-    objCtxMenu.contains(e.target) ||
-    textCtxMenu.contains(e.target) ||
-    ctxActions.contains(e.target)
-  ));
-}
-
 function updateObjMenuActions() {
   let imageCount = 0;
   for (const id of selectedIds) {
@@ -636,7 +627,7 @@ for (const id in MENU_COMMANDS) {
 
 document.addEventListener(HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown', (e) => {
   if (!hasOpenContextMenu()) return;
-  if (isContextMenuSurfaceEvent(e)) {
+  if (isEventInsideVisibleContextMenu(e)) {
     MenuDebug.log('document-outside-press:inside-menu');
     return;
   }

@@ -410,21 +410,14 @@ const copySelected = (options = {}) => {
       , dbg
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
     );
-    if (sourcePngBlob) {
-      return writeWebPngBlob(sourcePngBlob.then((blob) => blob || renderedPngBlob())
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        , 'image-web-source-png', {
-          imgKey: obj.data.imgKey,
-          sourceKind: webSourceClipboardKind(storedSource),
-        }
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      );
-    }
     // Pass the pending encode into ClipboardItem so clipboard.write starts in
     // the trusted copy gesture instead of after canvas.toBlob completes.
-    return writeWebPngBlob(renderedPngBlob()
+    return writeWebPngBlob(sourcePngBlob ? sourcePngBlob.then((blob) => blob || renderedPngBlob()) : renderedPngBlob()
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      , 'image-web-rendered'
+      , sourcePngBlob ? 'image-web-source-png' : 'image-web-rendered', sourcePngBlob && {
+        imgKey: obj.data.imgKey,
+        sourceKind: webSourceClipboardKind(storedSource),
+      }
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
     );
   }

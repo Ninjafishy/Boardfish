@@ -678,8 +678,9 @@ function redo() {
     ...getHistoryTextDebugMetrics(objects),
   });
   const flushStart = performance.now();
+  const flushedCheckpoint = !!
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const flushedCheckpoint = !!flushEditHistoryCheckpoint();
+    flushEditHistoryCheckpoint();
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   HistoryDebug.step(dbg, 'flush-edit-history', {
     flushedCheckpoint,
@@ -689,15 +690,9 @@ function redo() {
     ...getHistoryTextDebugMetrics(objects),
   });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (flushedCheckpoint) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    HistoryDebug.end(dbg, { skipped: 'flushed-pending-checkpoint', flushedCheckpoint, historyLength: boardHistory.length, historyIndex });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    return;
-  }
   if (historyIndex >= boardHistory.length - 1) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    HistoryDebug.end(dbg, { skipped: 'at-end', flushedCheckpoint, historyLength: boardHistory.length, historyIndex });
+    HistoryDebug.end(dbg, { skipped: flushedCheckpoint ? 'flushed-pending-checkpoint' : 'at-end', flushedCheckpoint, historyLength: boardHistory.length, historyIndex });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return;
   }

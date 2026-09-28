@@ -196,6 +196,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     , options = {}
   ) {
+    const progress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const target = await pickWebExportTarget(imageObjs, options);
     if (target?.cancelled) return { downloadedCount: 0, skippedCount: 0, method: 'picker', cancelled: true };
     if (typeof options.onStart === 'function') options.onStart({ totalCount: imageObjs.length, target });
@@ -253,13 +254,11 @@
           skippedCount,
         });
       }
-      if (typeof options.onProgress === 'function') {
-        options.onProgress({
-          phase: 'prepare-progress',
-          preparedCount: downloads.length,
-          totalCount: imageObjs.length,
-        });
-      }
+      progress?.({
+        phase: 'prepare-progress',
+        preparedCount: downloads.length,
+        totalCount: imageObjs.length,
+      });
       if (i % 2 === 1 || i === imageObjs.length - 1) {
         if (typeof BOARDFISH_PRODUCTION === 'undefined') {
           await yieldToEventLoop(dbg, 'web-prepare', { processed: i + 1, imageCount: imageObjs.length });
@@ -328,9 +327,7 @@
       mime = 'application/zip';
       byteLength = zip.byteLength;
     }
-    if (typeof options.onProgress === 'function') {
-      options.onProgress({ phase: 'save-start', preparedCount: downloads.length, totalCount: imageObjs.length });
-    }
+    progress?.({ phase: 'save-start', preparedCount: downloads.length, totalCount: imageObjs.length });
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     let saveStart;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -352,9 +349,7 @@
       });
       ExportDebug.recordSaveDone?.({ savedCount: downloads.length, failedCount: 0, missingCount: skippedCount, bytesMB });
     }
-    if (typeof options.onProgress === 'function') {
-      options.onProgress({ phase: 'save-progress', preparedCount: downloads.length, finishedCount: downloads.length, totalCount: imageObjs.length });
-    }
+    progress?.({ phase: 'save-progress', preparedCount: downloads.length, finishedCount: downloads.length, totalCount: imageObjs.length });
     const result = { downloadedCount: downloads.length, skippedCount, method };
     if (!single) {
       result.filename = filename;
@@ -425,6 +420,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     , options = {}
   ) {
+    const progress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const usedNames = new Set();
     let savedCount = 0;
     let failedCount = 0;
@@ -456,13 +452,11 @@
         if (typeof BOARDFISH_PRODUCTION === 'undefined') {
           recordWebResolveEntry(imageObjs[i], i, null, performance.now() - itemStart, { phase: 'web-skipped' });
         }
-        if (typeof options.onProgress === 'function') {
-          options.onProgress({
-            phase: 'prepare-progress',
-            preparedCount: savedCount + failedCount + skippedCount,
-            totalCount: imageObjs.length,
-          });
-        }
+        progress?.({
+          phase: 'prepare-progress',
+          preparedCount: savedCount + failedCount + skippedCount,
+          totalCount: imageObjs.length,
+        });
         continue;
       }
       if (typeof BOARDFISH_PRODUCTION === 'undefined' && entry.debug?.rendered) renderedCount++;
@@ -476,13 +470,11 @@
           skippedCount,
         });
       }
-      if (typeof options.onProgress === 'function') {
-        options.onProgress({
-          phase: 'prepare-progress',
-          preparedCount: savedCount + failedCount + skippedCount + 1,
-          totalCount: imageObjs.length,
-        });
-      }
+      progress?.({
+        phase: 'prepare-progress',
+        preparedCount: savedCount + failedCount + skippedCount + 1,
+        totalCount: imageObjs.length,
+      });
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       let writeStart;
       let batchSaved;
@@ -528,14 +520,12 @@
           error: errors[errors.length - 1] || '',
         });
       }
-      if (typeof options.onProgress === 'function') {
-        options.onProgress({
-          phase: 'save-progress',
-          preparedCount: savedCount + failedCount + skippedCount,
-          finishedCount: savedCount + failedCount + skippedCount,
-          totalCount: imageObjs.length,
-        });
-      }
+      progress?.({
+        phase: 'save-progress',
+        preparedCount: savedCount + failedCount + skippedCount,
+        finishedCount: savedCount + failedCount + skippedCount,
+        totalCount: imageObjs.length,
+      });
       if (i % 2 === 1 || i === imageObjs.length - 1) {
         if (typeof BOARDFISH_PRODUCTION === 'undefined') {
           await yieldToEventLoop(dbg, 'web-directory-save', { processed: i + 1, imageCount: imageObjs.length });

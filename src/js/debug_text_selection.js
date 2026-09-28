@@ -139,20 +139,20 @@ var TextSelDebug = (() => {
       : textValue(obj?.data?.content || '').replace(/\r\n?/g, '\n');
   }
 
+  function lineVisibilityTest() {
+    let rect = null;
+    try {
+      rect = typeof viewportWorldRect === 'function' ? viewportWorldRect(0) : null;
+    } catch {}
+    return rect && typeof textLayoutLineIntersectsViewport === 'function'
+      ? (line) => textLayoutLineIntersectsViewport(line, rect)
+      : () => true;
+  }
+
   function visibleLineCount(layout = []) {
     if (!Array.isArray(layout) || !layout.length) return 0;
-    let viewportRect = null;
-    if (typeof viewportWorldRect === 'function') {
-      try {
-        viewportRect = viewportWorldRect(0);
-      } catch {
-        viewportRect = null;
-      }
-    }
-    if (!viewportRect || typeof textLayoutLineIntersectsViewport !== 'function') return layout.length;
-    let count = 0;
-    for (const line of layout) if (textLayoutLineIntersectsViewport(line, viewportRect)) count++;
-    return count;
+    const isVisible = lineVisibilityTest();
+    return layout.filter(line => isVisible(line)).length;
   }
 
   function layoutMetrics(obj, layout = null) {
@@ -164,6 +164,7 @@ var TextSelDebug = (() => {
       prefixEntries += Number(line?.prefixWidths?.length) || 0;
     }
     const content = contentForObject(obj);
+    const visibleLines = visibleLineCount(lines);
     return {
       objectId: obj?.id || '',
       contentChars: content.length,
@@ -171,8 +172,8 @@ var TextSelDebug = (() => {
       height: round(obj?.h),
       layoutCached: Array.isArray(obj?._layoutCache),
       layoutLines: lines.length,
-      visibleLines: visibleLineCount(lines),
-      culledLines: lines.length ? Math.max(0, lines.length - visibleLineCount(lines)) : 0,
+      visibleLines,
+      culledLines: lines.length - visibleLines,
       largestLineChars,
       prefixEntries,
     };
@@ -206,14 +207,7 @@ var TextSelDebug = (() => {
     let selectedVisibleLines = 0;
     let firstLine = -1;
     let lastLine = -1;
-    let viewportRect = null;
-    if (typeof viewportWorldRect === 'function') {
-      try {
-        viewportRect = viewportWorldRect(0);
-      } catch {
-        viewportRect = null;
-      }
-    }
+    const isVisible = lineVisibilityTest();
     for (let i = 0; i < layout.length; i++) {
       const line = layout[i];
       const textEnd = line.startIndex + textValue(line.text).length;
@@ -221,10 +215,7 @@ var TextSelDebug = (() => {
       selectedLines++;
       if (firstLine === -1) firstLine = i;
       lastLine = i;
-      if (!viewportRect || typeof textLayoutLineIntersectsViewport !== 'function' ||
-        textLayoutLineIntersectsViewport(line, viewportRect)) {
-        selectedVisibleLines++;
-      }
+      if (isVisible(line)) selectedVisibleLines++;
     }
     return { selectedLines, selectedVisibleLines, firstLine, lastLine };
   }
@@ -309,14 +300,7 @@ var TextSelDebug = (() => {
       editingId: e.editingId || '',
       phase: e.phase || '',
       reason: e.reason || '',
-      ms: e.ms ?? '',
-      totalMs: e.totalMs ?? '',
-      clickToEditTotalMs: e.clickToEditTotalMs ?? '',
-      enterEditMs: e.enterEditMs ?? '',
-      historyMs: e.historyMs ?? '',
-      proxyChars: e.proxyChars ?? '',
-      domProxyChars: e.domProxyChars ?? '',
-      domValueStale: e.domValueStale ?? '',
+      ...debugPick(e, 'ms totalMs clickToEditTotalMs enterEditMs historyMs proxyChars domProxyChars domValueStale'),
       proxyWrap: e.proxyWrap || '',
       proxySpellcheck: e.proxySpellcheck ?? '',
       proxyAutocomplete: e.proxyAutocomplete || '',
@@ -327,166 +311,56 @@ var TextSelDebug = (() => {
       proxyContain: e.proxyContain || '',
       proxyWhiteSpace: e.proxyWhiteSpace || '',
       proxyOverflow: e.proxyOverflow || '',
-      activeElementIsProxy: e.activeElementIsProxy ?? '',
-      requestedCount: e.requestedCount ?? '',
-      selectedCount: e.selectedCount ?? '',
+      ...debugPick(e, 'activeElementIsProxy requestedCount selectedCount'),
       primaryId: e.primaryId || '',
       selectedIds: e.selectedIds || '',
       requestedPrimaryId: e.requestedPrimaryId || '',
       hitObjectId: e.hitObjectId || '',
       hitObjectType: e.hitObjectType || '',
-      hitObjectSelected: e.hitObjectSelected ?? '',
-      canClickToEditText: e.canClickToEditText ?? '',
-      wasSelected: e.wasSelected ?? '',
+      ...debugPick(e, 'hitObjectSelected canClickToEditText wasSelected'),
       inputType: e.inputType || '',
       source: e.source || '',
-      fallbackTextChars: e.fallbackTextChars ?? '',
-      candidateTextLen: e.candidateTextLen ?? '',
-      sourceTextLen: e.sourceTextLen ?? '',
-      oldChars: e.oldChars ?? '',
-      nextChars: e.nextChars ?? '',
-      insertedChars: e.insertedChars ?? '',
-      removedChars: e.removedChars ?? '',
-      textLen: e.textLen ?? '',
-      textBytes: e.textBytes ?? '',
-      textLineCount: e.textLineCount ?? '',
-      largestLineChars: e.largestLineChars ?? '',
-      replacementStart: e.replacementStart ?? '',
-      replacementEnd: e.replacementEnd ?? '',
-      replacementChars: e.replacementChars ?? '',
-      rawStart: e.rawStart ?? '',
-      rawEnd: e.rawEnd ?? '',
-      rawSelectedChars: e.rawSelectedChars ?? '',
-      normalizedStart: e.normalizedStart ?? '',
-      normalizedEnd: e.normalizedEnd ?? '',
-      normalizedSelectedChars: e.normalizedSelectedChars ?? '',
-      stateValueChars: e.stateValueChars ?? '',
-      previousContentChars: e.previousContentChars ?? '',
-      nextContentChars: e.nextContentChars ?? '',
-      splitPending: e.splitPending ?? '',
-      hadTimer: e.hadTimer ?? '',
-      hadPendingStart: e.hadPendingStart ?? '',
-      reusedStart: e.reusedStart ?? '',
-      reusedEditProxy: e.reusedEditProxy ?? '',
-      proxyDomSyncedForSelection: e.proxyDomSyncedForSelection ?? '',
-      proxyDomSyncReason: e.proxyDomSyncReason ?? '',
-      proxyDomCharsBeforeSelection: e.proxyDomCharsBeforeSelection ?? '',
-      proxyDomCharsAfterSelection: e.proxyDomCharsAfterSelection ?? '',
-      clipboardWriteMs: e.clipboardWriteMs ?? '',
-      historyActionMs: e.historyActionMs ?? '',
-      setRangeTextMs: e.setRangeTextMs ?? '',
-      dispatchMs: e.dispatchMs ?? '',
-      contentChanged: e.contentChanged ?? '',
-      timersMs: e.timersMs ?? '',
-      selectionListenerRemoved: e.selectionListenerRemoved ?? '',
-      proxyRemoveMs: e.proxyRemoveMs ?? '',
-      invalidateOffscreenMs: e.invalidateOffscreenMs ?? '',
-      widthSyncMs: e.widthSyncMs ?? '',
-      heightSyncMs: e.heightSyncMs ?? '',
-      markDirtyMs: e.markDirtyMs ?? '',
-      widthChanged: e.widthChanged ?? '',
-      heightChanged: e.heightChanged ?? '',
-      restoredMinLinesReset: e.restoredMinLinesReset ?? '',
-      needsExitSizeSync: e.needsExitSizeSync ?? '',
+      ...debugPick(e, 'fallbackTextChars candidateTextLen sourceTextLen oldChars nextChars insertedChars removedChars textLen'),
+      ...debugPick(e, 'textBytes textLineCount largestLineChars replacementStart replacementEnd replacementChars rawStart'),
+      ...debugPick(e, 'rawEnd rawSelectedChars normalizedStart normalizedEnd normalizedSelectedChars stateValueChars'),
+      ...debugPick(e, 'previousContentChars nextContentChars splitPending hadTimer hadPendingStart reusedStart reusedEditProxy'),
+      ...debugPick(e, 'proxyDomSyncedForSelection proxyDomSyncReason proxyDomCharsBeforeSelection proxyDomCharsAfterSelection'),
+      ...debugPick(e, 'clipboardWriteMs historyActionMs setRangeTextMs dispatchMs contentChanged timersMs'),
+      ...debugPick(e, 'selectionListenerRemoved proxyRemoveMs invalidateOffscreenMs widthSyncMs heightSyncMs markDirtyMs'),
+      ...debugPick(e, 'widthChanged heightChanged restoredMinLinesReset needsExitSizeSync'),
       sizeSyncReason: e.sizeSyncReason || '',
-      startedEmpty: e.startedEmpty ?? '',
-      editMinLines: e.editMinLines ?? '',
-      editHistoryMs: e.editHistoryMs ?? '',
-      heightHistoryMs: e.heightHistoryMs ?? '',
-      emptyDeleted: e.emptyDeleted ?? '',
-      proxyRemoved: e.proxyRemoved ?? '',
-      renderScheduleMs: e.renderScheduleMs ?? '',
-      windowSelectionClearMs: e.windowSelectionClearMs ?? '',
-      worldPointMs: e.worldPointMs ?? '',
-      hitTestMs: e.hitTestMs ?? '',
-      layoutMs: e.layoutMs ?? '',
-      focusMs: e.focusMs ?? '',
-      skipped: e.skipped ?? '',
-      caretApplyMs: e.caretApplyMs ?? '',
+      ...debugPick(e, 'startedEmpty editMinLines editHistoryMs heightHistoryMs emptyDeleted proxyRemoved renderScheduleMs'),
+      ...debugPick(e, 'windowSelectionClearMs worldPointMs hitTestMs layoutMs focusMs skipped caretApplyMs'),
       key: e.key || '',
-      deleteCaret: e.deleteCaret ?? '',
-      deleteRangeMs: e.deleteRangeMs ?? '',
-      replacementBuildMs: e.replacementBuildMs ?? '',
-      keydownDeleteSetupMs: e.keydownDeleteSetupMs ?? '',
-      deletionStart: e.deletionStart ?? '',
-      deletionEnd: e.deletionEnd ?? '',
-      structuralReplacementEnd: e.structuralReplacementEnd ?? '',
+      ...debugPick(e, 'deleteCaret deleteRangeMs replacementBuildMs keydownDeleteSetupMs deletionStart deletionEnd'),
+      ...debugPick(e, 'structuralReplacementEnd'),
       deletedTextSample: e.deletedTextSample || '',
-      textEditCaretIndex: e.textEditCaretIndex ?? '',
-      textEditCaretLineStartIndex: e.textEditCaretLineStartIndex ?? '',
-      inputStartCaretLineIndex: e.inputStartCaretLineIndex ?? '',
-      inputStartCaretLineStart: e.inputStartCaretLineStart ?? '',
-      inputStartCaretLineEnd: e.inputStartCaretLineEnd ?? '',
-      inputStartCaretLineBlank: e.inputStartCaretLineBlank ?? '',
-      replacementCaretLineIndex: e.replacementCaretLineIndex ?? '',
-      replacementCaretLineStart: e.replacementCaretLineStart ?? '',
-      replacementCaretLineEnd: e.replacementCaretLineEnd ?? '',
-      replacementCaretLineBlank: e.replacementCaretLineBlank ?? '',
-      deleteCaretLineIndex: e.deleteCaretLineIndex ?? '',
-      deleteCaretLineStart: e.deleteCaretLineStart ?? '',
-      deleteCaretLineEnd: e.deleteCaretLineEnd ?? '',
-      deleteCaretLineBlank: e.deleteCaretLineBlank ?? '',
-      updatedCaretLineIndex: e.updatedCaretLineIndex ?? '',
-      updatedCaretLineStart: e.updatedCaretLineStart ?? '',
-      updatedCaretLineEnd: e.updatedCaretLineEnd ?? '',
-      updatedCaretLineBlank: e.updatedCaretLineBlank ?? '',
-      layoutCacheLines: e.layoutCacheLines ?? '',
-      layoutPatchOldLines: e.layoutPatchOldLines ?? '',
-      layoutPatchNewLines: e.layoutPatchNewLines ?? '',
-      layoutPatchRemovedLines: e.layoutPatchRemovedLines ?? '',
-      layoutPatchInsertedLines: e.layoutPatchInsertedLines ?? '',
-      updatedObjectHeight: e.updatedObjectHeight ?? '',
-      updatedLogicalLines: e.updatedLogicalLines ?? '',
-      updatedCachedLines: e.updatedCachedLines ?? '',
+      ...debugPick(e, 'textEditCaretIndex textEditCaretLineStartIndex inputStartCaretLineIndex inputStartCaretLineStart'),
+      ...debugPick(e, 'inputStartCaretLineEnd inputStartCaretLineBlank replacementCaretLineIndex replacementCaretLineStart'),
+      ...debugPick(e, 'replacementCaretLineEnd replacementCaretLineBlank deleteCaretLineIndex deleteCaretLineStart'),
+      ...debugPick(e, 'deleteCaretLineEnd deleteCaretLineBlank updatedCaretLineIndex updatedCaretLineStart updatedCaretLineEnd'),
+      ...debugPick(e, 'updatedCaretLineBlank layoutCacheLines layoutPatchOldLines layoutPatchNewLines layoutPatchRemovedLines'),
+      ...debugPick(e, 'layoutPatchInsertedLines updatedObjectHeight updatedLogicalLines updatedCachedLines'),
       updatedCachedLineSource: e.updatedCachedLineSource || '',
-      updatedExpectedLogicalHeight: e.updatedExpectedLogicalHeight ?? '',
-      updatedExpectedCachedHeight: e.updatedExpectedCachedHeight ?? '',
-      updatedHeightDeltaFromLogical: e.updatedHeightDeltaFromLogical ?? '',
-      updatedHeightDeltaFromCached: e.updatedHeightDeltaFromCached ?? '',
-      beforeAutoHeightObjectHeight: e.beforeAutoHeightObjectHeight ?? '',
-      beforeAutoHeightLogicalLines: e.beforeAutoHeightLogicalLines ?? '',
-      beforeAutoHeightCachedLines: e.beforeAutoHeightCachedLines ?? '',
+      ...debugPick(e, 'updatedExpectedLogicalHeight updatedExpectedCachedHeight updatedHeightDeltaFromLogical'),
+      ...debugPick(e, 'updatedHeightDeltaFromCached beforeAutoHeightObjectHeight beforeAutoHeightLogicalLines'),
+      ...debugPick(e, 'beforeAutoHeightCachedLines'),
       beforeAutoHeightCachedLineSource: e.beforeAutoHeightCachedLineSource || '',
-      beforeAutoHeightExpectedLogicalHeight: e.beforeAutoHeightExpectedLogicalHeight ?? '',
-      beforeAutoHeightExpectedCachedHeight: e.beforeAutoHeightExpectedCachedHeight ?? '',
-      beforeAutoHeightHeightDeltaFromLogical: e.beforeAutoHeightHeightDeltaFromLogical ?? '',
-      beforeAutoHeightHeightDeltaFromCached: e.beforeAutoHeightHeightDeltaFromCached ?? '',
-      afterAutoHeightObjectHeight: e.afterAutoHeightObjectHeight ?? '',
-      afterAutoHeightLogicalLines: e.afterAutoHeightLogicalLines ?? '',
-      afterAutoHeightCachedLines: e.afterAutoHeightCachedLines ?? '',
+      ...debugPick(e, 'beforeAutoHeightExpectedLogicalHeight beforeAutoHeightExpectedCachedHeight'),
+      ...debugPick(e, 'beforeAutoHeightHeightDeltaFromLogical beforeAutoHeightHeightDeltaFromCached afterAutoHeightObjectHeight'),
+      ...debugPick(e, 'afterAutoHeightLogicalLines afterAutoHeightCachedLines'),
       afterAutoHeightCachedLineSource: e.afterAutoHeightCachedLineSource || '',
-      afterAutoHeightExpectedLogicalHeight: e.afterAutoHeightExpectedLogicalHeight ?? '',
-      afterAutoHeightExpectedCachedHeight: e.afterAutoHeightExpectedCachedHeight ?? '',
-      afterAutoHeightHeightDeltaFromLogical: e.afterAutoHeightHeightDeltaFromLogical ?? '',
-      afterAutoHeightHeightDeltaFromCached: e.afterAutoHeightHeightDeltaFromCached ?? '',
-      inputEndObjectHeight: e.inputEndObjectHeight ?? '',
-      inputEndLogicalLines: e.inputEndLogicalLines ?? '',
-      inputEndCachedLines: e.inputEndCachedLines ?? '',
+      ...debugPick(e, 'afterAutoHeightExpectedLogicalHeight afterAutoHeightExpectedCachedHeight'),
+      ...debugPick(e, 'afterAutoHeightHeightDeltaFromLogical afterAutoHeightHeightDeltaFromCached inputEndObjectHeight'),
+      ...debugPick(e, 'inputEndLogicalLines inputEndCachedLines'),
       inputEndCachedLineSource: e.inputEndCachedLineSource || '',
-      inputEndExpectedLogicalHeight: e.inputEndExpectedLogicalHeight ?? '',
-      inputEndExpectedCachedHeight: e.inputEndExpectedCachedHeight ?? '',
-      inputEndHeightDeltaFromLogical: e.inputEndHeightDeltaFromLogical ?? '',
-      inputEndHeightDeltaFromCached: e.inputEndHeightDeltaFromCached ?? '',
-      proxyScrollHeight: e.proxyScrollHeight ?? '',
-      proxyClientHeight: e.proxyClientHeight ?? '',
-      startClientX: e.startClientX ?? '',
-      startClientY: e.startClientY ?? '',
-      clientX: e.clientX ?? '',
-      clientY: e.clientY ?? '',
+      ...debugPick(e, 'inputEndExpectedLogicalHeight inputEndExpectedCachedHeight inputEndHeightDeltaFromLogical'),
+      ...debugPick(e, 'inputEndHeightDeltaFromCached proxyScrollHeight proxyClientHeight startClientX startClientY clientX'),
+      ...debugPick(e, 'clientY'),
       wx: e.wx != null ? round(e.wx) : '',
       wy: e.wy != null ? round(e.wy) : '',
-      returnedIdx: e.returnedIdx ?? '',
-      lineStartIndex: e.lineStartIndex ?? '',
-      selStart: e.selStart ?? '',
-      selEnd: e.selEnd ?? '',
-      selectedChars: e.selectedChars ?? '',
-      selectedLines: e.selectedLines ?? '',
-      selectedVisibleLines: e.selectedVisibleLines ?? '',
-      layoutLines: e.layoutLines ?? '',
-      visibleLines: e.visibleLines ?? '',
-      contentChars: e.contentChars ?? '',
-      selectionRuns: e.selectionRuns ?? '',
-      selectionRects: e.selectionRects ?? '',
+      ...debugPick(e, 'returnedIdx lineStartIndex selStart selEnd selectedChars selectedLines selectedVisibleLines layoutLines'),
+      ...debugPick(e, 'visibleLines contentChars selectionRuns selectionRects'),
       x1: e.x1 != null ? round(e.x1) : '',
       x2: e.x2 != null ? round(e.x2) : '',
       lineText: e.lineText || e.hitLine || '',

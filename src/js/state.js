@@ -21,11 +21,7 @@ function newId() {
 
 function cloneObject(obj, runtimeTextCache = false) {
   HistoryDebug.count('cloneObjectCalls');
-  let data = obj.type === 'image' ? { ...obj.data } : null;
-  if (!data) {
-    const content = obj.data.content;
-    data = { content };
-  }
+  const data = obj.type === 'image' ? { ...obj.data } : { content: obj.data.content };
   const cloned = {
     id: obj.id,
     type: obj.type,

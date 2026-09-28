@@ -120,8 +120,7 @@
   }
 
   function projectedContentBytes(additionalImageBytes = 0, additionalObjectCount = 0, baseBytes = currentContentBytes()) {
-    const objectCount = Array.isArray(root.objects) ? root.objects.length : 0;
-    const additionalObjectBytes = additionalObjectCount * 3 - (!objectCount && additionalObjectCount ? 1 : 0);
+    const additionalObjectBytes = additionalObjectCount * 3 - (!objectCount() && additionalObjectCount ? 1 : 0);
     return baseBytes + Math.max(0, Number(additionalImageBytes) || 0) + additionalObjectBytes;
   }
 

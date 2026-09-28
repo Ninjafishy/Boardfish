@@ -74,11 +74,7 @@ var PillDebug = (() => {
       offsetWidth: e.offsetWidth,
       msgActive: e.msgActive,
       boardOpening: e.boardOpening,
-      duration: e.duration ?? '',
-      elapsed: e.elapsed ?? '',
-      reason: e.reason ?? '',
-      longTaskMs: e.longTaskMs ?? '',
-      phaseMs: e.phaseMs ?? '',
+      ...debugPick(e, 'duration elapsed reason longTaskMs phaseMs'),
     }));
     console.table(rows);
     return rows;
@@ -232,14 +228,7 @@ var MenuDebug = (() => {
     const rows = events.map(e => ({
       id: e.id,
       event: e.event,
-      type: e.type ?? '',
-      phase: e.phase ?? '',
-      target: e.target ?? '',
-      currentTarget: e.currentTarget ?? '',
-      button: e.button ?? '',
-      x: e.x ?? '',
-      y: e.y ?? '',
-      command: e.command ?? '',
+      ...debugPick(e, 'type phase target currentTarget button x y command'),
       ctxVisible: e.ctxVisible,
       objVisible: e.objVisible,
       shieldActive: e.shieldActive,

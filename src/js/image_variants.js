@@ -444,7 +444,7 @@ function scheduleScaledVariantQueue() {
     imageScaledVariantQueueTimer = null;
     const done = () => {
       imageScaledVariantQueueActive--;
-      if (imageScaledVariantQueue.length) scheduleScaledVariantQueue();
+      scheduleScaledVariantQueue();
     };
     while (imageScaledVariantQueue.length && imageScaledVariantQueueActive < concurrency) {
       const task = imageScaledVariantQueue[0];
@@ -454,9 +454,7 @@ function scheduleScaledVariantQueue() {
       imageScaledVariantQueueActive++;
       task().then(done, done);
     }
-    if (imageScaledVariantQueue.length && imageScaledVariantQueueActive < concurrency) {
-      scheduleScaledVariantQueue();
-    }
+    scheduleScaledVariantQueue();
   }, delay);
 }
 
@@ -551,13 +549,6 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
 
 function queueScaledImageVariantForReadyImage(key, source) {
   if (typeof BOARDFISH_PRODUCTION === 'undefined') imageScaledVariantSourceReadyCandidateCount++;
-  if (!viewportImageScalingEnabled || !key) {
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      imageScaledVariantSourceReadyNoSourceCount++;
-      return { queued: false, skipped: 'disabled-or-invalid' };
-    }
-    return false;
-  }
   if (!isImageVariantDrawableSource(source)) {
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
       imageScaledVariantSourceReadyNoSourceCount++;
@@ -589,19 +580,14 @@ async function settleOpenImageDrawCaches(concurrency = IMAGE_VARIANT_QUEUE_CONCU
   // Source hydration queues the shared 0.25x variant for every bitmap. Drain
   // that same queue before input is enabled so no device starts zooming while
   // another device is still building its draw sources in the background.
-  cancelScheduledScaledVariantQueue();
-  while (imageScaledVariantQueueActive > 0) {
-    await yieldToBrowser();
+  for (;;) {
     cancelScheduledScaledVariantQueue();
-  }
-  while (imageScaledVariantQueue.length) {
-    cancelScheduledScaledVariantQueue();
-    const tasks = imageScaledVariantQueue.splice(0);
-    if (collectDebug) scaledTasks += tasks.length;
-    await mapWithConcurrency(tasks, concurrency, (task) => task());
-    while (imageScaledVariantQueueActive > 0) {
-      await yieldToBrowser();
-      cancelScheduledScaledVariantQueue();
+    if (imageScaledVariantQueueActive > 0) await yieldToBrowser();
+    else if (!imageScaledVariantQueue.length) break;
+    else {
+      const tasks = imageScaledVariantQueue.splice(0);
+      if (collectDebug) scaledTasks += tasks.length;
+      await mapWithConcurrency(tasks, concurrency, (task) => task());
     }
   }
 

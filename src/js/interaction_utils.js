@@ -30,10 +30,8 @@
       active = false;
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', cleanup);
-      if (typeof window !== 'undefined' && window.removeEventListener) {
-        window.removeEventListener('blur', onCancel);
-        window.removeEventListener('pagehide', onCancel);
-      }
+      root.removeEventListener?.('blur', onCancel);
+      root.removeEventListener?.('pagehide', onCancel);
       document.removeEventListener('visibilitychange', onVisibilityChange, true);
       document.removeEventListener('pointercancel', onCancel, true);
       up(event);
@@ -51,10 +49,8 @@
     };
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', cleanup);
-    if (typeof window !== 'undefined' && window.addEventListener) {
-      window.addEventListener('blur', onCancel);
-      window.addEventListener('pagehide', onCancel);
-    }
+    root.addEventListener?.('blur', onCancel);
+    root.addEventListener?.('pagehide', onCancel);
     document.addEventListener('visibilitychange', onVisibilityChange, true);
     document.addEventListener('pointercancel', onCancel, true);
     return cleanup;

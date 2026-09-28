@@ -103,22 +103,8 @@ function addText(wx, wy, content = '', options = {}) {
 var _inputShieldStack = [];
 
 function updateInputShieldVisual() {
-  if (isUnsavedDialogOpen()) {
-    openingShield.classList.remove('active');
-    return;
-  }
-  if (_boardOpening) {
-    openingShield.classList.add('active');
-    return;
-  }
-  let hasVisualShieldToken = false;
-  for (const token of _inputShieldStack) {
-    if (token.visual === false) continue;
-    hasVisualShieldToken = true;
-    break;
-  }
-  if (hasVisualShieldToken) openingShield.classList.add('active');
-  else openingShield.classList.remove('active');
+  openingShield.classList.toggle('active', !isUnsavedDialogOpen() &&
+    (_boardOpening || _inputShieldStack.some((token) => token.visual !== false)));
 }
 
 function acquireInputShield(options = {}) {

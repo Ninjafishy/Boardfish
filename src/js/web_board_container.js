@@ -77,9 +77,9 @@
     return table;
   }
 
-  function crc32Update(crc, bytes, start = 0, end = bytes.length) {
+  function crc32Update(crc, bytes) {
     if (!crcTable) crcTable = makeCrcTable();
-    for (let i = start; i < end; i++) {
+    for (let i = 0; i < bytes.length; i++) {
       crc = crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
     }
     return crc >>> 0;
@@ -96,23 +96,16 @@
 
   const CRC_CHUNK_SIZE = 1024 * 1024;
 
-  async function crc32Async(bytes, yieldFinal = false) {
+  async function crc32Async(source, yieldFinal = false) {
+    const blob = isNativeBlobPart(source);
+    const size = blob ? source.size : source.length;
     let crc = 0xFFFFFFFF;
-    for (let start = 0; start < bytes.length; start += CRC_CHUNK_SIZE) {
-      crc = crc32Update(crc, bytes, start, Math.min(bytes.length, start + CRC_CHUNK_SIZE));
-      if (yieldFinal || start + CRC_CHUNK_SIZE < bytes.length) await yieldToEventLoop();
-    }
-    return (crc ^ 0xFFFFFFFF) >>> 0;
-  }
-
-  async function crc32BlobAsync(blob) {
-    let crc = 0xFFFFFFFF;
-    for (let start = 0; start < blob.size; start += CRC_CHUNK_SIZE) {
-      const end = Math.min(blob.size, start + CRC_CHUNK_SIZE);
-      const chunk = new Uint8Array(await blob.slice(start, end).arrayBuffer());
+    for (let start = 0; start < size; start += CRC_CHUNK_SIZE) {
+      const end = Math.min(size, start + CRC_CHUNK_SIZE);
+      const chunk = blob ? new Uint8Array(await source.slice(start, end).arrayBuffer()) : source.subarray(start, end);
       if (chunk.length !== end - start) throw new Error('Image Read Failed');
-      crc = crc32Update(crc, chunk, 0, chunk.length);
-      await yieldToEventLoop();
+      crc = crc32Update(crc, chunk);
+      if (yieldFinal || end < size) await yieldToEventLoop();
     }
     return (crc ^ 0xFFFFFFFF) >>> 0;
   }
@@ -153,32 +146,22 @@
     view.setUint32(22, entry.byteLength, true);
     view.setUint16(26, name.length, true);
     bytes.set(name, 30);
-    return { offset, name, bytes, time, date };
+    return { offset, name, bytes };
   }
 
-  function centralDirectoryHeader(entry, local) {
+  function centralDirectoryHeader(local) {
     const bytes = new Uint8Array(46 + local.name.length);
     const view = new DataView(bytes.buffer);
     view.setUint32(0, ZIP_CENTRAL_DIRECTORY, true);
     view.setUint16(4, 20, true);
-    view.setUint16(6, 20, true);
-    view.setUint16(8, 0x0800, true);
-    view.setUint16(10, ZIP_METHOD_STORED, true);
-    view.setUint16(12, local.time, true);
-    view.setUint16(14, local.date, true);
-    view.setUint32(16, entry.crc, true);
-    view.setUint32(20, entry.byteLength, true);
-    view.setUint32(24, entry.byteLength, true);
-    view.setUint16(28, local.name.length, true);
+    // Version needed through extra length repeat the local header fields.
+    bytes.set(local.bytes.subarray(4, 30), 6);
     view.setUint32(42, local.offset, true);
     bytes.set(local.name, 46);
     return bytes;
   }
 
   function endOfCentralDirectory(entryCount, centralSize, centralOffset) {
-    if (!Number.isSafeInteger(entryCount) || entryCount < 0 || entryCount >= ZIP16_SENTINEL) {
-      throw new Error('ZIP Entry Limit Exceeded');
-    }
     if (
       !Number.isSafeInteger(centralSize) ||
       !Number.isSafeInteger(centralOffset) ||
@@ -234,9 +217,7 @@
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         continue;
       }
-      entry.crc = isNativeBlobPart(entry.data)
-        ? await crc32BlobAsync(entry.data)
-        : await crc32Async(entry.data, true);
+      entry.crc = await crc32Async(entry.data, true);
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       crcComputedEntries++;
       crcComputedBytes += entry.byteLength;
@@ -254,7 +235,7 @@
       const local = localFileHeader(entry, offset);
       localParts.push(local.bytes, entry.data);
       offset += local.bytes.length + entry.byteLength;
-      const central = centralDirectoryHeader(entry, local);
+      const central = centralDirectoryHeader(local);
       centralParts.push(central);
       centralSize += central.length;
     }
@@ -323,7 +304,6 @@
   }
 
   function findEndOfCentralDirectory(bytes) {
-    if (!bytes || bytes.length < ZIP_EOCD_MIN_SIZE) throw unsupportedContainerError();
     const min = Math.max(0, bytes.length - ZIP_EOCD_MIN_SIZE - ZIP_EOCD_MAX_COMMENT);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     for (let offset = bytes.length - ZIP_EOCD_MIN_SIZE; offset >= min; offset--) {
@@ -334,7 +314,7 @@
     throw unsupportedContainerError();
   }
 
-  function endOfCentralDirectoryInfo(bytes, { baseOffset = 0, containerSize = bytes?.length || 0 } = {}) {
+  function endOfCentralDirectoryInfo(bytes, baseOffset) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const eocdOffset = findEndOfCentralDirectory(bytes);
     const diskNumber = view.getUint16(eocdOffset + 4, true);
@@ -349,13 +329,8 @@
     if (entryCount === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) {
       throw new Error('Unsupported ZIP Format');
     }
-    const absoluteEocdOffset = baseOffset + eocdOffset;
-    if (
-      centralOffset + centralSize > containerSize ||
-      centralOffset + centralSize > absoluteEocdOffset
-    ) {
-      throw invalidContainerError();
-    }
+    // The EOCD record sits inside the container, so this also bounds the container size.
+    if (centralOffset + centralSize > baseOffset + eocdOffset) throw invalidContainerError();
     return {
       entryCount,
       centralSize,
@@ -385,7 +360,6 @@
       }
       const nameStart = offset + 46;
       const nextOffset = nameStart + nameLength + extraLength + commentLength;
-      ensureByteRange(bytes, nameStart, nameLength);
       if (nextOffset > bytes.length) throw invalidContainerError();
       const name = utf8Decode(bytes.subarray(nameStart, nameStart + nameLength));
       entries.set(name, { name, method, crc, compressedSize, uncompressedSize, localOffset });
@@ -400,10 +374,7 @@
     const tailSize = Math.min(containerSize, ZIP_EOCD_MIN_SIZE + ZIP_EOCD_MAX_COMMENT);
     const tailOffset = containerSize - tailSize;
     const tailBytes = await blobRangeToBytes(blob, tailOffset, containerSize);
-    const info = endOfCentralDirectoryInfo(tailBytes, {
-      baseOffset: tailOffset,
-      containerSize,
-    });
+    const info = endOfCentralDirectoryInfo(tailBytes, tailOffset);
     const centralBytes = info.centralOffset >= tailOffset
       ? tailBytes.subarray(info.centralOffset - tailOffset, info.centralOffset - tailOffset + info.centralSize)
       : await blobRangeToBytes(blob, info.centralOffset, info.centralOffset + info.centralSize);
@@ -850,7 +821,8 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     let validationMs = 0;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    if (validateBoardPayload) {
+    const validate = (images) => {
+      if (!validateBoardPayload) return;
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       phaseStart = nowMs();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -858,12 +830,13 @@
         objectCount: board?.objects?.length || 0,
         textCharacters,
         boardJsonBytes: boardBytes.length,
-        imageBytes: 0,
+        imageBytes: images,
       });
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       validationMs += nowMs() - phaseStart;
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    }
+    };
+    validate(0);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     phaseStart = nowMs();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -909,20 +882,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const imageEntriesMs = nowMs() - phaseStart;
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    if (validateBoardPayload) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      phaseStart = nowMs();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      validateBoardPayload({
-        objectCount: board?.objects?.length || 0,
-        textCharacters,
-        boardJsonBytes: boardBytes.length,
-        imageBytes,
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      validationMs += nowMs() - phaseStart;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    }
+    validate(imageBytes);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     phaseStart = nowMs();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -1087,7 +1047,6 @@
       let imageBlob;
       const canUseLazyRef = lazyImageRefs && imageEntry.method === ZIP_METHOD_STORED;
       if (canUseLazyRef) {
-        assertStoredEntrySize(imageEntry);
         imageBytes += advertisedImageBytes;
         const untypedBlob = lazyStoredImageBlobs?.get(path);
         if (!untypedBlob) throw new Error(`Missing File Entry: ${path}`);

@@ -22,7 +22,7 @@
     const active = new Map();
     let mode = 'idle';
     let holdTimer = null;
-    let pinchX, pinchY, pinchDistance = 0;
+    let pinchX, pinchY, pinchDistance;
 
     const call = (name, payload) => {
       if (typeof options[name] === 'function') options[name](payload);
@@ -70,7 +70,7 @@
     }
 
     function emitPinch(point) {
-      if (mode !== 'pinch' || active.size < 2 || !pinchDistance) return;
+      if (mode !== 'pinch' || active.size < 2) return;
       const geometry = twoPointerGeometry(active.values());
       geometry.startCenterX = pinchX;
       geometry.startCenterY = pinchY;
@@ -113,7 +113,6 @@
       active.set(pointerId, stored);
       if (active.size === 1) {
         mode = 'pending';
-        pinchDistance = 0;
         startHold(stored);
       } else {
         startPinch(event);
@@ -169,8 +168,7 @@
 
       // Commit the exact final separation before removing either pointer. This
       // also confirms a legitimate last move without repeating a committed one.
-      if (!cancelled && finishedMode === 'pinch' &&
-          (current.x - current.previousX || current.y - current.previousY)) emitPinch(current);
+      if (!cancelled && (current.x - current.previousX || current.y - current.previousY)) emitPinch(current);
 
       if (!cancelled && finishedMode === 'pending' && active.size === 1) {
         call('onTap', gesturePayload(current));
@@ -193,14 +191,12 @@
         remaining.previousX = remaining.x;
         remaining.previousY = remaining.y;
         mode = 'pan';
-        pinchDistance = 0;
         call('onPanStart', gesturePayload(remaining, { resumedFromPinch: true }));
         return true;
       }
 
       if (active.size === 0) {
         mode = 'idle';
-        pinchDistance = 0;
         call('onGestureEnd', gesturePayload(current));
       }
       return true;
@@ -213,7 +209,6 @@
       clearHoldTimer();
       active.clear();
       mode = 'idle';
-      pinchDistance = 0;
       if (finishedMode === 'pinch') {
         call('onPinchEnd');
       }
@@ -351,10 +346,6 @@
     scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'touch-pinch-zoom', gesture.event /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   }
 
-  function finishTouchPinch() {
-    touchPinchStartViewport = null;
-  }
-
   const controller = createTouchGestureController({
     onTap: dispatchTouchLeftClick,
     onLongPress: dispatchTouchRightClick,
@@ -362,13 +353,8 @@
     onPan: applyTouchPan,
     onPinchStart: beginTouchPinch,
     onPinch: applyTouchPinch,
-    onPinchEnd: () => {
-      if (controller.activeCount() < 2) finishTouchPinch();
-    },
-    onGestureEnd: (gesture) => {
-      finishTouchSelectionDrag(gesture);
-      if (touchPinchStartViewport) finishTouchPinch();
-    },
+    onPinchEnd: () => { touchPinchStartViewport = null; },
+    onGestureEnd: finishTouchSelectionDrag,
   });
 
   function shouldSuppressCompatibilityMouse(event) {

@@ -84,11 +84,9 @@ document.addEventListener('keydown', (e) => {
   const noShortcutModifiers = !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
   if (((e.ctrlKey || e.metaKey) && (isShortcutKey(e, 'f') || (isShortcutKey(e, 'g') && !e.altKey))) || e.key === 'F3' || e.code === 'F3') {
     const commandFind = commandOnly && isShortcutKey(e, 'f');
-    if (commandFind && canTransformSelectedImagesFromKeyboard()) {
+    if (!commandFind || canTransformSelectedImagesFromKeyboard()) {
       consumeShortcutEvent(e);
-      runShortcutCommand('flip-image', flipSelectedImages);
-    } else if (!commandFind) {
-      consumeShortcutEvent(e);
+      if (commandFind) runShortcutCommand('flip-image', flipSelectedImages);
     }
     return;
   }
@@ -200,7 +198,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (commandOnly && !editingId && isShortcutKey(e, 'e')) {
-    if (hasOpenContextMenu() || BoardfishExportUtils.selectedImageObjects().length) {
+    if (hasOpenContextMenu() || hasSelectedImagesForKeyboardAction()) {
       consumeShortcutEvent(e);
       runShortcutCommand('export-image', exportSelectedImages);
     }

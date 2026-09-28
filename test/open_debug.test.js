@@ -98,7 +98,7 @@ test('open-board debugger covers the slow open phases developers need to inspect
   assert.match(openIo, /async function hydrateTextDrawCachesForOpen/);
   assert.match(openIo, /const layout = getTextLayout\(obj\);[\s\S]*prepareTextLineForDraw\(line\);[\s\S]*warmOpenTextLineForDraw/);
   assert.match(imageVariants, /async function settleOpenImageDrawCaches/);
-  assert.match(imageVariants, /while \(imageScaledVariantQueue\.length\)/);
+  assert.match(imageVariants, /if \(!imageScaledVariantQueue\.length\) break;/);
   assert.match(imageVariants, /for \(const \[source, meta\] of drawableBitmapWarmupQueue\)/);
   assert.match(imageState, /var MAX_IMAGE_DECODE_ACTIVE = 2;/);
   assert.match(imageState, /const MAX_OPEN_IMAGE_DECODE_ACTIVE = 8;/);
@@ -163,7 +163,7 @@ test('open-board debug workflow stays capturable through beginDebug and finishDe
   assert.match(startupDebug, /finishCalls = calls\.length \? calls : defaultFinishCalls\(\)/);
   assert.match(startupDebug, /debugGlobalNames = \{/);
   assert.match(startupDebug, /open: 'OpenDebug'/);
-  assert.match(bootstrap, /registerDebugCommand\('openFilePath', openFilePath\)/);
+  assert.match(bootstrap, /registerDebugCommand\('openFilePath', openBoardFileRef\)/);
 });
 
 test('open-board helpers used by io_close are shared across startup scripts', () => {
@@ -265,7 +265,7 @@ test('open failures retain diagnostic details and release the input shield in bo
       document: {},
       _boardOpening: false,
       startCanvasSizeTracking() {}, resizeCanvas() {}, snapshot() {}, markSaved() {},
-      registerDebugCommand() {},
+      registerDebugCommand() {}, openBoardFileRef() {},
       BoardfishRuntime: { describeFileRef() { return 'board.bf'; } },
       beginOpeningFreeze() {}, showIslandMsg() {},
       endOpeningFreeze() { releases++; },

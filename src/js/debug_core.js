@@ -26,10 +26,14 @@
     return out;
   }
 
-  function debugMetaFields(event, names) {
+  function debugPick(source, names, fallback = '') {
     const out = {};
-    for (const name of names.split(' ')) out[name] = event.meta?.[name] ?? '';
+    for (const name of names.split(' ')) out[name] = source?.[name] ?? fallback;
     return out;
+  }
+
+  function debugMetaFields(event, names) {
+    return debugPick(event.meta, names);
   }
 
   function flattenDebugEvent({ meta, ...rest }) {
@@ -159,6 +163,7 @@
   root.createDebugRecorder = createDebugRecorder;
   root.round2 = round2;
   root.debugLast = debugLast;
+  root.debugPick = debugPick;
   root.debugMetaFields = debugMetaFields;
   root.sanitizeDebugMeta = sanitizeDebugMeta;
 })(typeof window !== 'undefined' ? window : globalThis);

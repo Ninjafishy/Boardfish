@@ -143,8 +143,6 @@ async function addImage(src, cx, cy, imgKey, options = {}) {
         h,
         z: obj.z,
       });
-    }
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
       const total = performance.now() - t0;
       ViewportDebug.max('maxImageAddMs', total);
       ViewportDebug.end(dbg, { id: obj.id, imgKey, total, added: true, bitmapOnly: true });
@@ -190,10 +188,6 @@ async function insertImageFiles(files, x, y
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   if (typeof BOARDFISH_PRODUCTION === 'undefined') {
     dbg = InsertDebug.start('insertImages', { source, fileCount });
-  }
-  if (!fileCount) {
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') InsertDebug.end(dbg, { source, skipped: 'no-files' });
-    return;
   }
   let added = 0;
   const accepted = [];

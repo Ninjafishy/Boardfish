@@ -63,9 +63,6 @@ function loadKeyboard(overrides = {}) {
     selectAllObjects: () => calls.push(['selectAllObjects']),
     deleteSelected: () => calls.push(['deleteSelected']),
     sendSelectedToBack: () => calls.push(['sendSelectedToBack']),
-    BoardfishExportUtils: {
-      selectedImageObjects: () => [],
-    },
     exportSelectedImages: () => calls.push(['exportSelectedImages']),
     cutSelected: () => calls.push(['cutSelected']),
     redo: () => calls.push(['redo']),

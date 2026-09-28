@@ -124,16 +124,10 @@ var finishFailedOpen;
   };
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  async function openFilePath(filePath) {
-    const dbg = OpenDebug.start('openFilePath', { path: BoardfishRuntime.describeFileRef(filePath), currentFilePath, objectCount: objects.length });
-    if (!(await confirmDirtyBeforeOpen(dbg))) return;
-    await openBoardFromPath(filePath, dbg);
-  }
-
   // Console diagnostics must go through beginDebug()/finishDebug(). Register test
   // actions here instead of exposing them as globals so agents can pass them into
   // beginDebug({ openFilePath: [...] }) without bypassing capture/download.
-  registerDebugCommand('openFilePath', openFilePath);
+  registerDebugCommand('openFilePath', openBoardFileRef);
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
 }

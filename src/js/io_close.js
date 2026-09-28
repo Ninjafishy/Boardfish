@@ -45,15 +45,9 @@ unsavedDialog.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   e.stopPropagation();
 });
-document.getElementById('dlg-save').addEventListener('click', () => {
-  _dialogClose('save');
-});
-document.getElementById('dlg-discard').addEventListener('click', () => {
-  _dialogClose('discard');
-});
-document.getElementById('dlg-cancel').addEventListener('click', () => {
-  _dialogClose('cancel');
-});
+for (const choice of ['save', 'discard', 'cancel']) {
+  document.getElementById(`dlg-${choice}`).addEventListener('click', () => _dialogClose(choice));
+}
 
 // Returns 'save' | 'discard' | 'cancel'
 function showUnsavedDialog() {
@@ -609,12 +603,6 @@ async function finishOpenedBoard(
       scaledFallbackFull: drawBreakdown?.scaledFallbackFull ?? '',
       croppedImages: drawBreakdown?.croppedImages ?? '',
     });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  } else {
-    applyTransform();
-  }
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const pillFinishReason = finishPillTask({
       beforeFinish: () => {
         const shieldStart = performance.now();
@@ -627,6 +615,7 @@ async function finishOpenedBoard(
     OpenDebug.end(dbg, { opened: true, ...openMetrics });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
   } else {
+    applyTransform();
     finishPillTask({ beforeFinish: endOpeningFreeze });
   }
 }

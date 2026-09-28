@@ -405,12 +405,7 @@ function drawEditingTextOverlay(
   /* BOARDFISH_DEV_DIAGNOSTICS_START */ collectDebug = false, /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) {
   const obj = objectsMap.get(editingId);
-  if (!obj || obj.type !== 'text') {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    return null;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    return;
-  }
+  if (!obj || obj.type !== 'text') return;
   const copiedSelectionSpec = textSelectionMotions?.get(obj.id) || null;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const stats = collectDebug ? {

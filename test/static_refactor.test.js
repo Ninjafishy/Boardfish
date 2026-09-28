@@ -66,9 +66,7 @@ test('text edit entry and shortcuts keep edge-case guards', () => {
   const textEditor = readSource('src/js/text_editor.js');
 
   assert.match(textEditor, /const obj = objectsMap\.get\(id\);\s*if \(!obj\) return;\s*editingId = id;/);
-  assert.match(textEditor, /\(e\.ctrlKey \|\| e\.metaKey\) && !e\.altKey && !e\.shiftKey && e\.key\.toLowerCase\(\) === 'c'/);
-  assert.match(textEditor, /\(e\.ctrlKey \|\| e\.metaKey\) && !e\.altKey && !e\.shiftKey && e\.key\.toLowerCase\(\) === 'x'/);
-  assert.match(textEditor, /\(e\.ctrlKey \|\| e\.metaKey\) && !e\.altKey && !e\.shiftKey && e\.key\.toLowerCase\(\) === 'a'/);
+  assert.match(textEditor, /const shortcutKey = \(e\.ctrlKey \|\| e\.metaKey\) && !e\.altKey && !e\.shiftKey && e\.key\.toLowerCase\(\);/);
 });
 
 test('text input debug metadata is lazy when logging is disabled', () => {

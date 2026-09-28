@@ -24,8 +24,7 @@ test('text edit perf debugger is passive event recording only', () => {
   const combined = `${beginSource}\n${reportSource}`;
 
   assert.match(source, /const TEXT_EDIT_EVENT_TYPES = \[[\s\S]*'wheel'[\s\S]*'pointermove'[\s\S]*'mousemove'[\s\S]*'beforeinput'[\s\S]*'input'[\s\S]*'paste'[\s\S]*'copy'[\s\S]*'cut'[\s\S]*'selectionchange'/);
-  assert.match(source, /deltaX: event\?\.deltaX/);
-  assert.match(source, /clientX: event\?\.clientX/);
+  assert.match(source, /debugPick\(event, 'deltaX deltaY clientX clientY/);
   assert.match(source, /shortcut: textEditShortcutFromEvent\(event\)/);
   assert.match(source, /domValueLength/);
   assert.match(source, /domValueStale/);
@@ -48,10 +47,7 @@ test('text edit perf debugger is passive event recording only', () => {
   assert.match(source, /maxTextareaMutationMs/);
   assert.match(source, /textEditTimeline/);
   assert.match(combined, /mode: 'passive-event-recording'/);
-  assert.match(combined, /BoardfishDebug\.viewport\.enable/);
-  assert.match(combined, /BoardfishDebug\.viewport\.reset/);
-  assert.match(combined, /BoardfishDebug\.history\.enable/);
-  assert.match(combined, /BoardfishDebug\.history\.reset/);
+  assert.match(combined, /resetTextRecorders\(\{ \.\.\.options, textSelection: false \}\)/);
   assert.match(combined, /setTextEditMathListeners\(true\)/);
   assert.match(combined, /setTextEditMathListeners\(false\)/);
   assert.match(combined, /history: historyTextUndoRedoReport\(options\)/);
@@ -109,10 +105,7 @@ test('text resize perf debugger captures resize and follow-up input evidence', (
   assert.match(source, /endWrappedLineCountCacheW/);
   assert.match(source, /textSelectionRecording/);
   assert.match(combined, /mode: 'passive-text-resize-and-input-recording'/);
-  assert.match(combined, /BoardfishDebug\.viewport\.enable/);
-  assert.match(combined, /BoardfishDebug\.viewport\.reset/);
-  assert.match(combined, /BoardfishDebug\.history\.enable/);
-  assert.match(combined, /TextSelDebug\.enable/);
+  assert.match(combined, /resetTextRecorders\(options\)/);
   assert.match(combined, /setTextEditMathListeners\(true\)/);
   assert.match(combined, /setTextEditMathListeners\(false\)/);
   assert.match(combined, /resizeSummary: textResizeSummary\(events\)/);
@@ -153,7 +146,7 @@ test('large text panning debugger records the four large-text viewport scenarios
   assert.match(beginSource, /currentLargeTextPanningState\(mode, options\)/);
   assert.match(beginSource, /applyState: options\.applyState === true/);
   assert.doesNotMatch(beginSource, /setup:|objectCount|linesPerObject|charsPerLine/);
-  assert.match(combined, /resetLargeTextPanningRecorders\(options\)/);
+  assert.match(combined, /resetTextRecorders\(options\)/);
   assert.match(combined, /setTextEditMathListeners\(true\)/);
   assert.match(combined, /setTextEditMathListeners\(false\)/);
   assert.match(combined, /recordedEventTypes: TEXT_EDIT_EVENT_TYPES\.slice\(\)/);
