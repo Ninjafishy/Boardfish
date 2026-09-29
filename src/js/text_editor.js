@@ -218,17 +218,13 @@ const textEditNavigationKeys = new Set([
   'PageDown',
 ]);
 
-const textEditWordSegmenter = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
-  ? new Intl.Segmenter(undefined, { granularity: 'word' })
-  : null;
-
 function textEditWordBoundary(value, index, direction) {
   const text = String(value ?? '');
   const position = Math.max(0, Math.min(Math.trunc(Number(index)) || 0, text.length));
   const moveRight = direction === 'right';
 
-  if (textEditWordSegmenter) {
-    const segments = textEditWordSegmenter.segment(text);
+  if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+    const segments = new Intl.Segmenter(undefined, { granularity: 'word' }).segment(text);
     let part = segments.containing(moveRight ? position : position - 1);
     while (part && !part.isWordLike) {
       part = segments.containing(moveRight ? part.index + part.segment.length : part.index - 1);

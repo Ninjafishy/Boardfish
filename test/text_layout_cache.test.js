@@ -246,7 +246,7 @@ test('glyph-pair spacing cache preserves exact spacing and reuses measured metri
   assert.equal(textLayout.glyphPairSpacingCacheSize, 1);
   assert.equal(textLayout.glyphPairSpacing('', 'Y'), 0);
   assert.equal(textLayout.glyphPairSpacing(' ', 'Y'), 0);
-  assert.equal(textLayout.glyphPairSpacingCacheSize, 1);
+  assert.equal(textLayout.glyphPairSpacingCacheSize, 2);
 });
 
 test('ASCII glyph-pair cache keeps default-font numeric keys isolated by font', () => {

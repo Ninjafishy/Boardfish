@@ -171,7 +171,6 @@ async function compileProductionBundle(source) {
   const substituted = await esbuild.transform(diagnosticCallsAliased, {
     define,
     legalComments: 'none',
-    target: 'es2020',
   });
   const droppable = substituted.code.replaceAll(DROP_DIAGNOSTIC_SENTINEL, 'console');
   const minifyOptions = {
@@ -179,7 +178,6 @@ async function compileProductionBundle(source) {
     minifyIdentifiers: !readableProductionAudit,
     minifySyntax: true,
     minifyWhitespace: !readableProductionAudit,
-    target: 'es2020',
     treeShaking: true,
   };
   const stripped = await esbuild.transform(droppable, { drop: ['console'], ...minifyOptions });

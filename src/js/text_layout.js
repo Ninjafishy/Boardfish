@@ -309,7 +309,7 @@ const textGlyphPairSpacingCacheKey = (previous, next, font = FONT) => {
 };
 
 function textGlyphPairSpacing(previous, next, font = FONT) {
-  if (!previous || !next || /\s/.test(previous) || /\s/.test(next)) return 0;
+  if (!previous || !next) return 0;
   const cacheKey = textGlyphPairSpacingCacheKey(previous, next, font);
   const cached = _glyphPairSpacingCache.get(cacheKey);
   if (cached !== undefined) return cached;
@@ -318,6 +318,7 @@ function textGlyphPairSpacing(previous, next, font = FONT) {
   const previousMetrics = measureTextGlyphMetricsWithFont(previous, font);
   const nextMetrics = measureTextGlyphMetricsWithFont(next, font);
   if (
+    !/\s/.test(previous + next) &&
     previousMetrics.hasInkBounds &&
     nextMetrics.hasInkBounds &&
     textGlyphMetricsInkWidth(previousMetrics) > TEXT_GLYPH_MIN_INK_WIDTH &&
@@ -625,7 +626,7 @@ function measureTextRangeW(text, start, end) {
 
 function textPrefixWidthsSlice(source, start, end) {
   if (start === 0 && end === source.length - 1) return source;
-  const out = new Float64Array(end - start + 1);
+  const out = new Array(end - start + 1);
   const base = source[start];
   for (let index = start; index <= end; index++) out[index - start] = Math.max(0, source[index] - base);
   return out;
@@ -645,13 +646,12 @@ function buildWrappedLines(obj, options = {}, content = obj.data.content) {
     : Math.max(firstLineIndex, Math.trunc(Number(options.lastLineIndex)) || firstLineIndex);
   const collectLines = options.collect !== false;
   const collectLineIndex = options.collectLineIndex === true;
-  const rangeLimited = firstLineIndex > 0 || Number.isFinite(lastLineIndex);
   const lineIndexEntries = Array.isArray(options.lineIndexEntries) ? options.lineIndexEntries : null;
   const lastLogicalLine = options.endLine ?? Infinity;
   const maxW = obj.w - TEXT_PAD * 2;
   const result = [];
   const lineIndex = collectLineIndex ? [] : null;
-  let visualLineIndex = 0;
+  let visualLineIndex = options.visualStart || 0;
 
   const pushLine = (start, end, nextStart = end, caretEnd = end, logicalLineIndex = 0, prefixWidths = null) => {
     if (lineIndex) {
@@ -671,15 +671,24 @@ function buildWrappedLines(obj, options = {}, content = obj.data.content) {
       }
     }
     if (collectLines && visualLineIndex >= firstLineIndex && visualLineIndex <= lastLineIndex) {
+      const text = content.slice(start, end);
+      const widths = prefixWidths
+        ? textPrefixWidthsSlice(prefixWidths, start - paraStart, end - paraStart)
+        : getPrefixWidths(text);
+      let visibleEnd = text.length;
+      while (visibleEnd && isTextWordSeparator(text[visibleEnd - 1])) visibleEnd--;
+      const y = obj.y + TEXT_PAD + visualLineIndex * LINE_H;
       result.push({
-        text: content.slice(start, end),
+        text,
         startIndex: start,
         endIndex: end,
         caretEndIndex: caretEnd,
         nextStartIndex: nextStart,
         logicalLineIndex,
-        ...(rangeLimited ? { visualLineIndex } : {}),
-        ...(prefixWidths ? { prefixWidths: textPrefixWidthsSlice(prefixWidths, start - paraStart, end - paraStart) } : {}),
+        y,
+        textY: y + TEXT_BASELINE_Y_OFFSET,
+        prefixWidths: widths,
+        visibleWidth: widths[visibleEnd] || 0,
       });
     }
     visualLineIndex++;
@@ -814,34 +823,6 @@ function textLayoutSpliceRangeForLogicalLines(layout, startLine, endLine) {
   return { start, end: lo };
 }
 
-function layoutLineFromWrappedLine(obj, line, lineIndex) {
-  const y = obj.y + TEXT_PAD + lineIndex * LINE_H;
-  const prefixWidths = line.prefixWidths?.length === line.text.length + 1
-    ? line.prefixWidths
-    : getPrefixWidths(line.text);
-  let visibleEnd = line.text.length;
-  while (visibleEnd && isTextWordSeparator(line.text[visibleEnd - 1])) visibleEnd--;
-  const layoutLine = {
-    text: line.text,
-    startIndex: line.startIndex,
-    endIndex: line.endIndex,
-    caretEndIndex: line.caretEndIndex,
-    nextStartIndex: line.nextStartIndex,
-    logicalLineIndex: line.logicalLineIndex || 0,
-    y,
-    textY: y + TEXT_BASELINE_Y_OFFSET,
-    prefixWidths,
-    visibleWidth: prefixWidths[visibleEnd] || 0,
-  };
-  return layoutLine;
-}
-
-function layoutLinesFromWrappedLines(obj, lines, first) {
-  const layout = new Array(lines.length);
-  for (let i = 0; i < lines.length; i++) layout[i] = layoutLineFromWrappedLine(obj, lines[i], first + i);
-  return layout;
-}
-
 function patchTextObjectLayoutAfterInput(obj, options = {}) {
   if (!obj || obj.type !== 'text' || !Array.isArray(obj._layoutCache)) return false;
   const collectDiagnostics = typeof BOARDFISH_PRODUCTION === 'undefined';
@@ -883,11 +864,10 @@ function patchTextObjectLayoutAfterInput(obj, options = {}) {
 
   const oldSplice = textLayoutSpliceRangeForLogicalLines(layout, oldStartLine, oldEndLine);
 
-  const newWrapped = wrapTextLogicalLineRange(obj, oldStartLine, newEndLine, {
+  const insertedLayout = wrapTextLogicalLineRange(obj, oldStartLine, newEndLine, {
     startIndex: layout[oldSplice.start].startIndex,
+    visualStart: oldSplice.start,
   });
-
-  const insertedLayout = layoutLinesFromWrappedLines(obj, newWrapped, oldSplice.start);
 
   const removedLayoutCount = oldSplice.end - oldSplice.start;
   const layoutLineDelta = insertedLayout.length - removedLayoutCount;
@@ -1149,12 +1129,12 @@ function buildTextViewportLayoutRangeFromLineIndex(obj, content, first, last, li
   const actualLast = Math.min(last, totalLines - 1);
   const firstEntry = textWrappedLineIndexEntryForVisual(lineIndexCache, first);
   const lastEntry = textWrappedLineIndexEntryForVisual(lineIndexCache, actualLast);
-  const wrappedSourceLines = wrapTextLogicalLineRange(obj, firstEntry.logicalLineIndex, lastEntry.logicalLineIndex, {
+  const layout = wrapTextLogicalLineRange(obj, firstEntry.logicalLineIndex, lastEntry.logicalLineIndex, {
     lineIndexEntries: lineIndexCache.entries,
     firstLineIndex: first,
     lastLineIndex: actualLast,
   });
-  return setCachedTextViewportLayoutRange(obj, content, first, last, layoutLinesFromWrappedLines(obj, wrappedSourceLines, first), totalLines);
+  return setCachedTextViewportLayoutRange(obj, content, first, last, layout, totalLines);
 }
 
 function getTextLayout(obj) {
@@ -1175,7 +1155,7 @@ function getTextLayout(obj) {
   obj._layoutCacheY = obj.y;
   const wrapped = buildWrappedLines(obj, { collectLineIndex: true }, content);
   setCachedTextWrappedLineIndex(obj, content, wrapped.lineIndex, wrapped.lineCount);
-  return obj._layoutCache = layoutLinesFromWrappedLines(obj, wrapped.lines, 0);
+  return obj._layoutCache = wrapped.lines;
 }
 
 function getTextLayoutForLineRange(obj, first = 0, last = first) {
@@ -1201,7 +1181,7 @@ function getTextLayoutForLineRange(obj, first = 0, last = first) {
       collectLineIndex: true,
     });
     setCachedTextWrappedLineIndex(obj, content, wrapped.lineIndex, wrapped.lineCount);
-    return setCachedTextViewportLayoutRange(obj, content, first, last, layoutLinesFromWrappedLines(obj, wrapped.lines, first), wrapped.lineCount);
+    return setCachedTextViewportLayoutRange(obj, content, first, last, wrapped.lines, wrapped.lineCount);
   }
   const totalLineCount = lineIndexCache.lineCount;
   const missingSpans = textViewportLayoutLineCacheMissingSpans(obj, content, first, last, totalLineCount);
