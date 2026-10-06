@@ -90,11 +90,11 @@ function jsClipboardStillCurrent(
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('blur', markJsClipboardMaybeStaleFromWebBlur);
+  BoardfishView.addWindowListener('blur', markJsClipboardMaybeStaleFromWebBlur);
 }
 if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') markJsClipboardMaybeStaleFromWebBlur();
+  BoardfishView.addDocumentListener('visibilitychange', () => {
+    if (boardDocument().visibilityState !== 'visible') markJsClipboardMaybeStaleFromWebBlur();
   });
 }
 Object.assign(globalThis, {

@@ -11,7 +11,7 @@ function setSelectionOverlayScreenRect(element, state, resting, animated, padDev
   const restingY = resting.y1 * zoom + panY;
   const restingWidth = (resting.x2 - resting.x1) * zoom;
   const restingHeight = (resting.y2 - resting.y1) * zoom;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = boardWindow().devicePixelRatio || 1;
   const px = 1 / dpr;
   const pad = padDevicePx * px;
   const x1 = Math.floor((restingX - pad) * dpr) * px;
@@ -173,7 +173,7 @@ function pointedElementForInputEvent(e) {
   const x = Number(e?.clientX);
   const y = Number(e?.clientY);
   const pointed = Number.isFinite(x) && Number.isFinite(y)
-    ? document.elementFromPoint(x, y)
+    ? boardDocument().elementFromPoint(x, y)
     : null;
   const element = pointed instanceof Node ? pointed : null;
   _inputEventPointElementCache.set(e, element);
@@ -231,7 +231,7 @@ function blockShieldInput(e) {
 }
 var INPUT_SHIELD_EVENT_OPTIONS = { capture: true, passive: false };
 for (const type of ['pointerdown', 'pointermove', 'pointerup', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'auxclick', 'contextmenu', 'wheel', 'keydown', 'keyup', 'beforeinput', 'input', 'paste', 'drop', 'dragover']) {
-  document.addEventListener(type, blockShieldInput, INPUT_SHIELD_EVENT_OPTIONS);
+  BoardfishView.addDocumentListener(type, blockShieldInput, INPUT_SHIELD_EVENT_OPTIONS);
 }
 
 function _setStyleIfChanged(el, prop, value, state) {

@@ -150,14 +150,15 @@
   }
 
   function hasOpenFileSystemAccess() {
-    return typeof root.showOpenFilePicker === 'function';
+    return typeof boardWindow().showOpenFilePicker === 'function';
   }
 
   function hasSaveFileSystemAccess() {
-    return typeof root.showSaveFilePicker === 'function';
+    return typeof boardWindow().showSaveFilePicker === 'function';
   }
 
   function pickFileWithInput(accept) {
+    const pickerWindow = boardWindow();
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -168,7 +169,7 @@
       let focusCancelTimer = 0;
       const removeFocusFallback = () => {
         if (focusHandler) {
-          root.removeEventListener('focus', focusHandler);
+          pickerWindow.removeEventListener('focus', focusHandler);
           focusHandler = null;
         }
         if (focusCancelTimer) {
@@ -196,9 +197,9 @@
             if (!input.files?.length) done(null);
           }, 500);
         };
-        root.addEventListener('focus', focusHandler, { once: true });
+        pickerWindow.addEventListener('focus', focusHandler, { once: true });
       }, 0);
-      document.body.appendChild(input);
+      boardDocument().body.appendChild(input);
       input.click();
     });
   }
@@ -210,7 +211,7 @@
 
   async function openFileDialog() {
     if (!hasOpenFileSystemAccess()) return pickFileWithInput('.bf');
-    const handles = await unlessAborted(root.showOpenFilePicker({
+    const handles = await unlessAborted(boardWindow().showOpenFilePicker({
       multiple: false,
       types: BOARD_FILE_TYPES,
       excludeAcceptAllOption: false,
@@ -220,7 +221,7 @@
 
   async function saveFileDialog(defaultName = 'board.bf') {
     if (!hasSaveFileSystemAccess()) return webDownloadRef(defaultName);
-    const handle = await unlessAborted(root.showSaveFilePicker({
+    const handle = await unlessAborted(boardWindow().showSaveFilePicker({
       suggestedName: defaultName,
       types: BOARD_FILE_TYPES,
       excludeAcceptAllOption: false,
@@ -303,7 +304,7 @@
     link.href = url;
     link.download = name;
     link.style.display = 'none';
-    document.body.appendChild(link);
+    boardDocument().body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);

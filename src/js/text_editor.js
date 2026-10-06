@@ -1171,7 +1171,7 @@ function enterEdit(id, {
   proxy.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;resize:none;overflow:hidden;white-space:pre;contain:strict;transform:translate(-100vw,-100vh)';
   proxy.value = obj.data.content;
   setTextEditProxyLogicalValue(proxy, obj.data.content);
-  document.body.appendChild(proxy);
+  boardDocument().body.appendChild(proxy);
   _editEl = proxy;
   logStep('enter-proxy-ready', {
     proxyChars: proxy.value.length,
@@ -1945,7 +1945,7 @@ function enterEdit(id, {
 
   let _prevSelStart = -1, _prevSelEnd = -1;
   _selChangeListener = () => {
-    if (document.activeElement !== proxy) return;
+    if (boardDocument().activeElement !== proxy) return;
     let s = proxy.selectionStart, e = proxy.selectionEnd;
     const suppressed = _textInputSelectionHistorySuppress;
     if (typeof suppressed?.hasSelection === 'boolean' && suppressed.start === s && suppressed.end === e) {
@@ -1970,7 +1970,7 @@ function enterEdit(id, {
     }
     scheduleRender(true, false);
   };
-  document.addEventListener('selectionchange', _selChangeListener);
+  BoardfishView.addDocumentListener('selectionchange', _selChangeListener);
   logStep('enter-selection-listener-ready');
 
   _caretVisible = true;
@@ -2046,7 +2046,7 @@ function exitEdit() {
     domValueStale: !!proxy?._boardfishDomValueStale,
     selectionStart: proxy?.selectionStart ?? '',
     selectionEnd: proxy?.selectionEnd ?? '',
-    activeElementIsProxy: typeof document !== 'undefined' ? document.activeElement === proxy : '',
+    activeElementIsProxy: typeof document !== 'undefined' ? boardDocument().activeElement === proxy : '',
   });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   editingId = null;
@@ -2064,7 +2064,7 @@ function exitEdit() {
   let selectionListenerRemoved = false;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   if (_selChangeListener) {
-    document.removeEventListener('selectionchange', _selChangeListener);
+    BoardfishView.removeDocumentListener('selectionchange', _selChangeListener);
     _selChangeListener = null;
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     selectionListenerRemoved = true;
@@ -2207,7 +2207,7 @@ function exitEdit() {
   const renderScheduleMs = textEditorDebugRound(textEditorDebugNow() - renderScheduleStart);
   const clearSelectionStart = textEditorDebugNow();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  window.getSelection()?.removeAllRanges();
+  boardWindow().getSelection()?.removeAllRanges();
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const windowSelectionClearMs = textEditorDebugRound(textEditorDebugNow() - clearSelectionStart);
   /* BOARDFISH_DEV_DIAGNOSTICS_END */

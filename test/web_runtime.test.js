@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
+const vm = require('../test-support/browser_vm.js');
 const WebContainer = require('../src/js/web_board_container.js');
 const { singleImageBoard } = require('../test-support/image_output.js');
 
@@ -89,6 +89,25 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
     },
   };
 }
+
+test('open and save dialogs use the visible PiP window while the session stays in the opener', async () => {
+  const { context } = loadWebRuntimeHarness();
+  const openHandle = { name: 'opened.bf' }, saveHandle = { name: 'saved.bf' };
+  const requests = [];
+  const pip = {
+    document: {},
+    async showOpenFilePicker(options) { requests.push(['open', options.multiple]); return [openHandle]; },
+    async showSaveFilePicker(options) { requests.push(['save', options.suggestedName]); return saveHandle; },
+  };
+  context.showOpenFilePicker = () => { throw new Error('The hidden opener must not open the picker'); };
+  context.showSaveFilePicker = context.showOpenFilePicker;
+  context.BoardfishView.setWindow(pip);
+  const opened = await context.BoardfishRuntime.openFileDialog();
+  const saved = await context.BoardfishRuntime.saveFileDialog('pinned.bf');
+  assert.equal(opened.handle, openHandle);
+  assert.equal(saved.handle, saveHandle);
+  assert.deepEqual(requests, [['open', false], ['save', 'pinned.bf']]);
+});
 
 test('fallback file picker does not retain focus listener after selected file settles', async () => {
   const harness = loadWebRuntimeHarness();

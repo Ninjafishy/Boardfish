@@ -348,7 +348,7 @@ function restoreSnapshot(s, editStateOverride) {
   _editHistoryActionStartState = null;
   if (editingId && preserveLiveEdit) {
     if (_selChangeListener) {
-      document.removeEventListener('selectionchange', _selChangeListener);
+      BoardfishView.removeDocumentListener('selectionchange', _selChangeListener);
       liveSelectionListenerRemoved = true;
     }
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -360,7 +360,7 @@ function restoreSnapshot(s, editStateOverride) {
     _caretBlinkInterval = null;
     _editHistoryLastContent = null;
     if (_selChangeListener) {
-      document.removeEventListener('selectionchange', _selChangeListener);
+      BoardfishView.removeDocumentListener('selectionchange', _selChangeListener);
       _selChangeListener = null;
     }
     if (_editEl) {
@@ -520,7 +520,7 @@ function restoreSnapshot(s, editStateOverride) {
   let focusMs = '';
   let focusSkipped = '';
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const editProxyAlreadyFocused = typeof document !== 'undefined' && document.activeElement === _editEl;
+  const editProxyAlreadyFocused = typeof document !== 'undefined' && boardDocument().activeElement === _editEl;
   if (reusedEditProxy && editProxyAlreadyFocused) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     focusSkipped = 'already-focused';
@@ -578,7 +578,7 @@ function restoreSnapshot(s, editStateOverride) {
     delete obj._textEditCaretIndex;
   }
   if (liveSelectionListenerRemoved && _selChangeListener) {
-    document.addEventListener('selectionchange', _selChangeListener);
+    BoardfishView.addDocumentListener('selectionchange', _selChangeListener);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     HistoryDebug.step(dbg, 'restore-edit-listener', { editStateId: editState.id, restoredSelectionListener: true });
     /* BOARDFISH_DEV_DIAGNOSTICS_END */

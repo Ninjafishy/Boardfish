@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
+const vm = require('../test-support/browser_vm.js');
 const { readSource } = require('../test-support/source.js');
 
 function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {

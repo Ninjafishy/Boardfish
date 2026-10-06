@@ -100,7 +100,7 @@ function applyAppTheme(theme, {
   const nextTheme = normalizeAppTheme(theme);
   const changed = appTheme !== nextTheme;
   appTheme = nextTheme;
-  document.body.dataset.theme = appTheme;
+  boardDocument().body.dataset.theme = appTheme;
   if (appThemeMeta) appThemeMeta.setAttribute('content', appTheme === 'dark' ? '#1c1b22' : '#eaeaed');
   _canvasBackgroundColor = appTheme === 'dark' ? '#1c1b22' : 'rgb(234, 234, 237)';
   _canvasTextColor = appTheme === 'dark' ? '#fbfbfe' : '#15141A';

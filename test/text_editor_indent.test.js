@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
+const vm = require('../test-support/browser_vm.js');
 
 const { loadLiveTextEditResizeHarness, createUnitTextContext } = require('../test-support/text_editor.js');
 const TEST_LINE_H = 24;

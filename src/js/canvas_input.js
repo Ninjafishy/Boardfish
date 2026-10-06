@@ -24,7 +24,7 @@ function canvasInputEventTimestampMs(event = null) {
 
 function canvasInputWheelDeltaScale(deltaMode) {
   if (deltaMode === 1) return 16;
-  if (deltaMode === 2) return Math.max(1, Number(window.innerHeight) || 1);
+  if (deltaMode === 2) return Math.max(1, Number(boardWindow().innerHeight) || 1);
   return 1;
 }
 
@@ -96,14 +96,14 @@ function focusTextEditProxyNow(proxy
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) {
   if (typeof BOARDFISH_PRODUCTION !== 'undefined') {
-    if (!proxy || (typeof document !== 'undefined' && document.activeElement === proxy)) return false;
+    if (!proxy || (typeof document !== 'undefined' && boardDocument().activeElement === proxy)) return false;
     proxy.focus({ preventScroll: true });
     return true;
   } else {
     if (label == null) label = 'text-edit-focus';
     if (meta == null) meta = {};
     if (!proxy) return { focused: false, skipped: true, reason: 'missing-proxy', focusMs: '' };
-    if (typeof document !== 'undefined' && document.activeElement === proxy) {
+    if (typeof document !== 'undefined' && boardDocument().activeElement === proxy) {
       const out = { focused: false, skipped: true, reason: 'already-active', focusMs: 0, activeElementIsProxy: true };
       canvasInputTextDebugLog(label, obj, { ...meta, ...out });
       return out;
@@ -115,7 +115,7 @@ function focusTextEditProxyNow(proxy
       skipped: false,
       reason: '',
       focusMs: canvasInputDebugRound(canvasInputNow() - focusStart),
-      activeElementIsProxy: typeof document !== 'undefined' ? document.activeElement === proxy : '',
+      activeElementIsProxy: typeof document !== 'undefined' ? boardDocument().activeElement === proxy : '',
     };
     canvasInputTextDebugLog(label, obj, { ...meta, ...out });
     return out;
@@ -265,7 +265,7 @@ function handleViewportWheel(e) {
 }
 
 if (typeof window !== 'undefined' && window.addEventListener) {
-  window.addEventListener('wheel', handleViewportWheel, { capture: true, passive: false });
+  BoardfishView.addWindowListener('wheel', handleViewportWheel, { capture: true, passive: false });
 }
 
 // ─── Pan (spacebar + left click) ─────────────────────────────────────────────
@@ -274,7 +274,7 @@ var _spaceDown = false,
   hideRubberBandSelectionVisual = null,
   cancelRubberBandSelection = null;
 
-document.addEventListener('keyup', (e) => {
+BoardfishView.addDocumentListener('keyup', (e) => {
   if (e.code !== 'Space') return;
   if (_spaceDown || !editingId) e.preventDefault();
   _spaceDown = false;
@@ -704,7 +704,7 @@ function startObjectDrag(e, obj) {
               });
               logClickEditStep('click-to-edit-focus', {
                 focusResult,
-                activeElementIsProxy: typeof document !== 'undefined' ? document.activeElement === _editEl : '',
+                activeElementIsProxy: typeof document !== 'undefined' ? boardDocument().activeElement === _editEl : '',
               });
               /* BOARDFISH_DEV_DIAGNOSTICS_END */
             } else {

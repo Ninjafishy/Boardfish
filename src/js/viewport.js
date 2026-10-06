@@ -161,16 +161,16 @@ function boardSurfaceCssSize() {
   const rect = canvas?.getBoundingClientRect?.();
   let width = Number(rect?.width), height = Number(rect?.height);
   if (!(width > 0)) width = Number(boardCanvas?.clientWidth);
-  if (!(width > 0)) width = Number(window.innerWidth);
+  if (!(width > 0)) width = Number(boardWindow().innerWidth);
   if (!(width > 0)) width = 1;
   if (!(height > 0)) height = Number(boardCanvas?.clientHeight);
-  if (!(height > 0)) height = Number(window.innerHeight);
+  if (!(height > 0)) height = Number(boardWindow().innerHeight);
   if (!(height > 0)) height = 1;
   return _boardSurfaceCssSizeCache = { width, height };
 }
 
 function syncBoardCanvasBackingStore(write = true) {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = boardWindow().devicePixelRatio || 1;
   const surface = boardSurfaceCssSize();
   const width = Math.max(1, Math.round(surface.width * dpr));
   const height = Math.max(1, Math.round(surface.height * dpr));
@@ -195,12 +195,22 @@ function resizeCanvas(surface = null) {
 
 function startCanvasSizeTracking() {
   if (_canvasResizeObserver) return;
-  _canvasResizeObserver = typeof ResizeObserver === 'function'
-    ? new ResizeObserver(entries => resizeCanvas(entries?.[0]?.contentRect))
-    : window.visualViewport || window;
+  const Observer = boardWindow().ResizeObserver || (typeof ResizeObserver === 'function' ? ResizeObserver : null);
+  _canvasResizeObserver = Observer
+    ? new Observer(entries => resizeCanvas(entries?.[0]?.contentRect))
+    : boardWindow().visualViewport || boardWindow();
   if (_canvasResizeObserver.observe) _canvasResizeObserver.observe(canvas);
   else _canvasResizeObserver.addEventListener('resize', resizeCanvas);
-  window.addEventListener?.('resize', resizeCanvas);
+  BoardfishView.addWindowListener('resize', resizeCanvas);
+}
+
+function restartCanvasSizeTracking() {
+  if (_canvasResizeObserver?.observe) _canvasResizeObserver.disconnect();
+  else _canvasResizeObserver?.removeEventListener('resize', resizeCanvas);
+  _canvasResizeObserver = null;
+  _boardSurfaceCssSizeCache = null;
+  startCanvasSizeTracking();
+  resizeCanvas();
 }
 
 const collectTextSelectionRuns = (obj, layout, selStart, selEnd) => {
@@ -528,7 +538,7 @@ function drawBoard(bypassEditOffscreenCache = false) {
   let drawnImages = 0;
   let drawnText = 0;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = boardWindow().devicePixelRatio || 1;
   const viewportRect = viewportWorldRect(0);
   const textSelectionMotions = BoardfishMotion.beginDraw();
 
@@ -786,7 +796,7 @@ const boardRenderer = BoardfishRenderer.createBoardRenderer({
   zoom: () => zoom,
   panX: () => panX,
   panY: () => panY,
-  dpr: () => window.devicePixelRatio || 1,
+  dpr: () => boardWindow().devicePixelRatio || 1,
   font: FONT,
   lineHeight: LINE_H,
   canvasTextColor,
@@ -934,7 +944,7 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
   }
   const maxLines = Math.max(0, Math.trunc(Number(options.maxLines ?? 256)) || 0);
   const viewZoom = Math.max(0.01, Number(options.zoom ?? zoom) || 1);
-  const viewDpr = Math.max(1, Number(options.dpr ?? window.devicePixelRatio) || 1);
+  const viewDpr = Math.max(1, Number(options.dpr ?? boardWindow().devicePixelRatio) || 1);
   const deviceScale = viewZoom * viewDpr;
   const startedAt = performance.now();
   let warmedLines = 0;
@@ -1157,7 +1167,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
         const stats = warmTextLayoutDrawLines(obj, drawWarmupLayout, {
           maxLines: remainingWarmupLines,
           zoom: warmupZoom,
-          dpr: window.devicePixelRatio || 1,
+          dpr: boardWindow().devicePixelRatio || 1,
           drawWarmupTarget,
         });
         addTextDrawWarmupAggregate(drawWarmupStats, stats, warmupZoom);
@@ -1354,7 +1364,7 @@ function scheduleFrame(
     });
   }
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  _frameRaf = requestAnimationFrame(() => {
+  _frameRaf = BoardfishView.requestAnimationFrame(() => {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     let sourceLabel = '';
     let sourceCount = 0;

@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
+const vm = require('../test-support/browser_vm.js');
 
 
 function createElement(id = 'el') {
@@ -304,7 +304,7 @@ test('viewport frames stay on the native-quality renderer without settle redraws
   const source = readSource('src/js/viewport.js');
 
   assert.doesNotMatch(source, /_lastBoardFrameLowLatency|low-latency-frame-settled/);
-  assert.match(source, /function syncBoardCanvasBackingStore\(write = true\) \{\s*const dpr = window\.devicePixelRatio \|\| 1;/);
+  assert.match(source, /function syncBoardCanvasBackingStore\(write = true\) \{\s*const dpr = boardWindow\(\)\.devicePixelRatio \|\| 1;/);
 });
 
 test('canvas resize keeps visible pixels until the render frame syncs the backing store', () => {

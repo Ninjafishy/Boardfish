@@ -3,6 +3,34 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+test('an active PiP drag is canceled once when the board returns to its opener', () => {
+  const { createBoardfishView } = require('../src/js/view_context.js');
+  const owner = new EventTarget(), pip = new EventTarget();
+  owner.document = new EventTarget();
+  pip.document = new EventTarget();
+  const view = createBoardfishView(owner, owner.document);
+  const previous = globalThis.BoardfishView;
+  globalThis.BoardfishView = view;
+  const { beginDocumentDrag } = require('../src/js/interaction_utils.js');
+  let moves = 0;
+  const ends = [];
+  try {
+    view.setWindow(pip);
+    beginDocumentDrag({ move: () => moves++, up: (event) => ends.push(event) });
+    pip.document.dispatchEvent(new Event('mousemove'));
+    view.setWindow(owner);
+    pip.document.dispatchEvent(new Event('mousemove'));
+    pip.document.dispatchEvent(new Event('mouseup'));
+    assert.equal(moves, 1);
+    assert.equal(ends.length, 1);
+    assert.equal(ends[0].__boardfishDragCancel, true);
+    assert.equal(ends[0].type, 'viewchange');
+  } finally {
+    if (previous === undefined) delete globalThis.BoardfishView;
+    else globalThis.BoardfishView = previous;
+  }
+});
+
 test('createRafCommitter coalesces scheduled state and supports flush', () => {
   const previousRequest = globalThis.requestAnimationFrame;
   const previousCancel = globalThis.cancelAnimationFrame;

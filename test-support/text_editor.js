@@ -1,7 +1,7 @@
 'use strict';
 
 const { readSource } = require('./source.js');
-const vm = require('node:vm');
+const vm = require('./browser_vm.js');
 
 function createUnitTextContext() {
   return {

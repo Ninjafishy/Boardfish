@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readSource } = require('../test-support/source.js');
-const vm = require('node:vm');
+const vm = require('../test-support/browser_vm.js');
 
 
 function cssBlocksForPrelude(source, prelude) {
@@ -282,7 +282,7 @@ test('context menu command buttons use the button click point as the object cent
 
   assert.match(contextMenuSource, /const HAS_POINTER_EVENTS = 'PointerEvent' in window;/);
   assert.match(contextMenuSource, /const BOARD_CURSOR_CLIENT_EVENT_TYPES = Object\.freeze\(\[[\s\S]*HAS_POINTER_EVENTS[\s\S]*'pointermove'[\s\S]*'mousemove'[\s\S]*'click'[\s\S]*'dragover'[\s\S]*'drop'[\s\S]*\]\);/);
-  assert.match(contextMenuSource, /for \(const type of BOARD_CURSOR_CLIENT_EVENT_TYPES\) \{\s*window\.addEventListener\(type, rememberBoardCursorClientPoint, true\);\s*\}/);
+  assert.match(contextMenuSource, /for \(const type of BOARD_CURSOR_CLIENT_EVENT_TYPES\) \{\s*BoardfishView\.addWindowListener\(type, rememberBoardCursorClientPoint, true\);\s*\}/);
   assert.doesNotMatch(contextMenuSource, /document\.addEventListener\(type, rememberBoardCursorClientPoint, true\)/);
   assert.match(contextMenuSource, /function menuCommandWorldPoint\(event = null\) \{[\s\S]*return toWorld\(x, y\);[\s\S]*return boardCursorWorldPoint\(\);[\s\S]*\}/);
   assert.match(contextMenuSource, /const point = menuCommandWorldPoint\(event\);[\s\S]*addText\(point\.x, point\.y, '', \{ anchor: 'center' \}\)/);
@@ -387,13 +387,13 @@ test('wheel zoom over visible floating UI uses the viewport wheel handler', () =
   const styles = readSource('src/styles.css');
 
   assert.match(inputSource, /function handleViewportWheel\(e\) \{\s*if \(!e\.ctrlKey && !e\.metaKey && !isEventInsideViewportWheelSurface\(e\)\) return;/);
-  assert.match(inputSource, /window\.addEventListener\('wheel', handleViewportWheel, \{ capture: true, passive: false \}\);/);
+  assert.match(inputSource, /BoardfishView\.addWindowListener\('wheel', handleViewportWheel, \{ capture: true, passive: false \}\);/);
   assert.doesNotMatch(inputSource, /canvas\.addEventListener\('wheel'/);
   assert.doesNotMatch(inputSource, /viewportWheelSurfaces/);
   assert.match(inputSource.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_(?:START|END) \*\//g, ''), /const requestedZoom = zoom \* factor;\s*scheduleTransform\(BoardfishViewportState\.zoomAroundClient\(e\.clientX, e\.clientY, requestedZoom\)\s*, 'wheel-zoom', e\s*\);/);
   assert.match(viewportSource, /lastViewportInputAt = now;\s*if \(changed === false && !editingId\) return;/);
   assert.doesNotMatch(inputSource, /const newZoom = Math\.min\(ZOOM_MAX/);
-  assert.match(selectionSource, /document\.elementFromPoint\(x, y\)/);
+  assert.match(selectionSource, /boardDocument\(\)\.elementFromPoint\(x, y\)/);
   assert.match(selectionSource, /if \(e\.target instanceof Node && e\.target\.nodeType === 1\) return false;/);
   assert.match(selectionSource, /const isEventInsideViewportWheelSurface = \(e\) => \{[\s\S]*canvas\.contains\(e\.target\)[\s\S]*isEventInsideVisibleContextMenu\(e\) \|\| isEventInsideVisibleSurface\(e, island\);[\s\S]*\};/);
   assert.match(selectionSource, /const isEventInsideVisibleContextMenu = \(e\) => \{[\s\S]*isEventInsideVisibleSurface\(e, ctxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, objCtxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, ctxActions\)[\s\S]*\};/);

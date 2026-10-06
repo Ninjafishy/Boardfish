@@ -257,8 +257,8 @@
 
   function touchMouseTarget(point) {
     if (point?.target?.dispatchEvent && canvas.contains(point.target)) return point.target;
-    const pointed = typeof document.elementFromPoint === 'function'
-      ? document.elementFromPoint(point.x, point.y)
+    const pointed = typeof boardDocument().elementFromPoint === 'function'
+      ? boardDocument().elementFromPoint(point.x, point.y)
       : null;
     if (pointed?.dispatchEvent && canvas.contains(pointed)) return pointed;
     return boardCanvas || canvas;
@@ -453,9 +453,10 @@
     canvas.addEventListener('lostpointercapture', onTouchPointerCancel, { passive: false });
   }
 
-  root.addEventListener?.('blur', controller.cancel);
-  root.addEventListener?.('pagehide', controller.cancel);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden || document.visibilityState === 'hidden') controller.cancel();
+  BoardfishView.addWindowListener('blur', controller.cancel);
+  BoardfishView.addWindowListener('pagehide', controller.cancel);
+  BoardfishView.beforeChange(controller.cancel);
+  BoardfishView.addDocumentListener('visibilitychange', () => {
+    if (boardDocument().hidden || boardDocument().visibilityState === 'hidden') controller.cancel();
   });
 })(typeof window !== 'undefined' ? window : globalThis);

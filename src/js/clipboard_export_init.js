@@ -16,7 +16,7 @@ const writeWebClipboardTokenForJsClipboard = (
   dbg = null, meta = null
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) => {
-  if (globalThis.document?.visibilityState === 'hidden') {
+  if (boardDocument()?.visibilityState === 'hidden') {
     return Promise.resolve({ boardfishTokenWritten: false });
   }
   const webToken = globalThis.getJsClipboardWebToken?.() || '';
@@ -662,7 +662,7 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
     const releaseInputShield = acquireInputShield();
     try {
       const clipboardItems = browserClipboardItems || (
-        navigator.clipboard?.read ? await navigator.clipboard.read() : []
+        boardNavigator().clipboard?.read ? await boardNavigator().clipboard.read() : []
       );
       let imageBlob = null;
       for (const item of clipboardItems) {
@@ -689,7 +689,7 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
       const textReadStartedAt = clipboardNow();
       ClipDebug.step(dbg, 'browser-text-read:start');
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      const browserText = await navigator.clipboard.readText();
+      const browserText = await boardNavigator().clipboard.readText();
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       ClipDebug.step(dbg, 'browser-text-read:ok', {
         ms: clipboardElapsedMs(textReadStartedAt),
@@ -712,7 +712,7 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
   }
 }
 
-document.addEventListener('paste', (e) => {
+BoardfishView.addDocumentListener('paste', (e) => {
   if (editingId) return;
   e.preventDefault();
   if (isBoardInputBlocked()) return;

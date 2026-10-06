@@ -202,7 +202,7 @@ function queueImageHydration(key
 function scheduleImageHydration() {
   if (_imageHydrationScheduled) return;
   _imageHydrationScheduled = true;
-  requestAnimationFrame(processImageHydrationQueue);
+  BoardfishView.requestAnimationFrame(processImageHydrationQueue);
 }
 
 function processImageHydrationQueue() {
@@ -253,7 +253,7 @@ function scheduleImageDecodeQueue() {
   if (_boardOpening) {
     setTimeout(processImageDecodeQueue, 0);
   } else {
-    requestAnimationFrame(processImageDecodeQueue);
+    BoardfishView.requestAnimationFrame(processImageDecodeQueue);
   }
 }
 

@@ -1,6 +1,7 @@
 'use strict';
 
 (function initExportUtils(root) {
+  const exportWindow = () => typeof boardWindow === 'function' ? boardWindow() : root;
   const { dataUrlMime, extForMime, mimeForExt: mimeForImageExt } = root.BoardfishBoardTypes ||
     (typeof require === 'function' ? require('./board_types.js') : null);
   function guessImageExtFromDataUrl(dataUrl) {
@@ -364,7 +365,7 @@
       const folderTarget = await pickWebExportDirectory();
       if (folderTarget) return folderTarget;
     }
-    if (typeof root.showSaveFilePicker !== 'function') return null;
+    if (typeof exportWindow().showSaveFilePicker !== 'function') return null;
     const single = imageObjs.length === 1;
     const ext = single ? guessImageExtForObjectExport(imageObjs[0]) : 'zip';
     const mime = single ? mimeForImageExt(ext) : 'application/zip';
@@ -372,7 +373,7 @@
       ? withImageExtension(options.filename || `image_${randomHex()}.${ext}`, ext)
       : (options.filename || `images_${randomHex()}.zip`);
     try {
-      const handle = await root.showSaveFilePicker({
+      const handle = await exportWindow().showSaveFilePicker({
         suggestedName: filename,
         types: [{
           description: single ? 'Image' : 'ZIP archive',
@@ -389,9 +390,9 @@
   }
 
   async function pickWebExportDirectory() {
-    if (typeof root.showDirectoryPicker !== 'function') return null;
+    if (typeof exportWindow().showDirectoryPicker !== 'function') return null;
     try {
-      const handle = await root.showDirectoryPicker({ mode: 'readwrite' });
+      const handle = await exportWindow().showDirectoryPicker({ mode: 'readwrite' });
       return handle ? { directoryHandle: handle, filename: '', method: 'directory-picker' } : { cancelled: true };
     } catch (err) {
       if (err?.name === 'AbortError') return { cancelled: true };

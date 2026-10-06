@@ -1,5 +1,6 @@
 export const WEB_DEV_SCRIPTS = Object.freeze([
   'web_env.js',
+  'view_context.js',
   'board_types.js',
   'web_board_container.js',
   'board_limits.js',
@@ -47,6 +48,7 @@ export const WEB_DEV_SCRIPTS = Object.freeze([
   'clipboard_export_init.js',
   'keyboard.js',
   'app_bootstrap.js',
+  'picture_in_picture.js',
 ]);
 
 const DEV_ONLY_SCRIPTS = new Set([

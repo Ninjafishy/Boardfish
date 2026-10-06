@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
+const vm = require('../test-support/browser_vm.js');
 
 
 test('viewport panning accepts large offsets in every direction', () => {
@@ -79,7 +79,7 @@ test('viewport rendering uses one native-quality branch on every platform', () =
   assert.doesNotMatch(viewportSource, /scheduleViewportInputSettleRender|restoreBoardCanvasQualityIfSettled/);
   assert.doesNotMatch(viewportSource, /isViewportInputActive: isActiveViewportInput/);
   assert.doesNotMatch(viewportSource, /lowLatencyFrame|boardCanvasRenderDpr|INTERACTIVE_CANVAS_DPR_MAX/);
-  assert.match(viewportSource, /function syncBoardCanvasBackingStore\(write = true\) \{\s*const dpr = window\.devicePixelRatio \|\| 1;/);
+  assert.match(viewportSource, /function syncBoardCanvasBackingStore\(write = true\) \{\s*const dpr = boardWindow\(\)\.devicePixelRatio \|\| 1;/);
 });
 
 test('panning continues in every direction after a large prior offset', () => {

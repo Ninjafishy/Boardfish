@@ -458,7 +458,7 @@ function scheduleScaledVariantQueue() {
   }, delay);
 }
 
-function chooseImageScaleForDraw(obj, source, view = { zoom, dpr: window.devicePixelRatio || 1 }, activeOverscale = false) {
+function chooseImageScaleForDraw(obj, source, view = { zoom, dpr: boardWindow().devicePixelRatio || 1 }, activeOverscale = false) {
   const sourceW = source?.width || source?.naturalWidth || 0;
   const sourceH = source?.height || source?.naturalHeight || 0;
   if (!sourceW || !sourceH) return 1;
@@ -697,7 +697,7 @@ function scheduleVisibleImageWorkAfterIdle(delayMs = IMAGE_VARIANT_INPUT_IDLE_MS
   }, Math.max(0, delayMs));
 }
 
-function selectImageSourceForDraw(key, obj, fullSource, view = { zoom, dpr: window.devicePixelRatio || 1 }, activeInput = null) {
+function selectImageSourceForDraw(key, obj, fullSource, view = { zoom, dpr: boardWindow().devicePixelRatio || 1 }, activeInput = null) {
   if (!viewportImageScalingEnabled) {
     return typeof BOARDFISH_PRODUCTION === 'undefined'
       ? { source: fullSource, scale: 1, targetScale: 1, disabled: true }

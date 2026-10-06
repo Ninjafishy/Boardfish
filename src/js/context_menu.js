@@ -16,8 +16,8 @@ function rememberBoardCursorClientPoint(event) {
 
 function boardCursorWorldPoint() {
   return toWorld(
-    _lastBoardCursorClientX ?? window.innerWidth / 2,
-    _lastBoardCursorClientY ?? window.innerHeight / 2,
+    _lastBoardCursorClientX ?? boardWindow().innerWidth / 2,
+    _lastBoardCursorClientY ?? boardWindow().innerHeight / 2,
   );
 }
 
@@ -29,7 +29,7 @@ function menuCommandWorldPoint(event = null) {
 }
 
 for (const type of BOARD_CURSOR_CLIENT_EVENT_TYPES) {
-  window.addEventListener(type, rememberBoardCursorClientPoint, true);
+  BoardfishView.addWindowListener(type, rememberBoardCursorClientPoint, true);
 }
 
 function addTextAtMenuCommandPoint(event = null) {
@@ -39,12 +39,12 @@ function addTextAtMenuCommandPoint(event = null) {
 }
 
 function menuViewportBounds() {
-  const viewport = window.visualViewport;
+  const viewport = boardWindow().visualViewport;
   const left = Number(viewport?.offsetLeft) || 0;
   const top = Number(viewport?.offsetTop) || 0;
-  const width = Number(viewport?.width) || Number(window.innerWidth) || 0;
-  const height = Number(viewport?.height) || Number(window.innerHeight) || 0;
-  const style = getComputedStyle(document.body);
+  const width = Number(viewport?.width) || Number(boardWindow().innerWidth) || 0;
+  const height = Number(viewport?.height) || Number(boardWindow().innerHeight) || 0;
+  const style = boardWindow().getComputedStyle(boardDocument().body);
   const inset = (name) => {
     const value = parseFloat(style.getPropertyValue(`--safe-area-${name}`));
     return Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -119,8 +119,8 @@ function openCtxMenuAt(x, y) {
 
 if (DEBUG_TOOLS_ENABLED) {
   for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'contextmenu']) {
-    document.addEventListener(type, (e) => MenuDebug.logDomEvent(`document:${type}:capture`, e), true);
-    document.addEventListener(type, (e) => MenuDebug.logDomEvent(`document:${type}:bubble`, e), false);
+    BoardfishView.addDocumentListener(type, (e) => MenuDebug.logDomEvent(`document:${type}:capture`, e), true);
+    BoardfishView.addDocumentListener(type, (e) => MenuDebug.logDomEvent(`document:${type}:bubble`, e), false);
     ctxMenu.addEventListener(type, (e) => MenuDebug.logDomEvent(`ctx-menu:${type}`, e));
     objCtxMenu.addEventListener(type, (e) => MenuDebug.logDomEvent(`obj-ctx-menu:${type}`, e));
     textCtxMenu.addEventListener(type, (e) => MenuDebug.logDomEvent(`text-ctx-menu:${type}`, e));
@@ -180,6 +180,7 @@ var MENU_COMMANDS = {
   'btn-save': () => { closeCtxMenu('command:save'); saveBoard(); },
   'btn-save-as': () => { closeCtxMenu('command:save-as'); saveBoardAs(); },
   'btn-open': () => { closeCtxMenu('command:open'); openBoard(); },
+  'btn-pin': () => { closeCtxMenu('command:pin'); toggleBoardPin(); },
   'obj-btn-copy': () => { closeObjCtxMenu('command:copy'); copySelected(); },
   'obj-btn-delete': () => { closeObjCtxMenu('command:delete'); deleteSelected(); },
   'obj-btn-duplicate': (event) => {
@@ -203,8 +204,8 @@ const focusTextEditProxy = () => focusTextEditProxyNow(_editEl);
 
 const readTextClipboardForEditMenu = async () => {
   try {
-    if (navigator.clipboard?.readText) {
-      return String(await navigator.clipboard.readText() || '');
+    if (boardNavigator().clipboard?.readText) {
+      return String(await boardNavigator().clipboard.readText() || '');
     }
   } catch (err) {
     MenuDebug.log('text-ctx-menu:clipboard-text-miss', { error: String(err) });
@@ -416,7 +417,7 @@ function runVisibleMenuCommandForShortcut(shortcutName) {
   for (const [menuId, buttonId] of candidates) {
     const menu = contextMenuSurfaceById(menuId);
     if (!menu?.classList.contains('visible')) continue;
-    const button = document.getElementById(buttonId);
+    const button = boardDocument().getElementById(buttonId);
     if (!isVisibleMenuCommandButton(button)) continue;
     return runMenuCommand(button, 'shortcut');
   }
@@ -430,7 +431,7 @@ function runAddTextCommandFromShortcut() { runMenuCommand(addTextBtn, 'shortcut'
 function resetZoomToClosestObject() {
   const dbg = ViewportDebug.start('resetZoom', { panX, panY, zoom, objectCount: objects.length });
   if (selectedIds.size || editingId) deselectAll();
-  const center = toWorld(window.innerWidth / 2, window.innerHeight / 2);
+  const center = toWorld(boardWindow().innerWidth / 2, boardWindow().innerHeight / 2);
   let closestImage = null;
   let closestImageDistanceSq = Infinity;
   let closestText = null;
@@ -452,7 +453,7 @@ function resetZoomToClosestObject() {
   const object = closestImage || closestText;
   const objectCenterX = object ? object.x + object.w / 2 : center.x;
   const objectCenterY = object ? object.y + object.h / 2 : center.y;
-  const changed = BoardfishViewportState.setZoomPan(1, window.innerWidth / 2 - objectCenterX, window.innerHeight / 2 - objectCenterY);
+  const changed = BoardfishViewportState.setZoomPan(1, boardWindow().innerWidth / 2 - objectCenterX, boardWindow().innerHeight / 2 - objectCenterY);
   scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'reset-zoom' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
   ViewportDebug.end(dbg, {
     ...(object
@@ -617,7 +618,7 @@ canvas.addEventListener('contextmenu', (e) => {
 
 for (const id in MENU_COMMANDS) {
   if (!Object.hasOwn(MENU_COMMANDS, id)) continue;
-  document.getElementById(id)?.addEventListener('click', (event) => {
+  boardDocument().getElementById(id)?.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
     runMenuCommand(event.currentTarget, 'click', event);
@@ -625,7 +626,7 @@ for (const id in MENU_COMMANDS) {
 }
 
 
-document.addEventListener(HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown', (e) => {
+BoardfishView.addDocumentListener(HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown', (e) => {
   if (!hasOpenContextMenu()) return;
   if (isEventInsideVisibleContextMenu(e)) {
     MenuDebug.log('document-outside-press:inside-menu');

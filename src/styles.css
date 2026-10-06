@@ -66,6 +66,35 @@ body[data-theme="dark"] {
   --canvas-bg: var(--canvas-bg-dark);
 }
 
+#btn-pin[hidden], #pip-menu-separator[hidden], #pip-placeholder[hidden] {
+  display: none;
+}
+
+#pip-placeholder {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  color: #15141a;
+  text-align: center;
+}
+body[data-theme="dark"] #pip-placeholder { color: var(--white_font); }
+.pip-placeholder-content { max-width: 340px; }
+.pip-placeholder-content h1 { font: inherit; font-size: 20px; margin-bottom: 12px; }
+.pip-placeholder-content p { line-height: 1.6; opacity: 0.7; }
+#pip-return {
+  margin-top: 24px;
+  padding: 10px 18px;
+  color: var(--firefox-menu-text);
+  background: var(--firefox-menu-bg);
+  border: 1px solid var(--firefox-menu-border);
+  border-radius: var(--pill-radius);
+  cursor: pointer;
+}
+#pip-return:focus-visible { background: var(--firefox-menu-hover-bg); }
+#pip-return:focus-visible { outline: 2px solid var(--selection-outline); outline-offset: 3px; }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 button {
@@ -272,6 +301,7 @@ body {
 
 @media (hover: hover) and (pointer: fine) {
   .ctx-action-item:hover, .ctx-item:hover, #island:hover #isl-zoom { background: var(--firefox-menu-hover-bg); }
+  #pip-return:hover { background: var(--firefox-menu-hover-bg); }
   #dlg-discard:hover { background: var(--danger-hover-bg); }
   :where(.ctx-item:hover, .ui-highlight-nudge:hover, #island:hover .ui-highlight-nudge) {
     --ui-highlight-nudge-transform: translateX(var(--highlight-nudge-x));

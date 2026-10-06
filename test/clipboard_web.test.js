@@ -3,7 +3,24 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
+const vm = require('../test-support/browser_vm.js');
+
+test('browser clipboard reads use the active PiP document instead of the hidden opener', async () => {
+  let reads = 0;
+  const context = vm.createContext({
+    navigator: { clipboard: { read() { throw new Error('Hidden opener clipboard'); } } },
+    performance,
+    ClipDebug: { step() {} },
+  });
+  vm.runInContext(readSource('src/js/clipboard_io.js'), context);
+  context.BoardfishView.setWindow({
+    document: {},
+    navigator: { clipboard: { async read() { reads++; return []; } } },
+  });
+  const result = await context.BoardfishClipboardIO.readBoardfishClipboardTokenFromBrowser();
+  assert.equal(reads, 1);
+  assert.equal(result.checked, true);
+});
 const { loadReadableImageSourceBlob, pngBytes } = require('../test-support/image_output.js');
 const WebContainer = require('../src/js/web_board_container.js');
 

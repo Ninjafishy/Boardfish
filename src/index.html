@@ -36,6 +36,8 @@
     <button class="ctx-item" id="btn-save-as"><span class="ctx-label">Save As</span><span class="ctx-shortcut" data-mac-shortcut="⇧⌘S">Ctrl+Shift+S</span></button>
     <div class="ctx-sep"></div>
     <button class="ctx-item" id="btn-open"><span class="ctx-label">Open</span><span class="ctx-shortcut" data-mac-shortcut="⌘O">Ctrl+O</span></button>
+    <div class="ctx-sep" id="pip-menu-separator" hidden></div>
+    <button class="ctx-item" id="btn-pin" type="button" hidden><span class="ctx-label">Pin Board</span></button>
   </div>
 
   <div id="ctx-actions">
@@ -95,6 +97,14 @@
   <div id="island" aria-hidden="true">
     <span id="isl-zoom" class="ui-highlight-nudge"></span>
   </div>
+
+  <section id="pip-placeholder" hidden aria-label="Pinned board">
+    <div class="pip-placeholder-content">
+      <h1>Boardfish is pinned</h1>
+      <p>Keep this tab open while you use your board in the floating window.</p>
+      <button id="pip-return" type="button">Return to Tab</button>
+    </div>
+  </section>
 
   <script type="module" src="js/main.web.dev.mjs"></script>
 </body>
