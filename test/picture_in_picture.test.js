@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { createBoardfishView } = require('../src/js/view_context.js');
 const { createBoardfishPictureInPicture } = require('../src/js/picture_in_picture.js');
 
-function makeWindow() {
+function makeWindow({ loadStylesheets = true } = {}) {
   const win = new EventTarget();
   win.frames = new Map();
   let id = 0;
@@ -37,8 +37,17 @@ function makeWindow() {
       }
       node.parentNode = this;
       this.children.push(node);
+      if (loadStylesheets && this.tagName === 'HEAD' && node.tagName === 'LINK' && node.rel === 'stylesheet') {
+        queueMicrotask(() => node.dispatchEvent(new Event('load')));
+      }
     }
-    cloneNode() { return new Element(this.tagName); }
+    cloneNode() {
+      const copy = new Element(this.tagName);
+      copy.rel = this.rel;
+      copy.href = this.href;
+      copy.textContent = this.textContent;
+      return copy;
+    }
   }
   const doc = new EventTarget();
   doc.body = new Element('body');
@@ -46,7 +55,7 @@ function makeWindow() {
   doc.baseURI = 'http://localhost/boardfish/';
   doc.documentElement = { lang: 'en' };
   doc.createElement = (tag) => new Element(tag);
-  doc.querySelectorAll = () => doc.head.children.filter((node) => node.tagName === 'LINK');
+  doc.querySelectorAll = () => doc.head.children.filter((node) => node.tagName === 'LINK' || node.tagName === 'STYLE');
   win.document = doc;
   return win;
 }
@@ -99,8 +108,8 @@ test('pending renders follow the visible window and keep their cancellation hand
   assert.equal(frames, 2);
 });
 
-function setup({ supported = true, request } = {}) {
-  const owner = makeWindow(), pip = makeWindow();
+function setup({ supported = true, request, loadStylesheets = true } = {}) {
+  const owner = makeWindow(), pip = makeWindow({ loadStylesheets });
   let requests = 0, transitions = 0;
   const board = owner.document.createElement('canvas');
   // Mutable state models unsaved objects, retained images, and undo entries.
@@ -113,6 +122,7 @@ function setup({ supported = true, request } = {}) {
   owner.document.body.appendChild(placeholder);
   owner.document.body.dataset.theme = 'dark';
   const stylesheet = owner.document.createElement('link');
+  stylesheet.rel = 'stylesheet';
   stylesheet.href = 'http://localhost/boardfish/styles.css';
   owner.document.head.appendChild(stylesheet);
   if (supported) owner.documentPictureInPicture = { requestWindow() {
@@ -170,6 +180,68 @@ test('return to tab restores only once and focuses the owner', async () => {
   assert.equal(h.owner.focused, true);
   assert.equal(h.pip.closed, true);
   assert.equal(h.board.parentNode, h.owner.document.body);
+});
+
+test('PiP loads the original stylesheet and preserves inline font shorthands instead of serializing CSS rules', async () => {
+  const h = setup();
+  h.owner.document.head.children[0].sheet = {
+    cssRules: [{ cssText: 'body { font-family: ; }' }],
+  };
+  const inlineStyle = h.owner.document.createElement('style');
+  inlineStyle.textContent = 'body { font: var(--text-font-style) 400 13px "Geist Sans", system-ui; }';
+  inlineStyle.sheet = { cssRules: [{ cssText: 'body { font-family: ; }' }] };
+  h.owner.document.head.appendChild(inlineStyle);
+
+  await h.controller.open();
+
+  const styles = h.pip.document.head.children.filter((node) => node.tagName === 'LINK' || node.tagName === 'STYLE');
+  assert.equal(styles.length, 2);
+  assert.equal(styles[0].href, 'http://localhost/boardfish/styles.css');
+  assert.equal(styles[1].textContent, inlineStyle.textContent);
+});
+
+test('PiP waits for stylesheet loading before moving and measuring the board', async () => {
+  const h = setup({ loadStylesheets: false });
+  const opening = h.controller.open();
+  await Promise.resolve();
+
+  assert.equal(h.board.parentNode, h.owner.document.body);
+  assert.equal(h.transitions, 0);
+  const stylesheet = h.pip.document.head.children.find((node) => node.tagName === 'LINK');
+  stylesheet.dispatchEvent(new Event('load'));
+
+  assert.equal(await opening, true);
+  assert.equal(h.board.parentNode, h.pip.document.body);
+  assert.equal(h.transitions, 1);
+});
+
+test('closing PiP during stylesheet loading leaves the board and theme in the owner', async () => {
+  const h = setup({ loadStylesheets: false });
+  const opening = h.controller.open();
+  await Promise.resolve();
+  h.pip.close();
+
+  assert.equal(await opening, false);
+  assert.equal(h.board.parentNode, h.owner.document.body);
+  assert.equal(h.owner.document.body.dataset.theme, 'dark');
+  assert.equal(h.placeholder.hidden, true);
+  assert.equal(h.view.window, h.owner);
+});
+
+test('a failed PiP stylesheet leaves the board in the owner and allows retry', async () => {
+  const h = setup({ loadStylesheets: false });
+  const opening = h.controller.open();
+  await Promise.resolve();
+  h.pip.document.head.children.find((node) => node.tagName === 'LINK').dispatchEvent(new Event('error'));
+
+  await assert.rejects(opening, /stylesheet/i);
+  assert.equal(h.controller.pinned, false);
+  assert.equal(h.board.parentNode, h.owner.document.body);
+  assert.equal(h.pip.closed, true);
+  const retry = makeWindow();
+  h.owner.documentPictureInPicture.requestWindow = async () => retry;
+  assert.equal(await h.controller.open(), true);
+  assert.equal(h.board.parentNode, retry.document.body);
 });
 
 test('unsupported browsers and rejected requests leave the board in the original tab', async () => {

@@ -161,8 +161,15 @@ function isUnsavedDialogOpen() {
   return _dialogResolve !== null;
 }
 
+function isInputEventNode(target) {
+  // Adopted controls can retain the opener's prototype while SVG descendants
+  // and newly created controls are wrapped with the PiP window's Node type.
+  const TargetNode = target?.ownerDocument?.defaultView?.Node;
+  return target instanceof Node || (typeof TargetNode === 'function' && target instanceof TargetNode);
+}
+
 function isEventInsideUnsavedDialog(e) {
-  return !!unsavedDialog && e.target instanceof Node && unsavedDialog.contains(e.target);
+  return !!unsavedDialog && isInputEventNode(e.target) && unsavedDialog.contains(e.target);
 }
 
 const _inputEventPointElementCache = new WeakMap();
@@ -175,19 +182,19 @@ function pointedElementForInputEvent(e) {
   const pointed = Number.isFinite(x) && Number.isFinite(y)
     ? boardDocument().elementFromPoint(x, y)
     : null;
-  const element = pointed instanceof Node ? pointed : null;
+  const element = isInputEventNode(pointed) ? pointed : null;
   _inputEventPointElementCache.set(e, element);
   return element;
 }
 
 const isEventInsideVisibleSurface = (e, surface) => {
   if (!surface || !surface.classList.contains('visible')) return false;
-  if (e.target instanceof Node && surface.contains(e.target)) return true;
+  if (isInputEventNode(e.target) && surface.contains(e.target)) return true;
   // A concrete event target is already the browser's hit-test result. Only use
   // elementFromPoint for ambiguous document/window-targeted synthetic events.
-  if (e.target instanceof Node && e.target.nodeType === 1) return false;
+  if (isInputEventNode(e.target) && e.target.nodeType === 1) return false;
   const pointed = pointedElementForInputEvent(e);
-  return pointed instanceof Node && surface.contains(pointed);
+  return isInputEventNode(pointed) && surface.contains(pointed);
 };
 
 const isEventInsideVisibleContextMenu = (e) => {
@@ -200,7 +207,7 @@ const isEventInsideVisibleContextMenu = (e) => {
 };
 
 const isEventInsideViewportWheelSurface = (e) => {
-  return (e.target instanceof Node && canvas.contains(e.target)) ||
+  return (isInputEventNode(e.target) && canvas.contains(e.target)) ||
     isEventInsideVisibleContextMenu(e) || isEventInsideVisibleSurface(e, island);
 };
 

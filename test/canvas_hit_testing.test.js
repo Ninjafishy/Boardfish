@@ -394,7 +394,7 @@ test('wheel zoom over visible floating UI uses the viewport wheel handler', () =
   assert.match(viewportSource, /lastViewportInputAt = now;\s*if \(changed === false && !editingId\) return;/);
   assert.doesNotMatch(inputSource, /const newZoom = Math\.min\(ZOOM_MAX/);
   assert.match(selectionSource, /boardDocument\(\)\.elementFromPoint\(x, y\)/);
-  assert.match(selectionSource, /if \(e\.target instanceof Node && e\.target\.nodeType === 1\) return false;/);
+  assert.match(selectionSource, /if \(isInputEventNode\(e\.target\) && e\.target\.nodeType === 1\) return false;/);
   assert.match(selectionSource, /const isEventInsideViewportWheelSurface = \(e\) => \{[\s\S]*canvas\.contains\(e\.target\)[\s\S]*isEventInsideVisibleContextMenu\(e\) \|\| isEventInsideVisibleSurface\(e, island\);[\s\S]*\};/);
   assert.match(selectionSource, /const isEventInsideVisibleContextMenu = \(e\) => \{[\s\S]*isEventInsideVisibleSurface\(e, ctxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, objCtxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, ctxActions\)[\s\S]*\};/);
   assert.match(styles, /#island \{[\s\S]*overscroll-behavior: none;[\s\S]*touch-action: none;/);

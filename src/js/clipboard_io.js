@@ -142,6 +142,27 @@
     return clipboardData.getData?.('text/plain') || clipboardData.getData?.('text') || '';
   }
 
+  async function readClipboardTextFromBrowser(items = []) {
+    // Reuse the clipboard snapshot, including items read while checking a
+    // Boardfish token. Office apps can supply text and an image of the same cells.
+    for (const item of items) {
+      if (!item.types?.includes('text/plain')) continue;
+      try {
+        const blob = await item.getType('text/plain');
+        const text = await blob.text();
+        if (/\S/.test(text)) return text;
+      } catch {
+        // One unreadable representation must not prevent the remaining fallbacks.
+      }
+    }
+    try {
+      return await clipboardNavigator().clipboard?.readText?.() || '';
+    } catch {
+      // Image-only clipboards may reject text reads; keep image paste available.
+      return '';
+    }
+  }
+
   async function copyTextToClipboard(text
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     , dbg = null
@@ -354,6 +375,7 @@
     readBoardfishClipboardTokenFromBrowser,
     readBoardfishClipboardTokenFromEvent,
     readClipboardImageFileFromEvent,
+    readClipboardTextFromBrowser,
     readClipboardTextFromEvent,
   };
   /* BOARDFISH_DEV_DIAGNOSTICS_START */

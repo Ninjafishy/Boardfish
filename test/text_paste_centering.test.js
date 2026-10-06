@@ -88,9 +88,9 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
   return context;
 }
 
-function loadPasteHarness({ browserText = '', normalizeExternalText = (value) => value } = {}) {
+function loadPasteHarness({ browserText = '', normalizeExternalText, clipboard = {} } = {}) {
   const source = readSource('src/js/clipboard_export_init.js');
-  const calls = { addText: [] };
+  const calls = { addText: [], images: [], readText: 0 };
   const context = {
     performance,
     console,
@@ -98,24 +98,21 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
     calls,
     document: {
       addEventListener() {},
+      createElement() { return { getContext: createUnitTextContext }; },
       visibilityState: 'visible',
     },
     navigator: {
       clipboard: {
         readText() {
+          calls.readText++;
           return Promise.resolve(browserText);
         },
+        ...clipboard,
       },
     },
     objects: [],
     jsClipboard: null,
     _pasteInProgress: false,
-    BoardfishClipboardIO: {
-      readClipboardImageFileFromEvent() { return null; },
-      readClipboardTextFromEvent(clipboardData) {
-        return clipboardData?.getData?.('text/plain') || '';
-      },
-    },
     ClipDebug: {
       end() {},
       start() { return null; },
@@ -127,11 +124,15 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
     addText(wx, wy, content, options = {}) {
       calls.addText.push({ wx, wy, content, options });
     },
-    textForExternalTextObjectPaste(value) {
-      return normalizeExternalText(value);
+    imageFileDebugName: () => 'clipboard-image',
+    async insertImageFiles(files, wx, wy) {
+      calls.images.push({ files, wx, wy });
     },
   };
   vm.createContext(context);
+  vm.runInContext(readSource('src/js/clipboard_io.js'), context);
+  if (normalizeExternalText) context.textForExternalTextObjectPaste = normalizeExternalText;
+  else vm.runInContext(readSource('src/js/text_layout.js'), context);
   vm.runInContext(source, context, {
     filename: 'clipboard_export_init.js',
   });
@@ -299,3 +300,162 @@ test('outside clipboard text is normalized before creating a text box', async ()
 
   assert.equal(context.calls.addText[0].content, 'wrapped prose continues here');
 });
+
+function clipboardItem(parts) {
+  return {
+    types: Object.keys(parts),
+    async getType(type) {
+      const part = parts[type];
+      if (part instanceof Error) throw part;
+      return part;
+    },
+  };
+}
+
+for (const fixture of [
+  {
+    name: 'formatted rich text',
+    text: 'A formatted heading\r\nThe editable body.',
+    html: '<h1>A formatted heading</h1><p>The <b>editable</b> body.</p>',
+    imageType: 'image/jpeg',
+  },
+  {
+    name: 'Excel cells',
+    text: 'Item\tQuantity\tPrice\r\nApples\t2\t$3.00\r\nPears\t\t$4.00\r\n',
+    html: '<table><tr><td>Item</td><td>Quantity</td><td>Price</td></tr></table>',
+    imageType: 'image/png',
+  },
+]) {
+  test(`keyboard paste of ${fixture.name} prefers editable text over its preview image`, async () => {
+    const context = loadPasteHarness({
+      clipboard: { async read() { throw new Error('Event paste must not read the browser clipboard'); } },
+    });
+    const preview = new Blob(['preview'], { type: fixture.imageType });
+    const representations = { 'text/plain': fixture.text, 'text/html': fixture.html, 'text/rtf': '{\\rtf1 formatted}' };
+
+    await context.pasteAtPos(640, 360, {
+      items: [{ kind: 'file', type: preview.type, getAsFile: () => preview }],
+      files: [preview],
+      getData: (type) => representations[type] || '',
+    });
+
+    assert.deepEqual(context.calls.images, []);
+    assert.equal(context.calls.addText.length, 1);
+    assert.equal(context.calls.addText[0].content, fixture.text.replace(/\r\n/g, '\n').replace(/\n$/, ''));
+    assert.equal(context.calls.addText[0].options.anchor, 'center');
+    assert.equal(context.calls.readText, 0);
+    assert.equal(context._pasteInProgress, false);
+  });
+}
+
+test('Paste menu uses plain text from clipboard items before decoding a preview image', async () => {
+  const text = 'Name\tValue\r\nBudget\t125';
+  const item = clipboardItem({
+    'image/png': new Error('Preview image must not be decoded'),
+    'text/html': new Blob(['<table><tr><td>Name</td><td>Value</td></tr></table>'], { type: 'text/html' }),
+    'text/plain': new Blob([text], { type: 'text/plain' }),
+  });
+  const context = loadPasteHarness({
+    clipboard: {
+      async read() { return [item]; },
+      async readText() { throw new Error('Use the already-read clipboard item'); },
+    },
+  });
+
+  await context.pasteAtPos(640, 360);
+
+  assert.deepEqual(context.calls.images, []);
+  assert.equal(context.calls.addText.length, 1);
+  assert.equal(context.calls.addText[0].content, 'Name\tValue\nBudget\t125');
+  assert.equal(context._pasteInProgress, false);
+});
+
+test('Paste menu finds text even when an image is in an earlier clipboard item', async () => {
+  const context = loadPasteHarness({
+    clipboard: {
+      async read() {
+        return [
+          clipboardItem({ 'image/png': new Error('Preview image must not be decoded') }),
+          clipboardItem({ 'text/plain': new Blob(['Editable text'], { type: 'text/plain' }) }),
+        ];
+      },
+    },
+  });
+
+  await context.pasteAtPos(640, 360);
+
+  assert.deepEqual(context.calls.images, []);
+  assert.equal(context.calls.addText[0]?.content, 'Editable text');
+  assert.equal(context.calls.readText, 0);
+});
+
+test('Paste menu prefers readText fallback over a preview image', async () => {
+  const context = loadPasteHarness({
+    browserText: 'Editable fallback',
+    clipboard: {
+      async read() { return [clipboardItem({ 'image/png': new Error('Preview image must not be decoded') })]; },
+    },
+  });
+
+  await context.pasteAtPos(640, 360);
+
+  assert.deepEqual(context.calls.images, []);
+  assert.equal(context.calls.addText[0]?.content, 'Editable fallback');
+});
+
+test('Paste menu can read text when reading rich clipboard items fails', async () => {
+  const context = loadPasteHarness({
+    browserText: 'Editable fallback',
+    clipboard: { async read() { throw new Error('Rich clipboard unavailable'); } },
+  });
+
+  await context.pasteAtPos(640, 360);
+
+  assert.equal(context.calls.addText[0]?.content, 'Editable fallback');
+  assert.equal(context._pasteInProgress, false);
+});
+
+for (const imageType of ['image/png', 'image/jpeg']) {
+  test(`keyboard paste keeps an image-only ${imageType} clipboard as an image`, async () => {
+    const context = loadPasteHarness();
+    const image = new Blob(['image'], { type: imageType });
+
+    await context.pasteAtPos(640, 360, {
+      files: [image],
+      getData: () => '',
+    });
+
+    assert.deepEqual(context.calls.addText, []);
+    assert.equal(context.calls.images[0]?.files[0], image);
+    assert.equal(context.calls.readText, 0);
+  });
+}
+
+for (const textState of ['empty', 'whitespace', 'unavailable', 'rejected']) {
+  test(`Paste menu keeps image paste working when text is ${textState}`, async () => {
+    const image = new Blob(['image'], { type: 'image/png' });
+    const text = textState === 'whitespace' ? ' \t\r\n' : '';
+    const context = loadPasteHarness({
+      clipboard: {
+        async read() {
+          return [clipboardItem({
+            'image/png': image,
+            'text/plain': textState === 'rejected'
+              ? new Error('Text representation unavailable')
+              : new Blob([text], { type: 'text/plain' }),
+          })];
+        },
+        readText: textState === 'unavailable' ? undefined : async () => {
+          if (textState === 'rejected') throw new Error('Clipboard text unavailable');
+          return text;
+        },
+      },
+    });
+
+    await context.pasteAtPos(640, 360);
+
+    assert.deepEqual(context.calls.addText, []);
+    assert.equal(context.calls.images[0]?.files[0], image);
+    assert.equal(context._pasteInProgress, false);
+  });
+}

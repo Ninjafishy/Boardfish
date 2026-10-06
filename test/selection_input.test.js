@@ -189,6 +189,53 @@ function loadSelectionInputHarness(objects, options = {}) {
   return context;
 }
 
+test('PiP action icon presses stay inside the menu across window Node types', () => {
+  const context = loadSelectionInputHarness([]);
+  class PiPNode {}
+  const pipDocument = { defaultView: { Node: PiPNode }, elementFromPoint: () => context.target };
+  context.BoardfishView.setWindow({ document: pipDocument });
+  context.ctxActions.classList.contains = () => true;
+  context.ctxActions.contains = (node) => node === context.target;
+  context._inputShieldStack.push('menu-test');
+
+  for (const NodeType of [context.Node, PiPNode]) {
+    // Adopted buttons can retain the opener's prototype; newly wrapped SVG
+    // descendants use the PiP window's prototype in the production build.
+    context.target = Object.assign(new NodeType(), { nodeType: 1, ownerDocument: pipDocument });
+    assert.equal(vm.runInContext('isEventInsideVisibleContextMenu({ target })', context), true);
+    const event = context.documentEvent('pointerdown', { target: context.target, clientX: 10, clientY: 20 });
+    assert.equal(event.defaultPrevented, false);
+    assert.equal(event.propagationStopped, false);
+  }
+});
+
+test('PiP input hit testing preserves concrete outside targets and resolves ambiguous targets', () => {
+  const context = loadSelectionInputHarness([]);
+  class PiPNode {}
+  const pipDocument = { defaultView: { Node: PiPNode }, elementFromPoint: () => context.icon };
+  context.icon = Object.assign(new PiPNode(), { nodeType: 1, ownerDocument: pipDocument });
+  context.outside = Object.assign(new PiPNode(), { nodeType: 1, ownerDocument: pipDocument });
+  context.BoardfishView.setWindow({ document: pipDocument });
+  context.ctxActions.classList.contains = () => true;
+  context.ctxActions.contains = (node) => node === context.icon;
+
+  assert.equal(vm.runInContext('isEventInsideVisibleContextMenu({ target: outside, clientX: 10, clientY: 20 })', context), false);
+  assert.equal(vm.runInContext('isEventInsideVisibleContextMenu({ target: null, clientX: 10, clientY: 20 })', context), true);
+});
+
+test('PiP dialog controls remain usable while dialog input shielding is active', () => {
+  const context = loadSelectionInputHarness([]);
+  class PiPNode {}
+  const pipDocument = { defaultView: { Node: PiPNode } };
+  context.target = Object.assign(new PiPNode(), { nodeType: 1, ownerDocument: pipDocument });
+  context.BoardfishView.setWindow({ document: pipDocument });
+  context.unsavedDialog.contains = (node) => node === context.target;
+  context._dialogResolve = () => {};
+  context.ViewportDebug = { recordShieldBlock() {} };
+
+  assert.equal(context.documentEvent('click', { target: context.target }).defaultPrevented, false);
+});
+
 test('selection chrome is hidden when its box only touches a viewport edge', () => {
   const bounds = { x1: 100, y1: 200, x2: 300, y2: 400 };
   for (const [view, visible] of [

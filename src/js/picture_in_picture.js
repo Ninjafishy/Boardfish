@@ -31,7 +31,8 @@ function createBoardfishPictureInPicture({ ownerWindow, view, placeholder, onBef
     }
   }
 
-  function copyPresentation(destination) {
+  async function copyPresentation(destinationWindow) {
+    const destination = destinationWindow.document;
     const base = destination.createElement('base');
     base.href = ownerDocument.baseURI;
     destination.head.appendChild(base);
@@ -39,25 +40,29 @@ function createBoardfishPictureInPicture({ ownerWindow, view, placeholder, onBef
     title.textContent = 'Boardfish';
     destination.head.appendChild(title);
     destination.documentElement.lang = ownerDocument.documentElement.lang;
+    const stylesLoaded = [];
     for (const source of ownerDocument.querySelectorAll('link[rel="stylesheet"], style')) {
-      // Boardfish's stylesheet is same-origin. Copy its parsed rules so the
-      // canvas has its final geometry immediately, before moving the view.
-      try {
-        if (source.sheet?.cssRules) {
-          const style = destination.createElement('style');
-          style.textContent = Array.from(source.sheet.cssRules, (rule) => rule.cssText).join('\n');
-          destination.head.appendChild(style);
-          continue;
-        }
-      } catch { /* Cross-origin stylesheets can still be linked below. */ }
+      // Preserve the source CSS. Serializing cssRules can lose font shorthands
+      // that contain variables, and inline copies change relative asset URLs.
       const copy = source.cloneNode(true);
       if (source.tagName === 'LINK') {
         copy.href = source.href;
-        copy.addEventListener('load', () => {
-          if (pipWindow?.document === destination) onAfterMove();
-        }, { once: true });
+        stylesLoaded.push(new Promise((resolve, reject) => {
+          copy.addEventListener('load', resolve, { once: true });
+          copy.addEventListener('error', () => reject(new Error('Could Not Load Board Stylesheet')), { once: true });
+        }));
       }
       destination.head.appendChild(copy);
+    }
+    let onClosed;
+    const closed = new Promise((resolve) => { onClosed = resolve; });
+    destinationWindow.addEventListener('pagehide', onClosed, { once: true });
+    try {
+      // Measure the canvas only after its styles arrive. Closing a still-loading
+      // PiP must leave the board in the owner and settle this pending open.
+      await Promise.race([Promise.all(stylesLoaded), closed]);
+    } finally {
+      destinationWindow.removeEventListener('pagehide', onClosed);
     }
   }
 
@@ -70,11 +75,12 @@ function createBoardfishPictureInPicture({ ownerWindow, view, placeholder, onBef
       // placement and can clamp these initial dimensions.
       openedWindow = await ownerWindow.documentPictureInPicture.requestWindow({ width: 800, height: 600 });
       if (openedWindow.closed) return false;
+      await copyPresentation(openedWindow);
+      if (openedWindow.closed) return false;
       pipWindow = openedWindow;
       openedWindow.addEventListener('pagehide', () => {
         if (pipWindow === openedWindow) restore();
       }, { once: true });
-      copyPresentation(openedWindow.document);
       onBeforeMove();
       moveContents(ownerDocument, openedWindow.document);
       view.setWindow(openedWindow);
