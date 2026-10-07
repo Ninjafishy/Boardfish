@@ -1,17 +1,20 @@
 'use strict';
 
 // The session always lives in the opening tab. Only its DOM, input targets and
-// animation frames follow the editable view into Document Picture-in-Picture.
+// scheduled work follow the editable view into Document Picture-in-Picture.
 function createBoardfishView(ownerWindow, ownerDocument) {
   let activeWindow = ownerWindow;
   let activeDocument = ownerDocument;
   let nextFrameId = 1;
+  let nextTimeoutId = 1;
   const listeners = [];
   const frames = new Map();
+  const timeouts = new Map();
   const beforeChange = new Set();
   const afterChange = new Set();
   const capture = (options) => typeof options === 'boolean' ? options : !!options?.capture;
   const target = (kind) => kind === 'window' ? activeWindow : activeDocument;
+  const now = () => (ownerWindow.performance || globalThis.performance).now();
 
   function removeListener(kind, type, callback, options) {
     const index = listeners.findIndex((entry) => entry.kind === kind && entry.type === type &&
@@ -59,6 +62,46 @@ function createBoardfishView(ownerWindow, ownerDocument) {
     frames.delete(id);
   }
 
+  function scheduleTimeout(id, timeout) {
+    const source = typeof activeWindow?.setTimeout === 'function' ? activeWindow : globalThis;
+    timeout.source = source;
+    timeout.nativeId = source.setTimeout(() => {
+      if (!timeouts.delete(id)) return;
+      timeout.callback();
+    }, Math.max(0, timeout.deadline - now()));
+  }
+
+  function requestTimeout(callback, delay = 0) {
+    const id = nextTimeoutId++;
+    const timeout = { callback, deadline: now() + Math.max(0, Number(delay) || 0) };
+    timeouts.set(id, timeout);
+    scheduleTimeout(id, timeout);
+    return id;
+  }
+
+  function cancelTimeout(id) {
+    const timeout = timeouts.get(id);
+    if (!timeout) return;
+    timeout.source.clearTimeout(timeout.nativeId);
+    timeouts.delete(id);
+  }
+
+  function yieldToEventLoop() {
+    return new Promise((resolve) => {
+      // The timer also carries this continuation across a window change if
+      // the old window's scheduler is suspended or destroyed before it runs.
+      const id = requestTimeout(resolve);
+      try {
+        activeWindow.scheduler?.yield?.().then(() => {
+          cancelTimeout(id);
+          resolve();
+        }, () => {});
+      } catch {
+        // An unavailable scheduler still has the timer fallback.
+      }
+    });
+  }
+
   function setWindow(nextWindow) {
     if (nextWindow === activeWindow) return;
     for (const callback of beforeChange) callback();
@@ -66,12 +109,14 @@ function createBoardfishView(ownerWindow, ownerDocument) {
       target(entry.kind)?.removeEventListener?.(entry.type, entry.handler, { capture: capture(entry.options) });
     }
     for (const frame of frames.values()) frame.source.cancelAnimationFrame(frame.nativeId);
+    for (const timeout of timeouts.values()) timeout.source.clearTimeout(timeout.nativeId);
     activeWindow = nextWindow;
     activeDocument = nextWindow.document || ownerDocument;
     for (const entry of listeners) {
       target(entry.kind)?.addEventListener?.(entry.type, entry.handler, entry.options);
     }
     for (const [id, frame] of frames) scheduleFrame(id, frame);
+    for (const [id, timeout] of timeouts) scheduleTimeout(id, timeout);
     for (const callback of afterChange) callback();
   }
 
@@ -82,6 +127,9 @@ function createBoardfishView(ownerWindow, ownerDocument) {
     setWindow,
     requestAnimationFrame: requestFrame,
     cancelAnimationFrame: cancelFrame,
+    setTimeout: requestTimeout,
+    clearTimeout: cancelTimeout,
+    yieldToEventLoop,
     addDocumentListener: (type, callback, options) => addListener('document', type, callback, options),
     removeDocumentListener: (type, callback, options) => removeListener('document', type, callback, options),
     addWindowListener: (type, callback, options) => addListener('window', type, callback, options),

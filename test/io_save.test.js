@@ -15,6 +15,10 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     boardHistory: [{ revision: 1 }],
     historyIndex: 0,
     _dirtyIds: new Set(['text-1']),
+    _boardOpening: false,
+    openingShield: { classList: { toggle() {} } },
+    isUnsavedDialogOpen: () => false,
+    scheduleRender() {},
     long_message: 1200,
     console: { error() {} },
     document: { getElementById() { return { addEventListener() {} }; } },
@@ -49,12 +53,14 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
   }
   context.currentFileRef = sourceRef;
   context.currentFilePath = sourceRef?.name || null;
+  const acquireInputShield = context.acquireInputShield;
   context.acquireInputShield = (options) => {
     assert.equal(options.visual, false);
     assert.equal(options.keepSelectionOverlay, true);
     calls.shields++;
+    const release = acquireInputShield(options);
     let released = false;
-    return () => { if (!released) calls.releases++; released = true; };
+    return () => { if (!released) calls.releases++; released = true; release(); };
   };
   context.invokeSaveBoard = async (target, options) => {
     calls.writes.push(target);
@@ -111,4 +117,86 @@ test('concurrent save commands share pending work and allow a later save', async
   assert.equal(await next, true);
   assert.equal(calls.shields, 2);
   assert.equal(calls.releases, 2);
+});
+
+test('stalled save preparation unlocks PiP, preserves edits, and never writes after timeout', async (t) => {
+  for (const stage of ['images', 'container', 'recovery']) {
+    await t.test(stage, async () => {
+      const { context, calls, sourceRef } = loadSaveHarness();
+      const timers = new Map();
+      let timerId = 0;
+      const pip = {
+        document: {},
+        setTimeout(callback) { timers.set(++timerId, callback); return timerId; },
+        clearTimeout(id) { timers.delete(id); },
+      };
+      context.performance = { now: () => 0 };
+      context.setTimeout = () => { throw new Error('hidden opener timer used'); };
+      context.BoardfishView.setWindow(pip);
+      context.BoardfishWebLimits = { validateBoardPayload() {} };
+      let resolveStall, stalled = true, written = null;
+      const stall = new Promise((resolve) => { resolveStall = resolve; });
+      const payload = { blob: new Blob(['board']) };
+      context.BoardfishWebBoardContainer = {
+        stabilizeVolatileImageRefs() { return stalled && stage === 'images' ? stall : Promise.resolve(); },
+        createBoardContainerBlob() {
+          if (stalled && stage === 'recovery') throw new TypeError('Failed to fetch');
+          return stalled && stage === 'container' ? stall : Promise.resolve(payload);
+        },
+        recoverMatchingVolatileImageRefsFromContainer() { return stall; },
+      };
+      sourceRef.handle = {
+        async getFile() { return new Blob(); },
+        async createWritable() {
+          calls.writes.push(sourceRef);
+          return {
+            async write(blob) { written = blob; },
+            async close() {},
+          };
+        },
+      };
+      const runtimeSource = readSource('src/js/web_runtime.js').replace(
+        /\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '',
+      );
+      vm.runInContext(runtimeSource, context);
+      context.BoardfishRuntime = context.window.BoardfishRuntime;
+      context.invokeSaveBoard = (ref, options) => context.BoardfishRuntime.saveBoard(
+        ref, { objects: context.objects }, options,
+      );
+      // The runtime is stored on the owner window even while its UI is in PiP.
+      context.window.BoardfishWebLimits = context.BoardfishWebLimits;
+      context.window.BoardfishWebBoardContainer = context.BoardfishWebBoardContainer;
+      const pending = context.saveBoard();
+      let result = 'pending';
+      pending.then((saved) => { result = saved; });
+      await new Promise(setImmediate);
+      assert.equal(context.isBoardInputBlocked(), true);
+      assert.equal(context.isDirty(), true);
+      assert.deepEqual(calls.messages, ['Saving']);
+      const expired = [...timers.values()];
+      timers.clear();
+      for (const callback of expired) callback();
+      await new Promise(setImmediate);
+      assert.equal(result, false, 'a stalled preparation must settle');
+      assert.equal(context.isBoardInputBlocked(), false);
+      assert.equal(context.isDirty(), true);
+      assert.equal(sourceRef.unusable, undefined, 'preparation never touched the target');
+      assert.equal(context.currentFileRef, sourceRef);
+      assert.equal(calls.releases, 1);
+      assert.deepEqual(calls.writes, []);
+      assert.deepEqual(calls.messages, ['Saving', 'Save Timed Out']);
+      assert.equal(timers.size, 0);
+
+      stalled = false;
+      assert.equal(await context.saveBoard(), true, 'saving can be retried');
+      assert.equal(written, payload.blob);
+      assert.equal(context.isDirty(), false);
+      resolveStall(stage === 'container' ? payload : { refreshed: 1 });
+      await new Promise(setImmediate);
+      assert.deepEqual(calls.writes, [sourceRef], 'late preparation must not write');
+      assert.deepEqual(calls.messages, ['Saving', 'Save Timed Out', 'Saving', 'Saved']);
+      assert.equal(context.isBoardInputBlocked(), false);
+      assert.equal(timers.size, 0);
+    });
+  }
 });

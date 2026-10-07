@@ -90,6 +90,7 @@
   }
 
   function yieldToEventLoop() {
+    if (typeof BoardfishView !== 'undefined') return BoardfishView.yieldToEventLoop();
     if (root.scheduler?.yield) return root.scheduler.yield();
     return new Promise((resolve) => setTimeout(resolve, 0));
   }

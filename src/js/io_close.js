@@ -716,7 +716,8 @@ const runExclusiveBoardSave = (
 runExclusiveBoardSave.inFlight = null;
 
 function showSaveFailurePill(err) {
-  showIslandMsg(err?.boardfishLimit && err.boardfishUserMessage || 'Save Failed', long_message);
+  showIslandMsg(err?.boardfishLimit && err.boardfishUserMessage ||
+    (err?.name === 'TimeoutError' ? 'Save Timed Out' : 'Save Failed'), long_message);
 }
 
 const saveBoardImpl = async (saveAs = false) => {

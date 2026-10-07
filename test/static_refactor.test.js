@@ -179,8 +179,8 @@ test('save and open validation stay at the authoritative container boundaries', 
   const saveEnd = runtime.indexOf('\n  const api =', saveStart);
   const saveSource = runtime.slice(saveStart, saveEnd);
   assert.ok(saveStart >= 0 && saveEnd > saveStart);
-  assert.ok(saveSource.indexOf('await stabilizeImageSources') >= 0);
-  assert.ok(saveSource.indexOf('await stabilizeImageSources') < saveSource.indexOf('createBoardContainerBlob'));
+  assert.ok(saveSource.indexOf('() => stabilizeImageSources') >= 0);
+  assert.ok(saveSource.indexOf('() => stabilizeImageSources') < saveSource.indexOf('createBoardContainerBlob'));
   assert.ok(saveSource.indexOf('await writeBlobToHandle') >= 0);
   assert.doesNotMatch(saveSource, /handle\.getFile|refreshImageSources/);
   assert.match(runtime, /waitForFileOperation\(\(\) => writable\.write\(blob\), stage, timeoutMs\)/);

@@ -5,10 +5,19 @@ const assert = require('node:assert/strict');
 const { createBoardfishView } = require('../src/js/view_context.js');
 const { createBoardfishPictureInPicture } = require('../src/js/picture_in_picture.js');
 
-function makeWindow({ loadStylesheets = true } = {}) {
+function makeWindow({ loadStylesheets = true, now = () => 0 } = {}) {
   const win = new EventTarget();
   win.frames = new Map();
+  win.timers = new Map();
+  win.performance = { now };
   let id = 0;
+  win.setTimeout = (callback, delay) => { win.timers.set(++id, { callback, delay }); return id; };
+  win.clearTimeout = (id) => win.timers.delete(id);
+  win.flushTimers = () => {
+    const timers = [...win.timers.values()];
+    win.timers.clear();
+    timers.forEach(({ callback }) => callback());
+  };
   win.requestAnimationFrame = (callback) => { win.frames.set(++id, callback); return id; };
   win.cancelAnimationFrame = (id) => win.frames.delete(id);
   win.flushFrames = () => {
@@ -106,6 +115,58 @@ test('pending renders follow the visible window and keep their cancellation hand
   view.setWindow(owner);
   owner.flushFrames();
   assert.equal(frames, 2);
+});
+
+test('save deadlines follow PiP transitions without restarting their timeout', () => {
+  let time = 0;
+  const owner = makeWindow({ now: () => time }), pip = makeWindow();
+  const view = createBoardfishView(owner, owner.document);
+  let calls = 0;
+  const cancelled = view.setTimeout(() => calls += 100, 100);
+  view.setTimeout(() => calls++, 100);
+  time = 40;
+  view.setWindow(pip);
+  assert.equal(owner.timers.size, 0);
+  assert.deepEqual([...pip.timers.values()].map(({ delay }) => delay), [60, 60]);
+  view.clearTimeout(cancelled);
+  time = 120;
+  view.setWindow(owner);
+  assert.equal(pip.timers.size, 0);
+  assert.deepEqual([...owner.timers.values()].map(({ delay }) => delay), [0]);
+  owner.flushTimers();
+  assert.equal(calls, 1);
+  assert.equal(owner.timers.size, 0);
+});
+
+test('pending save work resumes when PiP closes with its scheduler suspended', async () => {
+  const owner = makeWindow(), pip = makeWindow();
+  const view = createBoardfishView(owner, owner.document);
+  let finishOldYield;
+  pip.scheduler = { yield: () => new Promise((resolve) => { finishOldYield = resolve; }) };
+  view.setWindow(pip);
+  let calls = 0;
+  const pending = view.yieldToEventLoop().then(() => calls++);
+  view.setWindow(owner);
+  owner.flushTimers();
+  await pending;
+  finishOldYield();
+  await Promise.resolve();
+  assert.equal(calls, 1);
+  assert.equal(pip.timers.size, 0);
+  assert.equal(owner.timers.size, 0);
+});
+
+test('save yields use the visible window and clear their fallback timer', async () => {
+  const owner = makeWindow(), pip = makeWindow();
+  const view = createBoardfishView(owner, owner.document);
+  owner.scheduler = { yield() { throw new Error('hidden opener used'); } };
+  let yields = 0;
+  pip.scheduler = { yield() { yields++; return Promise.resolve(); } };
+  view.setWindow(pip);
+  await view.yieldToEventLoop();
+  assert.equal(yields, 1);
+  assert.equal(pip.timers.size, 0);
+  assert.equal(owner.timers.size, 0);
 });
 
 function setup({ supported = true, request, loadStylesheets = true } = {}) {

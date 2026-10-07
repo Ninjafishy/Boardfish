@@ -6,6 +6,7 @@ const zlib = require('node:zlib');
 
 const WebContainer = require('../src/js/web_board_container.js');
 const { singleImageBoard } = require('../test-support/image_output.js');
+const { createBoardfishView } = require('../src/js/view_context.js');
 
 function crc32(bytes) {
   const table = new Uint32Array(256);
@@ -78,6 +79,27 @@ test('ZIP CRC work yields on one-MiB budgets', async (t) => {
   const bytes = new Uint8Array(5 * 1024 * 1024);
   const countYields = async (data) => { yields = 0; await WebContainer.createZipBlob([{ name: 'payload.bin', data }]); return yields; };
   assert.deepEqual([await countYields(bytes), await countYields(new Blob([bytes]))], [5, 5]);
+});
+
+test('a board saved in PiP remains readable while the opener scheduler is suspended', async (t) => {
+  let openerYields = 0, pipYields = 0;
+  const owner = { document: {}, performance, scheduler: { yield() { openerYields++; return new Promise(() => {}); } } };
+  const pip = { document: {}, setTimeout, clearTimeout, scheduler: { yield() { pipYields++; return Promise.resolve(); } } };
+  globalThis.BoardfishView = createBoardfishView(owner, owner.document);
+  globalThis.BoardfishView.setWindow(pip);
+  globalThis.scheduler = owner.scheduler;
+  t.after(() => { delete globalThis.BoardfishView; delete globalThis.scheduler; });
+  const bytes = new Uint8Array(2 * 1024 * 1024 + 7).fill(41);
+  let result;
+  const save = WebContainer.createBoardContainerBlob(singleImageBoard(), { 'img-1': bytes }).then((value) => { result = value; });
+  // With the old code this stays pending on the hidden opener's scheduler.
+  await new Promise(setImmediate);
+  assert.ok(result, 'container preparation should finish without the opener');
+  await save;
+  const reopened = await WebContainer.readBoardContainer(result.blob, { lazyImageRefs: true, verifyImageCrc: true });
+  assert.deepEqual(await WebContainer.bytesForImageSourceAsync(reopened.board.imageStore['img-1']), bytes);
+  assert.equal(openerYields, 0);
+  assert.ok(pipYields >= 4);
 });
 
 test('ZIP creation returns a Blob without reading archive bytes back into memory', async (t) => {

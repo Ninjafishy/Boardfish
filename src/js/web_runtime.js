@@ -97,14 +97,18 @@
     return /^TypeError$/i.test(name) && /failed to fetch|blob|read(?:ing)? (?:the )?file/i.test(message);
   }
 
-  async function recoverBoardImageSources(sourceRef, board, rawImageStore) {
+  async function recoverBoardImageSources(sourceRef, board, rawImageStore, timeoutMs) {
     const sourceHandle = persistentFileHandleFromRef(sourceRef);
     if (!sourceHandle || typeof sourceHandle.getFile !== 'function') return null;
     const freshFile = await waitForFileOperation(
       () => sourceHandle.getFile(),
       'Refreshing Images',
     );
-    return root.BoardfishWebBoardContainer.recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore, freshFile);
+    return waitForFileOperation(
+      () => root.BoardfishWebBoardContainer.recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore, freshFile),
+      'Refreshing Images',
+      timeoutMs,
+    );
   }
 
   function fileOperationTimeoutError(stage) {
@@ -134,12 +138,12 @@
     let timeoutId = 0;
     const operation = Promise.resolve(run());
     const timeout = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(fileOperationTimeoutError(stage)), timeoutMs);
+      timeoutId = BoardfishView.setTimeout(() => reject(fileOperationTimeoutError(stage)), timeoutMs);
     });
     try {
       return await Promise.race([operation, timeout]);
     } finally {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) BoardfishView.clearTimeout(timeoutId);
     }
   }
 
@@ -147,6 +151,15 @@
     const bytes = Math.max(0, Number(blob?.size) || 0);
     const transferMs = bytes / FILE_WRITE_MIN_BYTES_PER_SECOND * 1000;
     return Math.min(FILE_OPERATION_MAX_TIMEOUT_MS, FILE_OPERATION_TIMEOUT_MS + transferMs);
+  }
+
+  function boardPreparationTimeoutMs(board, imageStore) {
+    let size = 0;
+    for (const key of Object.keys(board?.imageStore || {})) {
+      const source = imageStore[key];
+      size += Math.max(0, Number(source?.bytes || source?.size || source?.byteLength || source?.length) || 0);
+    }
+    return fileWriteTimeoutMs({ size });
   }
 
   function hasOpenFileSystemAccess() {
@@ -315,6 +328,7 @@
     const totalStart = performance.now();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const rawImageStore = options.imageStore || root.imageStore || {};
+    const preparationTimeoutMs = boardPreparationTimeoutMs(board, rawImageStore);
     const validateBoardPayload = root.BoardfishWebLimits.validateBoardPayload;
     const writesExistingHandle = ref?.kind === 'web-file-handle';
     const sourceTargetSameEntry = writesExistingHandle && Object.hasOwn(options, 'sourceFileRef')
@@ -336,7 +350,11 @@
       const stabilizeStart = performance.now();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       if (writesExistingHandle && sourceTargetSameEntry !== false && typeof stabilizeImageSources === 'function') {
-        const stabilized = await stabilizeImageSources(board, rawImageStore);
+        const stabilized = await waitForFileOperation(
+          () => stabilizeImageSources(board, rawImageStore),
+          'Preparing Images',
+          preparationTimeoutMs,
+        );
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         imageSourceRefreshMs += performance.now() - stabilizeStart;
         imageSourceRefreshCount += Number(stabilized?.refreshed || 0);
@@ -356,12 +374,10 @@
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       const createStart = performance.now();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      const created = await root.BoardfishWebBoardContainer.createBoardContainerBlob(
-        board,
-        rawImageStore,
-        {
-          validateBoardPayload,
-        },
+      const created = await waitForFileOperation(
+        () => root.BoardfishWebBoardContainer.createBoardContainerBlob(board, rawImageStore, { validateBoardPayload }),
+        'Preparing Board',
+        preparationTimeoutMs,
       );
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       serializeMs += performance.now() - createStart;
@@ -398,6 +414,7 @@
         options.sourceFileRef,
         board,
         rawImageStore,
+        preparationTimeoutMs,
       );
       if (recovered !== true && Number(recovered?.refreshed || 0) <= 0) throw err;
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
