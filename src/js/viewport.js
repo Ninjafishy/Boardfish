@@ -155,6 +155,16 @@ function markDirty(obj) {
 
 var _canvasResizeObserver = null;
 var _boardSurfaceCssSizeCache = null;
+var _boardCanvasDpr = null;
+var _pendingCanvasResizeX = 0, _pendingCanvasResizeY = 0;
+
+function offsetBoardCanvasForResize(dx, dy) {
+  _pendingCanvasResizeX += dx;
+  _pendingCanvasResizeY += dy;
+  boardCanvas.style.transform = _pendingCanvasResizeX || _pendingCanvasResizeY
+    ? `translate(${_pendingCanvasResizeX}px, ${_pendingCanvasResizeY}px)`
+    : '';
+}
 
 function boardSurfaceCssSize() {
   if (_boardSurfaceCssSizeCache) return _boardSurfaceCssSizeCache;
@@ -171,11 +181,21 @@ function boardSurfaceCssSize() {
 
 function syncBoardCanvasBackingStore(write = true) {
   const dpr = boardWindow().devicePixelRatio || 1;
+  if (write && (_pendingCanvasResizeX || _pendingCanvasResizeY)) {
+    _pendingCanvasResizeX = _pendingCanvasResizeY = 0;
+    boardCanvas.style.transform = '';
+  }
   const surface = boardSurfaceCssSize();
   const width = Math.max(1, Math.round(surface.width * dpr));
   const height = Math.max(1, Math.round(surface.height * dpr));
-  if (boardCanvas.width === width && boardCanvas.height === height) return false;
+  if (boardCanvas.width === width && boardCanvas.height === height &&
+      _boardCanvasDpr === dpr) return false;
   if (!write) return true;
+  // Keep the last frame at its rendered scale while a resize waits for RAF.
+  // The surface clips these fixed dimensions instead of stretching the bitmap.
+  boardCanvas.style.width = `${width / dpr}px`;
+  boardCanvas.style.height = `${height / dpr}px`;
+  _boardCanvasDpr = dpr;
   if (boardCanvas.width !== width) boardCanvas.width = width;
   if (boardCanvas.height !== height) boardCanvas.height = height;
   invalidateOffscreen();

@@ -10,6 +10,7 @@ function makeWindow({ loadStylesheets = true, now = () => 0 } = {}) {
   win.frames = new Map();
   win.timers = new Map();
   win.performance = { now };
+  Object.assign(win, { screenX: 100, screenY: 80, outerWidth: 800, outerHeight: 634, devicePixelRatio: 2 });
   let id = 0;
   win.setTimeout = (callback, delay) => { win.timers.set(++id, { callback, delay }); return id; };
   win.clearTimeout = (id) => win.timers.delete(id);
@@ -169,7 +170,7 @@ test('save yields use the visible window and clear their fallback timer', async 
   assert.equal(owner.timers.size, 0);
 });
 
-function setup({ supported = true, request, loadStylesheets = true } = {}) {
+function setup({ supported = true, request, loadStylesheets = true, onResize } = {}) {
   const owner = makeWindow(), pip = makeWindow({ loadStylesheets });
   let requests = 0, transitions = 0;
   const board = owner.document.createElement('canvas');
@@ -196,6 +197,7 @@ function setup({ supported = true, request, loadStylesheets = true } = {}) {
     onBeforeMove() {},
     onAfterMove() { transitions++; },
     onStateChange() {},
+    onResize,
   });
   return { owner, pip, board, script, placeholder, view, controller,
     get requests() { return requests; }, get transitions() { return transitions; } };
@@ -241,6 +243,94 @@ test('return to tab restores only once and focuses the owner', async () => {
   assert.equal(h.owner.focused, true);
   assert.equal(h.pip.closed, true);
   assert.equal(h.board.parentNode, h.owner.document.body);
+});
+
+test('resizing every PiP edge preserves the board position on screen at the same zoom', async () => {
+  const viewport = { panX: 37, panY: -24, zoom: 0.52 };
+  const deltas = [];
+  const h = setup({ onResize(dx, dy) {
+    viewport.panX += dx;
+    viewport.panY += dy;
+    deltas.push([dx, dy]);
+  } });
+  await h.controller.open();
+  const screenPoint = () => ({
+    x: h.pip.screenX + viewport.panX + 400 * viewport.zoom,
+    y: h.pip.screenY + viewport.panY + 250 * viewport.zoom,
+  });
+  const original = screenPoint();
+  for (const bounds of [
+    { outerWidth: 700 }, // right
+    { outerHeight: 534 }, // bottom
+    { screenX: 200, outerWidth: 600 }, // left
+    { screenY: 180, outerHeight: 434 }, // top
+    { screenX: 120, screenY: 100, outerWidth: 680, outerHeight: 514 }, // top-left
+    { outerWidth: 800, outerHeight: 634 }, // bottom-right
+  ]) {
+    Object.assign(h.pip, bounds);
+    h.pip.dispatchEvent(new Event('resize'));
+    assert.deepEqual(screenPoint(), original);
+    h.pip.flushFrames();
+    assert.deepEqual(screenPoint(), original, 'the following frame must not apply the offset twice');
+    assert.equal(viewport.zoom, 0.52);
+  }
+  assert.deepEqual(deltas, [[-100, 0], [0, -100], [80, 80]]);
+  h.controller.close();
+});
+
+test('dragging a PiP window moves its content normally and establishes the next resize origin', async () => {
+  const deltas = [];
+  const h = setup({ onResize: (dx, dy) => deltas.push([dx, dy]) });
+  await h.controller.open();
+  Object.assign(h.pip, { screenX: 600, screenY: 320 });
+  h.pip.flushFrames();
+  h.pip.flushFrames();
+  assert.deepEqual(deltas, [], 'movement and idle frames must not pan or repaint the board');
+
+  Object.assign(h.pip, { screenX: 680, outerWidth: 720 });
+  h.pip.dispatchEvent(new Event('resize'));
+  assert.deepEqual(deltas, [[-80, 0]], 'only the edge movement is compensated');
+  h.controller.close();
+});
+
+test('PiP bounds sampled before a resize notification are compensated only once', async () => {
+  const deltas = [];
+  const h = setup({ onResize: (dx, dy) => deltas.push([dx, dy]) });
+  await h.controller.open();
+  Object.assign(h.pip, { screenX: 150, screenY: 120, outerWidth: 750, outerHeight: 594 });
+  h.pip.flushFrames();
+  h.pip.dispatchEvent(new Event('resize'));
+  assert.deepEqual(deltas, [[-50, -40]]);
+  h.controller.close();
+});
+
+test('moving PiP between display scales resets its resize origin without panning', async () => {
+  const deltas = [];
+  const h = setup({ onResize: (dx, dy) => deltas.push([dx, dy]) });
+  await h.controller.open();
+  Object.assign(h.pip, { screenX: -1200, outerWidth: 700, devicePixelRatio: 1 });
+  h.pip.dispatchEvent(new Event('resize'));
+  assert.deepEqual(deltas, []);
+  Object.assign(h.pip, { screenX: -1150, outerWidth: 650 });
+  h.pip.dispatchEvent(new Event('resize'));
+  assert.deepEqual(deltas, [[-50, 0]]);
+  h.controller.close();
+});
+
+test('closing PiP stops its bounds sampler and removes its resize listener', async () => {
+  const deltas = [];
+  const h = setup({ onResize: (dx, dy) => deltas.push([dx, dy]) });
+  await h.controller.open();
+  assert.equal(h.pip.frames.size, 1);
+  const lateFrame = [...h.pip.frames.values()][0];
+  h.pip.close();
+  assert.equal(h.pip.frames.size, 0);
+  assert.equal(h.owner.frames.size, 0);
+  Object.assign(h.pip, { screenX: 200, outerWidth: 700 });
+  h.pip.dispatchEvent(new Event('resize'));
+  lateFrame();
+  assert.deepEqual(deltas, []);
+  assert.equal(h.pip.frames.size, 0);
 });
 
 test('PiP loads the original stylesheet and preserves inline font shorthands instead of serializing CSS rules', async () => {

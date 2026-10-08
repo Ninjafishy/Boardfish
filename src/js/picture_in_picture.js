@@ -1,9 +1,48 @@
 'use strict';
 
-function createBoardfishPictureInPicture({ ownerWindow, view, placeholder, onBeforeMove, onAfterMove, onStateChange }) {
+function trackPictureInPictureBounds(targetWindow, onResize) {
+  const readBounds = () => ({
+    x: targetWindow.screenX,
+    y: targetWindow.screenY,
+    width: targetWindow.outerWidth,
+    height: targetWindow.outerHeight,
+    dpr: targetWindow.devicePixelRatio,
+  });
+  let previous = readBounds();
+  let frame = null;
+  let stopped = false;
+  const track = () => {
+    if (stopped) return;
+    const current = readBounds();
+    const resized = current.width !== previous.width || current.height !== previous.height;
+    const dx = previous.x - current.x;
+    const dy = previous.y - current.y;
+    const sameScale = current.dpr === previous.dpr;
+    previous = current;
+    if (resized && sameScale && Number.isFinite(dx) && Number.isFinite(dy) && (dx || dy)) {
+      onResize(dx, dy);
+    }
+  };
+  // Window moves have no DOM event. Sample their position without redrawing so
+  // a later left/top resize does not mistake a title-bar drag for edge movement.
+  const sample = () => {
+    track();
+    if (!stopped) frame = targetWindow.requestAnimationFrame(sample);
+  };
+  targetWindow.addEventListener('resize', track);
+  frame = targetWindow.requestAnimationFrame(sample);
+  return () => {
+    stopped = true;
+    targetWindow.cancelAnimationFrame(frame);
+    targetWindow.removeEventListener('resize', track);
+  };
+}
+
+function createBoardfishPictureInPicture({ ownerWindow, view, placeholder, onBeforeMove, onAfterMove, onStateChange, onResize = () => {} }) {
   const ownerDocument = ownerWindow.document;
   let pipWindow = null;
   let opening = false;
+  let stopTrackingBounds = null;
   const supported = typeof ownerWindow.documentPictureInPicture?.requestWindow === 'function';
 
   function moveContents(from, to) {
@@ -17,6 +56,8 @@ function createBoardfishPictureInPicture({ ownerWindow, view, placeholder, onBef
   function restore() {
     if (!pipWindow) return;
     const closingWindow = pipWindow;
+    stopTrackingBounds?.();
+    stopTrackingBounds = null;
     // Do this synchronously in pagehide: the PiP document is about to be
     // destroyed, and its close action cannot be vetoed by beforeunload.
     try {
@@ -87,6 +128,7 @@ function createBoardfishPictureInPicture({ ownerWindow, view, placeholder, onBef
       placeholder.hidden = false;
       onStateChange(true);
       onAfterMove();
+      stopTrackingBounds = trackPictureInPictureBounds(openedWindow, onResize);
       const refreshFonts = () => {
         if (pipWindow === openedWindow) onAfterMove();
       };
@@ -163,6 +205,15 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     },
     onStateChange(pinned) {
       pinButton.querySelector('.ctx-label').textContent = pinned ? 'Return to Tab' : 'Pin Board';
+    },
+    onResize(dx, dy) {
+      if (!BoardfishViewportState.panBy(dx, dy)) return;
+      // Anchor the existing pixels immediately, including when bounds arrive
+      // inside RAF and the redraw cannot run until the following frame.
+      offsetBoardCanvasForResize(dx, dy);
+      invalidateOffscreen();
+      updateSelectionOverlay();
+      scheduleRender(true, true);
     },
   });
   pinButton.hidden = !BoardfishPictureInPicture.supported;

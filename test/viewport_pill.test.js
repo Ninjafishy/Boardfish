@@ -122,6 +122,7 @@ function loadViewportCanvasSizeHarness({
   let backingWidth = innerWidth * dpr;
   let backingHeight = innerHeight * dpr;
   const boardCanvas = {
+    style: { width: `${innerWidth}px`, height: `${innerHeight}px` },
     get width() {
       return backingWidth;
     },
@@ -208,6 +209,7 @@ function loadViewportCanvasSizeHarness({
     context,
     { filename: 'viewport-canvas-size.js' },
   );
+  context._boardCanvasDpr = dpr;
   return context;
 }
 
@@ -426,6 +428,151 @@ test('keyboard-style resize bursts apply only the latest backing-store height', 
   assert.equal(context.boardCanvas.height, 1688);
   assert.deepEqual(context.backingWrites, { width: 0, height: 1 });
   assert.equal(context.invalidations, 1);
+});
+
+test('horizontal and vertical resizes crop the last frame without shifting or squashing its pixels', () => {
+  const context = loadViewportCanvasSizeHarness({
+    rect: { width: 800, height: 600 },
+    innerWidth: 800,
+    innerHeight: 600,
+    dpr: 2,
+  });
+  // Start with the browser's unstyled canvas, including an already matching
+  // backing store. Every rendered frame must establish its own CSS dimensions.
+  context.boardCanvas.style = {};
+  context._boardCanvasDpr = null;
+  context.syncBoardCanvasBackingStore();
+  context.startCanvasSizeTracking();
+  context.panX = -87;
+  context.panY = 42;
+  context.zoom = 0.52;
+
+  const displayedPoint = () => {
+    const width = parseFloat(context.boardCanvas.style.width) || context.surfaceRect.width;
+    const height = parseFloat(context.boardCanvas.style.height) || context.surfaceRect.height;
+    return {
+      x: (context.panX + 400 * context.zoom) * 2 * width / context.boardCanvas.width,
+      y: (context.panY + 250 * context.zoom) * 2 * height / context.boardCanvas.height,
+      scaleX: context.zoom * 2 * width / context.boardCanvas.width,
+      scaleY: context.zoom * 2 * height / context.boardCanvas.height,
+    };
+  };
+  const original = displayedPoint();
+  const initialWorld = context.viewportWorldRect();
+  for (const surface of [
+    { width: 620, height: 600 },
+    { width: 480, height: 600 },
+    { width: 480, height: 320 },
+    { width: 960, height: 320 },
+    { width: 960, height: 740 },
+  ]) {
+    context.surfaceRect = surface;
+    assert.deepEqual(displayedPoint(), original, 'layout must only crop before resize notifications');
+    context.windowResizeListeners[0]({ type: 'resize' });
+    context.resizeObserverCallback([{ contentRect: surface }]);
+    assert.deepEqual(displayedPoint(), original, 'pixels must stay fixed while the redraw is queued');
+    const visibleWorld = context.viewportWorldRect();
+    assert.equal(visibleWorld.x1, initialWorld.x1);
+    assert.equal(visibleWorld.y1, initialWorld.y1);
+    assert.equal(visibleWorld.x2, (surface.width - context.panX) / context.zoom);
+    assert.equal(visibleWorld.y2, (surface.height - context.panY) / context.zoom);
+    context.syncBoardCanvasBackingStore();
+    assert.deepEqual(displayedPoint(), original, 'redraw must preserve position and uniform scale');
+    assert.equal(parseFloat(context.boardCanvas.style.width), surface.width);
+    assert.equal(parseFloat(context.boardCanvas.style.height), surface.height);
+  }
+});
+
+test('a DPR and surface change can update CSS size without changing backing dimensions', () => {
+  const context = loadViewportCanvasSizeHarness({
+    rect: { width: 800, height: 600 },
+    innerWidth: 800,
+    innerHeight: 600,
+    dpr: 1,
+  });
+  context.startCanvasSizeTracking();
+  context.window.devicePixelRatio = 2;
+  context.resizeObserverCallback([{ contentRect: { width: 400, height: 300 } }]);
+
+  assert.deepEqual(context.renders, [{ board: true, overlay: undefined }]);
+  assert.equal(context.boardCanvas.style.width, '800px');
+  assert.equal(context.boardCanvas.style.height, '600px');
+  assert.equal(context.syncBoardCanvasBackingStore(), true);
+  assert.equal(context.boardCanvas.style.width, '400px');
+  assert.equal(context.boardCanvas.style.height, '300px');
+  assert.deepEqual(context.backingWrites, { width: 0, height: 0 });
+});
+
+test('fractional DPR does not repeatedly invalidate the canvas after CSS serialization rounds its size', () => {
+  const context = loadViewportCanvasSizeHarness({
+    rect: { width: 801, height: 601 },
+    dpr: 1.5,
+  });
+  context.syncBoardCanvasBackingStore();
+  for (const dimension of ['width', 'height']) {
+    const pixels = parseFloat(context.boardCanvas.style[dimension]);
+    context.boardCanvas.style[dimension] = `${Number(pixels.toPrecision(6))}px`;
+  }
+  const invalidations = context.invalidations;
+  assert.equal(context.syncBoardCanvasBackingStore(), false);
+  assert.equal(context.invalidations, invalidations);
+});
+
+test('left and top resize offsets hold existing pixels on screen until a redraw replaces them', () => {
+  const context = loadViewportCanvasSizeHarness({
+    rect: { width: 800, height: 600 },
+    innerWidth: 800,
+    innerHeight: 600,
+  });
+  context.offsetBoardCanvasForResize(-50, -40);
+  context.offsetBoardCanvasForResize(-30, -20);
+  context.resizeCanvas({ width: 720, height: 540 });
+  assert.equal(context.boardCanvas.style.transform, 'translate(-80px, -60px)');
+  assert.equal(context.boardCanvas.style.width, '800px');
+  assert.equal(context.boardCanvas.style.height, '600px');
+  assert.deepEqual(context.backingWrites, { width: 0, height: 0 });
+
+  context.syncBoardCanvasBackingStore();
+  assert.equal(context.boardCanvas.style.transform, '');
+  assert.equal(context.boardCanvas.style.width, '720px');
+  assert.equal(context.boardCanvas.style.height, '540px');
+
+  // A position correction also expires when the canvas size already matches.
+  context.offsetBoardCanvasForResize(10, 15);
+  assert.equal(context.boardCanvas.style.transform, 'translate(10px, 15px)');
+  assert.equal(context.syncBoardCanvasBackingStore(), false);
+  assert.equal(context.boardCanvas.style.transform, '');
+});
+
+test('finishing a board open preserves the frozen frame size until its resize redraw', () => {
+  const context = loadViewportCanvasSizeHarness({
+    rect: { width: 800, height: 600 },
+    innerWidth: 800,
+    innerHeight: 600,
+  });
+  const source = readSource('src/js/io_close.js');
+  const start = source.indexOf('const endOpeningFreeze = () => {');
+  const end = source.indexOf('\n};', start) + 3;
+  assert.ok(start > 0 && end > start);
+  context.island = {};
+  context.boardDocument = () => ({ body: { appendChild() {} } });
+  context.canvas.prepend = () => {};
+  context.openingShield = { classList: { remove() {} }, replaceChildren() {}, style: {} };
+  context.boardCanvas.removeAttribute = () => { context.boardCanvas.style = {}; };
+  Object.assign(context.boardCanvas.style, { left: '12px', top: '34px' });
+  context.surfaceRect = { width: 480, height: 320 };
+
+  vm.runInContext(`${source.slice(start, end)}\nendOpeningFreeze();`, context);
+
+  assert.equal(context.boardCanvas.style.left, '');
+  assert.equal(context.boardCanvas.style.top, '');
+  assert.equal(context.boardCanvas.style.width, '800px');
+  assert.equal(context.boardCanvas.style.height, '600px');
+  assert.deepEqual(context.backingWrites, { width: 0, height: 0 });
+  assert.deepEqual(context.renders, [{ board: true, overlay: undefined }]);
+  context.syncBoardCanvasBackingStore();
+  assert.equal(context.boardCanvas.style.width, '480px');
+  assert.equal(context.boardCanvas.style.height, '320px');
 });
 
 test('viewport culling follows the observed board surface while keyboard geometry settles', () => {

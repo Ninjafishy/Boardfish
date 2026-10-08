@@ -83,7 +83,9 @@ const endOpeningFreeze = () => {
   if (!openingShield) return;
   boardDocument().body.appendChild(island);
   canvas.prepend(boardCanvas);
-  boardCanvas.removeAttribute('style');
+  // Preserve the frozen frame's size until resizeCanvas queues its redraw.
+  boardCanvas.style.left = '';
+  boardCanvas.style.top = '';
   openingShield.classList.remove('active', 'opening-freeze');
   openingShield.replaceChildren();
   openingShield.style.background = '';
