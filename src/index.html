@@ -36,14 +36,17 @@
     <button class="ctx-item" id="btn-save-as"><span class="ctx-label">Save As</span><span class="ctx-shortcut" data-mac-shortcut="⇧⌘S">Ctrl+Shift+S</span></button>
     <div class="ctx-sep"></div>
     <button class="ctx-item" id="btn-open"><span class="ctx-label">Open</span><span class="ctx-shortcut" data-mac-shortcut="⌘O">Ctrl+O</span></button>
-    <div class="ctx-sep" id="pip-menu-separator" hidden></div>
-    <button class="ctx-item" id="btn-pin" type="button" hidden><span class="ctx-label">Pin Board</span></button>
   </div>
 
   <div id="ctx-actions">
     <button class="ctx-action-item ctx-action-icon ui-highlight-nudge" id="ctx-btn-dark-mode" type="button" aria-label="Dark Mode" title="Dark Mode" aria-pressed="true">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M20.7 14.4A8.3 8.3 0 0 1 9.6 3.3a.8.8 0 0 0-.8-1.2A10.3 10.3 0 1 0 21.9 15.2a.8.8 0 0 0-1.2-.8ZM12 20.3A8.3 8.3 0 0 1 7.3 5.1a9.9 9.9 0 0 0 11.6 11.6A8.3 8.3 0 0 1 12 20.3Z" />
+      </svg>
+    </button>
+    <button class="ctx-action-item ctx-action-icon ui-highlight-nudge" id="btn-pin" type="button" aria-label="Pin" title="Pin" aria-pressed="false" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9 3h6l-1 7 3 3v2H7v-2l3-3-1-7ZM12 15v6" transform="rotate(45 12 12)" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
     <a class="ctx-action-item ctx-action-icon ui-highlight-nudge" id="ctx-btn-github" href="https://github.com/Ninjafishy/Boardfish" target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub">

@@ -17,9 +17,9 @@ Boardfish is a fast, lossless infinite canvas for visual ideation. It runs in th
 - Save everything locally as a portable .bf file
 - Pin the editable board above other windows with Document Picture-in-Picture in supported desktop browsers
 
-To pin a board, right-click an empty area and choose **Pin Board**. Keep the
-original tab open while working in the floating window. Close the floating
-window or choose **Return to Tab** to bring the board back with its changes and
+To pin a board, right-click an empty area and click the **Pin** icon next to the
+menu. Keep the original tab open while working in the floating window. Close the floating
+window or click **Pin** again to bring the board back with its changes and
 undo history intact. Reloading or closing the original tab ends the session.
 Chrome controls the floating window's size and placement; fullscreen behavior
 depends on the browser and operating system.

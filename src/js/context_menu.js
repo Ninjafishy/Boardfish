@@ -180,7 +180,6 @@ var MENU_COMMANDS = {
   'btn-save': () => { closeCtxMenu('command:save'); saveBoard(); },
   'btn-save-as': () => { closeCtxMenu('command:save-as'); saveBoardAs(); },
   'btn-open': () => { closeCtxMenu('command:open'); openBoard(); },
-  'btn-pin': () => { closeCtxMenu('command:pin'); toggleBoardPin(); },
   'obj-btn-copy': () => { closeObjCtxMenu('command:copy'); copySelected(); },
   'obj-btn-delete': () => { closeObjCtxMenu('command:delete'); deleteSelected(); },
   'obj-btn-duplicate': (event) => {

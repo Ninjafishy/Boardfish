@@ -204,7 +204,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       scheduleRender(true, true);
     },
     onStateChange(pinned) {
-      pinButton.querySelector('.ctx-label').textContent = pinned ? 'Return to Tab' : 'Pin Board';
+      pinButton.setAttribute('aria-pressed', String(pinned));
     },
     onResize(dx, dy) {
       if (!BoardfishViewportState.panBy(dx, dy)) return;
@@ -217,7 +217,12 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     },
   });
   pinButton.hidden = !BoardfishPictureInPicture.supported;
-  document.getElementById('pip-menu-separator').hidden = !BoardfishPictureInPicture.supported;
+  pinButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeCtxMenu('command:pin');
+    toggleBoardPin();
+  });
   document.getElementById('pip-return').addEventListener('click', () => {
     BoardfishPictureInPicture.close({ focus: true });
   });
