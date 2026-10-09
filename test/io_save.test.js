@@ -120,17 +120,17 @@ test('concurrent save commands share pending work and allow a later save', async
 });
 
 test('stalled save preparation unlocks PiP, preserves edits, and never writes after timeout', async (t) => {
-  for (const stage of ['images', 'container', 'recovery']) {
-    await t.test(stage, async () => {
+  for (const wake of ['timer', 'focus']) for (const stage of ['images', 'container', 'recovery']) {
+    await t.test(`${stage}: ${wake}`, async () => {
       const { context, calls, sourceRef } = loadSaveHarness();
       const timers = new Map();
-      let timerId = 0;
-      const pip = {
+      let timerId = 0, time = 0;
+      const pip = Object.assign(new EventTarget(), {
         document: {},
         setTimeout(callback) { timers.set(++timerId, callback); return timerId; },
         clearTimeout(id) { timers.delete(id); },
-      };
-      context.performance = { now: () => 0 };
+      });
+      context.performance = { now: () => time };
       context.setTimeout = () => { throw new Error('hidden opener timer used'); };
       context.BoardfishView.setWindow(pip);
       context.BoardfishWebLimits = { validateBoardPayload() {} };
@@ -173,9 +173,16 @@ test('stalled save preparation unlocks PiP, preserves edits, and never writes af
       assert.equal(context.isBoardInputBlocked(), true);
       assert.equal(context.isDirty(), true);
       assert.deepEqual(calls.messages, ['Saving']);
-      const expired = [...timers.values()];
-      timers.clear();
-      for (const callback of expired) callback();
+      if (wake === 'timer') {
+        const expired = [...timers.values()];
+        timers.clear();
+        for (const callback of expired) callback();
+      } else {
+        // PiP stays open and its native timers never fire. Focus alone must
+        // expire the stalled operation, preserving the unsaved board.
+        time = 10 * 60 * 1000;
+        pip.dispatchEvent(new Event('focus'));
+      }
       await new Promise(setImmediate);
       assert.equal(result, false, 'a stalled preparation must settle');
       assert.equal(context.isBoardInputBlocked(), false);

@@ -201,7 +201,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       }
       clearTextMeasurementCaches();
       invalidateOffscreen();
-      scheduleRender(true, true);
     },
     onStateChange(pinned) {
       pinButton.setAttribute('aria-pressed', String(pinned));

@@ -5,14 +5,10 @@ var ExportDebug = (() => {
   const MAX_MASSIVE_SAMPLES = 8;
   let massive = null;
 
-  function sanitize(value) {
-    return sanitizeDebugMeta(value, { roundNumbers: true });
-  }
-
   const core = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish export]',
-    sanitize,
+    sanitize: sanitizeRoundedDebugMeta,
   });
   const events = core._events;
 

@@ -92,9 +92,33 @@ function openCtxMenuAt(x, y) {
   updateCtxActionStates();
   ctxMenu.classList.add('visible');
   ctxActions.classList.add('visible');
+  positionCtxMenuAt(x, y);
+}
+
+function positionCtxMenuAt(x, y) {
+  ctxMenu.style.maxHeight = '';
+  ctxActions.classList.remove('horizontal');
   const { gap, left, right, top, bottom } = menuViewportBounds();
   const { width: menuWidth, height: menuHeight } = ctxMenu.getBoundingClientRect();
   const actionWidth = ctxActions.offsetWidth;
+  const availableWidth = right - left - MENU_VIEWPORT_EDGE_MARGIN * 2;
+
+  // Keep the same control sizes and gap when the two shells cannot fit beside
+  // each other. Reserve room for the action row before measuring the menu.
+  if (menuWidth + gap + actionWidth > availableWidth) {
+    ctxActions.classList.add('horizontal');
+    const actions = ctxActions.getBoundingClientRect();
+    ctxMenu.style.maxHeight = `${Math.max(0, bottom - top - MENU_VIEWPORT_EDGE_MARGIN * 2 - gap - actions.height)}px`;
+    const menu = ctxMenu.getBoundingClientRect();
+    const menuLeft = Math.round(clampMenuCoord(x, Math.max(menu.width, actions.width), left, right));
+    const menuTop = Math.round(clampMenuCoord(y, menu.height + gap + actions.height, top, bottom));
+    ctxMenu.style.left = `${menuLeft}px`;
+    ctxMenu.style.top = `${menuTop}px`;
+    ctxActions.style.left = ctxMenu.style.left;
+    ctxActions.style.top = `${menuTop + menu.height + gap}px`;
+    return;
+  }
+
   const minActionLeft = left + gap;
   const maxActionRight = right - gap;
   const maxActionLeft = Math.max(minActionLeft, maxActionRight - actionWidth);
@@ -116,6 +140,15 @@ function openCtxMenuAt(x, y) {
   ctxActions.style.left = `${Math.round(actionLeft)}px`;
   ctxActions.style.top = ctxMenu.style.top;
 }
+
+BoardfishView.addWindowListener('resize', () => {
+  for (const menu of [ctxMenu, objCtxMenu, textCtxMenu]) {
+    if (!menu.classList.contains('visible')) continue;
+    const { left, top } = menu.getBoundingClientRect();
+    if (menu === ctxMenu) positionCtxMenuAt(left, top);
+    else openMenuAt(menu, left, top);
+  }
+});
 
 if (DEBUG_TOOLS_ENABLED) {
   for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'contextmenu']) {
@@ -203,9 +236,7 @@ const focusTextEditProxy = () => focusTextEditProxyNow(_editEl);
 
 const readTextClipboardForEditMenu = async () => {
   try {
-    if (boardNavigator().clipboard?.readText) {
-      return String(await boardNavigator().clipboard.readText() || '');
-    }
+    return await BoardfishClipboardIO.readClipboardTextFromBrowser();
   } catch (err) {
     MenuDebug.log('text-ctx-menu:clipboard-text-miss', { error: String(err) });
   }

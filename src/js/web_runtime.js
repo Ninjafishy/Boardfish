@@ -15,10 +15,6 @@
   const FILE_COMPARISON_TIMEOUT_MS = 5000;
   const FILE_WRITE_MIN_BYTES_PER_SECOND = 2 * 1024 * 1024;
 
-  function isAbortError(err) {
-    return err?.name === 'AbortError';
-  }
-
   function webFileRef(file, name = '') {
     return {
       kind: 'web-file',
@@ -162,14 +158,6 @@
     return fileWriteTimeoutMs({ size });
   }
 
-  function hasOpenFileSystemAccess() {
-    return typeof boardWindow().showOpenFilePicker === 'function';
-  }
-
-  function hasSaveFileSystemAccess() {
-    return typeof boardWindow().showSaveFilePicker === 'function';
-  }
-
   function pickFileWithInput(accept) {
     const pickerWindow = boardWindow();
     return new Promise((resolve) => {
@@ -218,12 +206,12 @@
   }
 
   const unlessAborted = (picker) => picker.catch((err) => {
-    if (isAbortError(err)) return null;
+    if (err?.name === 'AbortError') return null;
     throw err;
   });
 
   async function openFileDialog() {
-    if (!hasOpenFileSystemAccess()) return pickFileWithInput('.bf');
+    if (typeof boardWindow().showOpenFilePicker !== 'function') return pickFileWithInput('.bf');
     const handles = await unlessAborted(boardWindow().showOpenFilePicker({
       multiple: false,
       types: BOARD_FILE_TYPES,
@@ -233,7 +221,7 @@
   }
 
   async function saveFileDialog(defaultName = 'board.bf') {
-    if (!hasSaveFileSystemAccess()) return webDownloadRef(defaultName);
+    if (typeof boardWindow().showSaveFilePicker !== 'function') return webDownloadRef(defaultName);
     const handle = await unlessAborted(boardWindow().showSaveFilePicker({
       suggestedName: defaultName,
       types: BOARD_FILE_TYPES,
@@ -284,10 +272,16 @@
       throw new Error('Permission Denied');
     }
     const timeoutMs = fileWriteTimeoutMs(blob);
-    const writable = await waitForFileOperation(
-      () => handle.createWritable(),
-      'Opening File',
-    );
+    const opening = Promise.resolve(handle.createWritable());
+    let writable;
+    try {
+      writable = await waitForFileOperation(() => opening, 'Opening File');
+    } catch (err) {
+      // A delayed browser response can acquire a file lock after we time out.
+      // Release that abandoned writer without committing it or blocking retry.
+      opening.then((lateWritable) => lateWritable.abort?.(err)).catch(() => {});
+      throw err;
+    }
     let stage = 'Writing File';
     try {
       await waitForFileOperation(() => writable.write(blob), stage, timeoutMs);

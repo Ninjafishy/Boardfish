@@ -74,10 +74,6 @@ var drawableBitmapWarmupWarmedByKind = {};
 
 function isViewportImageScalingActive() { return viewportImageScalingEnabled; }
 
-function bitmapByteSize(bitmap) {
-  return (bitmap?.width || 0) * (bitmap?.height || 0) * 4;
-}
-
 function isImageVariantDrawableSource(source) {
   if (!source) return false;
   return !!(source.complete && source.naturalWidth > 0) || !!(source.width > 0 && source.height > 0);
@@ -236,8 +232,6 @@ function scaledVariantEstimatedBytes(sourceW, sourceH, scale) {
   return Math.max(1, Math.ceil(sourceW * scale)) * Math.max(1, Math.ceil(sourceH * scale)) * 4;
 }
 
-function pendingScaledVariantBytes() { return imageScaledBitmapPendingByteTotal; }
-
 function addPendingScaledVariantBytes(key, bytes) {
   imageScaledBitmapPending.set(key, bytes);
   imageScaledBitmapPendingByteTotal += bytes;
@@ -271,12 +265,6 @@ function setScaledImageVariant(key, entry) {
   return entry;
 }
 
-function clearScaledImageVariantCache() {
-  for (const entry of imageScaledBitmapCache.values()) entry.bitmap?.close?.();
-  imageScaledBitmapCache.clear();
-  imageScaledBitmapBytes = 0;
-}
-
 function clearScaledImageVariants(key = null) {
   if (key) {
     removeScaledImageVariant(key);
@@ -294,7 +282,9 @@ function clearScaledImageVariants(key = null) {
     removePendingScaledVariantBytes(key);
     return;
   }
-  clearScaledImageVariantCache();
+  for (const entry of imageScaledBitmapCache.values()) entry.bitmap?.close?.();
+  imageScaledBitmapCache.clear();
+  imageScaledBitmapBytes = 0;
   imageScaledBitmapPending.clear();
   imageScaledBitmapPendingByteTotal = 0;
   imageScaledVariantQueue.length = 0;
@@ -521,7 +511,7 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
         bitmap.close?.();
         return;
       }
-      const bytes = bitmapByteSize(bitmap);
+      const bytes = (bitmap?.width || 0) * (bitmap?.height || 0) * 4;
       setScaledImageVariant(key, { bitmap, bytes });
       const warmupMeta = { kind: 'scaled-variant', key };
       if (typeof BOARDFISH_PRODUCTION === 'undefined') Object.assign(warmupMeta, { scale, source: 'queue' });

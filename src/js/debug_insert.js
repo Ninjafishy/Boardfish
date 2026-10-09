@@ -6,14 +6,10 @@ var InsertDebug = (() => {
 
   const round = round2;
 
-  function sanitize(meta = {}) {
-    return sanitizeDebugMeta(meta);
-  }
-
   const recorder = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish insert]',
-    sanitize,
+    sanitize: sanitizeDebugMeta,
     onEnable() {
       console.info('Boardfish insert debugger enabled. Use finishDebug({ insert: ["report", "imageBreakdown", "fileBreakdown", "phaseSummary", "summary", "dump"] }) to collect results.');
     },
@@ -108,8 +104,7 @@ var InsertDebug = (() => {
     return rows;
   }
   function report() {
-    const insertEnds = events.filter(e => e.op === 'insertImages' && e.step === 'end');
-    const last = insertEnds[insertEnds.length - 1];
+    const last = debugLast(events, e => e.op === 'insertImages' && e.step === 'end');
     if (!last) {
       const empty = { runs: 0 };
       console.table([empty]);

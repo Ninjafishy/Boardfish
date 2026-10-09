@@ -600,7 +600,9 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
         return;
       }
     }
-    const eventText = BoardfishClipboardIO.readClipboardTextFromEvent(clipboardData);
+    // Unwrap prose before removing list margins so long list entries cannot be
+    // mistaken for adjacent visual wraps after their blank lines are removed.
+    const eventText = BoardfishClipboardIO.readClipboardTextFromEvent(clipboardData, textForExternalTextObjectPaste);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     ClipDebug.step(dbg, 'paste:event-text-read-done');
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -645,7 +647,7 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
     // Rich-text and spreadsheet clipboards often also contain a preview image.
     // Prefer their plain-text representation so the pasted object stays editable.
     if (/\S/.test(eventText)) {
-      pastePlainText(textForExternalTextObjectPaste(eventText), 'event-text');
+      pastePlainText(eventText, 'event-text');
       return;
     }
     const eventImageFile = BoardfishClipboardIO.readClipboardImageFileFromEvent(clipboardData
@@ -677,14 +679,14 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
       const textReadStartedAt = clipboardNow();
       ClipDebug.step(dbg, 'browser-text-read:start');
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      const browserText = await BoardfishClipboardIO.readClipboardTextFromBrowser(clipboardItems);
+      const browserText = await BoardfishClipboardIO.readClipboardTextFromBrowser(clipboardItems, textForExternalTextObjectPaste);
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       ClipDebug.step(dbg, 'browser-text-read:ok', {
         ms: clipboardElapsedMs(textReadStartedAt),
       });
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       if (/\S/.test(browserText)) {
-        pastePlainText(textForExternalTextObjectPaste(browserText), 'web-text');
+        pastePlainText(browserText, 'web-text');
         return;
       }
       let imageBlob = null;

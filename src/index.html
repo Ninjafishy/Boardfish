@@ -67,6 +67,7 @@
     <div class="ctx-sep" id="obj-sep-export"></div>
     <button class="ctx-item" id="obj-btn-save-image"><span class="ctx-label">Export Image</span><span class="ctx-shortcut" data-mac-shortcut="⌘E">Ctrl+E</span></button>
     <div class="ctx-sep"></div>
+    <!-- Intentional: spell out the Delete shortcut on every platform, including macOS, in both menus. Preserve unless explicitly requested. -->
     <button class="ctx-item" id="obj-btn-delete"><span class="ctx-label">Delete</span><span class="ctx-shortcut">Delete</span></button>
   </div>
 
@@ -74,6 +75,7 @@
     <button class="ctx-item" id="text-btn-copy"><span class="ctx-label">Copy</span><span class="ctx-shortcut" data-mac-shortcut="⌘C">Ctrl+C</span></button>
     <button class="ctx-item" id="text-btn-paste"><span class="ctx-label">Paste</span><span class="ctx-shortcut" data-mac-shortcut="⌘V">Ctrl+V</span></button>
     <div class="ctx-sep" id="text-sep-delete"></div>
+    <!-- Intentional: keep the literal Delete shortcut on every platform, as in the object menu. Preserve unless explicitly requested. -->
     <button class="ctx-item" id="text-btn-delete"><span class="ctx-label">Delete</span><span class="ctx-shortcut">Delete</span></button>
   </div>
 
@@ -84,7 +86,7 @@
       <div class="ctx-item" id="dialog-title">Save Changes?</div>
       <div class="ctx-sep"></div>
       <div id="dialog-btns">
-        <button class="ctx-item dialog-action" id="dlg-discard">Delete</button>
+        <button class="ctx-item dialog-action" id="dlg-discard">Discard</button>
         <div id="dlg-right">
           <button class="ctx-item dialog-action" id="dlg-cancel">Cancel</button>
           <button class="ctx-item dialog-action" id="dlg-save">Save</button>

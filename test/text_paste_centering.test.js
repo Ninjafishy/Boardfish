@@ -5,6 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('../test-support/browser_vm.js');
 const { createUnitTextContext } = require('../test-support/text_editor.js');
+const { element, clipboardHtmlFixture, listNames, namesListFixture } = require('../test-support/clipboard.js');
 
 const DEFAULT_TEXT_BOX_MIN_LINES = 1;
 const DEFAULT_TEXT_BOX_LINE_H = 24;
@@ -88,7 +89,7 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
   return context;
 }
 
-function loadPasteHarness({ browserText = '', normalizeExternalText, clipboard = {} } = {}) {
+function loadPasteHarness({ browserText = '', normalizeExternalText, clipboard = {}, htmlFixture } = {}) {
   const source = readSource('src/js/clipboard_export_init.js');
   const calls = { addText: [], images: [], readText: 0 };
   const context = {
@@ -98,7 +99,9 @@ function loadPasteHarness({ browserText = '', normalizeExternalText, clipboard =
     calls,
     document: {
       addEventListener() {},
-      createElement() { return { getContext: createUnitTextContext }; },
+      createElement(tag) {
+        return tag === 'template' && htmlFixture ? htmlFixture.createTemplate() : { getContext: createUnitTextContext };
+      },
       visibilityState: 'visible',
     },
     navigator: {
@@ -310,6 +313,36 @@ function clipboardItem(parts) {
       return part;
     },
   };
+}
+
+for (const viaMenu of [false, true]) {
+  test(`${viaMenu ? 'menu' : 'keyboard'} canvas paste removes copied list margins`, async () => {
+    const fixture = namesListFixture();
+    const text = listNames.join('\n\n\n\n');
+    const context = loadPasteHarness({
+      htmlFixture: fixture,
+      clipboard: { async read() { return [fixture.clipboardItem(text)]; } },
+    });
+    await context.pasteAtPos(640, 360, viaMenu ? null : fixture.clipboardData(text));
+    assert.equal(context.calls.addText[0].content, listNames.join('\n'));
+    assert.equal(context.calls.addText[0].options.anchor, 'center');
+  });
+
+  test(`${viaMenu ? 'menu' : 'keyboard'} canvas paste keeps long list items on separate lines`, async () => {
+    const lines = [
+      'first item has enough words to resemble a line of fixed-width prose copied elsewhere',
+      'second item also contains many words but must remain a separate entry in this list',
+      'third item should still be a separate line',
+    ];
+    const fixture = clipboardHtmlFixture(element('ul', ...lines.map((line) => element('li', element('p', line)))));
+    const text = lines.join('\n\n');
+    const context = loadPasteHarness({
+      htmlFixture: fixture,
+      clipboard: { async read() { return [fixture.clipboardItem(text)]; } },
+    });
+    await context.pasteAtPos(640, 360, viaMenu ? null : fixture.clipboardData(text));
+    assert.equal(context.calls.addText[0].content, lines.join('\n'));
+  });
 }
 
 for (const fixture of [

@@ -1,14 +1,10 @@
 'use strict';
 
 var SaveDebug = (() => {
-  function sanitize(value) {
-    return sanitizeDebugMeta(value, { redactPattern: /dataUrl|src|base64|imageStore/i, roundNumbers: true });
-  }
-
   const core = createDebugRecorder({
     maxEvents: 300,
     label: '[Boardfish save]',
-    sanitize,
+    sanitize: sanitizeImageDebugMeta,
   });
 
   function enable(options = {}) {
@@ -100,8 +96,7 @@ var SaveDebug = (() => {
   }
 
   function latestRun() {
-    const starts = core.events.filter(e => e.step === 'start' && /^saveBoard/.test(e.op || ''));
-    const start = starts[starts.length - 1];
+    const start = debugLast(core.events, e => e.step === 'start' && /^saveBoard/.test(e.op || ''));
     if (!start) return [];
     return core.events.filter(e => e.id === start.id);
   }

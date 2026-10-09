@@ -10,14 +10,6 @@
   const imageSourceContextDrawnMap = new WeakMap();
   const TEXT_DRAW_STATS_ENABLED = Object.freeze({ collectStats: true });
 
-  function imageSourceDrawnBefore(source) {
-    return imageSourceDrawnSet.has(source);
-  }
-
-  function imageSourceContextDrawnBefore(source, context) {
-    return !!imageSourceContextDrawnMap.get(source)?.has(context);
-  }
-
   function markImageSourceDrawn(source, context) {
     imageSourceDrawnSet.add(source);
     let contexts = imageSourceContextDrawnMap.get(source);
@@ -493,8 +485,8 @@
             recordImageDrawWarmStats(
               counters,
               selected,
-              !imageSourceDrawnBefore(img),
-              !imageSourceContextDrawnBefore(img, context),
+              !imageSourceDrawnSet.has(img),
+              !imageSourceContextDrawnMap.get(img)?.has(context),
             );
             markImageSourceDrawn(img, context);
             if (cropped) counters.croppedImages = (counters.croppedImages || 0) + 1;

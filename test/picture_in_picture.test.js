@@ -5,11 +5,12 @@ const assert = require('node:assert/strict');
 const { createBoardfishView } = require('../src/js/view_context.js');
 const { createBoardfishPictureInPicture } = require('../src/js/picture_in_picture.js');
 
-function makeWindow({ loadStylesheets = true, now = () => 0 } = {}) {
+function makeWindow({ loadStylesheets = true, now = () => 0, wallNow = now } = {}) {
   const win = new EventTarget();
   win.frames = new Map();
   win.timers = new Map();
   win.performance = { now };
+  win.Date = { now: wallNow };
   Object.assign(win, { screenX: 100, screenY: 80, outerWidth: 800, outerHeight: 634, devicePixelRatio: 2 });
   let id = 0;
   win.setTimeout = (callback, delay) => { win.timers.set(++id, { callback, delay }); return id; };
@@ -168,6 +169,85 @@ test('save yields use the visible window and clear their fallback timer', async 
   assert.equal(yields, 1);
   assert.equal(pip.timers.size, 0);
   assert.equal(owner.timers.size, 0);
+});
+
+test('returning focus to the same PiP resumes save work when its scheduler and timer are stalled', async () => {
+  const owner = makeWindow(), pip = makeWindow();
+  const view = createBoardfishView(owner, owner.document);
+  pip.scheduler = { yield: () => new Promise(() => {}) };
+  view.setWindow(pip);
+  let resumed = 0;
+  view.yieldToEventLoop().then(() => resumed++);
+  await Promise.resolve();
+  assert.equal(resumed, 0);
+  pip.dispatchEvent(new Event('blur'));
+  pip.dispatchEvent(new Event('focus'));
+  await Promise.resolve();
+  assert.equal(resumed, 1);
+  assert.equal(pip.timers.size, 0);
+  pip.dispatchEvent(new Event('focus'));
+  pip.flushTimers();
+  await Promise.resolve();
+  assert.equal(resumed, 1);
+});
+
+test('PiP focus changes preserve save deadlines and user input settles overdue timers once', () => {
+  let time = 0;
+  const owner = makeWindow({ now: () => time }), pip = makeWindow();
+  const view = createBoardfishView(owner, owner.document);
+  view.setWindow(pip);
+  let expired = 0;
+  view.setTimeout(() => expired++, 100);
+  const lateCallback = [...pip.timers.values()][0].callback;
+  for (time = 10; time < 100; time += 10) {
+    pip.dispatchEvent(new Event('blur'));
+    pip.dispatchEvent(new Event('focus'));
+    assert.equal(expired, 0, 'focus must not end a healthy save early');
+  }
+  time = 150;
+  pip.document.dispatchEvent(new Event('pointerdown'));
+  assert.equal(expired, 1, 'input must recover even if no native timeout runs');
+  assert.equal(pip.timers.size, 0);
+  lateCallback();
+  pip.dispatchEvent(new Event('focus'));
+  assert.equal(expired, 1);
+});
+
+test('save deadlines include time asleep when the performance clock stops', () => {
+  let wallTime = 0;
+  const owner = makeWindow({ now: () => 0, wallNow: () => wallTime }), pip = makeWindow();
+  const view = createBoardfishView(owner, owner.document);
+  view.setWindow(pip);
+  let expired = 0;
+  view.setTimeout(() => expired++, 100);
+  wallTime = 1000;
+  pip.document.dispatchEvent(new Event('resume'));
+  assert.equal(expired, 1);
+  assert.equal(pip.timers.size, 0);
+});
+
+test('save recovery listeners follow the board and cancelled deadlines stay cancelled', () => {
+  let time = 0;
+  const owner = makeWindow({ now: () => time }), pip = makeWindow();
+  const view = createBoardfishView(owner, owner.document);
+  let expired = 0;
+  const cancelled = view.setTimeout(() => expired += 100, 100);
+  view.setTimeout(() => expired++, 100);
+  view.clearTimeout(cancelled);
+  view.setWindow(pip);
+  time = 150;
+  owner.dispatchEvent(new Event('focus'));
+  owner.document.dispatchEvent(new Event('keydown'));
+  assert.equal(expired, 0);
+  pip.document.visibilityState = 'hidden';
+  pip.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(expired, 0);
+  pip.document.visibilityState = 'visible';
+  pip.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(expired, 1);
+  view.setWindow(owner);
+  owner.dispatchEvent(new Event('pageshow'));
+  assert.equal(expired, 1);
 });
 
 function setup({ supported = true, request, loadStylesheets = true, onResize } = {}) {

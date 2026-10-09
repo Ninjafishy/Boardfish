@@ -4,12 +4,10 @@ var ClipDebug = (() => {
 
   const MAX_EVENTS = 2000;
 
-  const sanitize = sanitizeDebugMeta;
-
   const core = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish clipboard]',
-    sanitize,
+    sanitize: sanitizeDebugMeta,
   });
   const events = core._events;
 
@@ -608,8 +606,7 @@ var ClipDebug = (() => {
       .filter(e => textOps.has(e.op) && e.step && e.step !== 'start')
       .map(e => debugRow(e));
     const latestRun = (ops) => {
-      const starts = events.filter(e => ops.includes(e.op) && e.step === 'start');
-      const start = starts[starts.length - 1];
+      const start = debugLast(events, e => ops.includes(e.op) && e.step === 'start');
       if (!start) return { start: null, run: [], end: null };
       const run = events.filter(e => e.id === start.id && e.op === start.op);
       const end = debugLast(run, e => e.step === 'end') || null;
@@ -1015,9 +1012,7 @@ var ViewportDebug = (() => {
     'mouseup',
   ];
 
-  function sanitize(value) {
-    return sanitizeDebugMeta(value, { roundNumbers: true });
-  }
+  const sanitize = sanitizeRoundedDebugMeta;
 
   function push(evt) {
     if (!enabled) return;
@@ -1969,7 +1964,7 @@ var ViewportDebug = (() => {
       cacheMB: Math.round(imageScaledBitmapBytes / 1024 / 1024 * 100) / 100,
       limitMB: Math.round(IMAGE_VARIANT_MEMORY_LIMIT / 1024 / 1024),
 	      pending: imageScaledBitmapPending.size,
-	      pendingMB: Math.round(pendingScaledVariantBytes() / 1024 / 1024 * 100) / 100,
+	      pendingMB: Math.round(imageScaledBitmapPendingByteTotal / 1024 / 1024 * 100) / 100,
 	      queued: imageScaledVariantQueue.length,
 	      queueActive: imageScaledVariantQueueActive,
 	      queueConcurrency: IMAGE_VARIANT_QUEUE_CONCURRENCY,

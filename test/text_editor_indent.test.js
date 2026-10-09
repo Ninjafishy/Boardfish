@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const vm = require('../test-support/browser_vm.js');
 
 const { loadLiveTextEditResizeHarness, createUnitTextContext } = require('../test-support/text_editor.js');
+const { listNames, namesListFixture } = require('../test-support/clipboard.js');
 const TEST_LINE_H = 24;
 const TEST_TEXT_PAD = 16;
 const TEST_NEW_TEXT_EDIT_MIN_LINES = 1;
@@ -662,6 +663,29 @@ test('external edit paste trims whitespace-only edge lines before insertion', ()
   assert.equal(context.proxy.value, obj.data.content);
   assert.equal(context.proxy.selectionStart, 'existing line 1\nexisting line 2\nline 1\n\nline 2'.length);
 });
+
+for (const selected of [false, true]) {
+  test(`copied list paste ${selected ? 'replaces a selection' : 'at a caret'} with compact lines`, () => {
+    const context = loadLiveTextEditResizeHarness();
+    const fixture = namesListFixture();
+    const createElement = context.document.createElement;
+    context.document.createElement = (tag) => tag === 'template' ? fixture.createTemplate() : createElement(tag);
+    vm.runInContext(readSource('src/js/clipboard_io.js'), context);
+    context.BoardfishClipboardIO = context.window.BoardfishClipboardIO;
+    context.obj.data = { content: selected ? 'prefix old suffix' : 'prefix  suffix' };
+    context.enterEdit(context.obj.id, { history: false });
+    context.proxy.setSelectionRange(7, selected ? 10 : 7, 'none');
+    const paste = makePasteEvent();
+    paste.clipboardData = fixture.clipboardData(listNames.join('\n\n\n\n'));
+
+    context.proxy.dispatchEvent(paste);
+
+    assert.equal(paste.defaultPrevented, true, 'native textarea insertion would reintroduce the raw blank lines');
+    assert.equal(context.obj.data.content, `prefix ${listNames.join('\n')} suffix`);
+    assert.equal(context.proxy.value, context.obj.data.content);
+    assert.equal(context.proxy.selectionStart, 7 + listNames.join('\n').length);
+  });
+}
 
 test('tab indents the current text edit line', () => {
   const { applyTextEditLineIndent } = loadTextEditorHelpers();

@@ -455,9 +455,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         let minTextW;
         let minWidthMs = '';
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
         const minWidthStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (dragMinTextW == null) {

@@ -3,11 +3,6 @@
 const WEB_IMAGE_INSERT_CONCURRENCY = 3;
 const IMAGE_INSERT_MAX_DIMENSION = 600;
 
-function beginBulkImageInsert() {
-  _bulkImageInsertDepth++;
-  _bulkImageInsertAdded = 0;
-}
-
 function finishBulkImageInsert() {
   if (_bulkImageInsertDepth > 0) _bulkImageInsertDepth--;
   if (_bulkImageInsertDepth === 0 && _bulkImageInsertAdded > 0) {
@@ -251,7 +246,8 @@ async function insertImageFiles(files, x, y
   const addedIds = new Array(accepted.length);
   const releaseInputShield = acquireInputShield();
   if (bulk) {
-    beginBulkImageInsert();
+    _bulkImageInsertDepth++;
+    _bulkImageInsertAdded = 0;
     if (typeof BOARDFISH_PRODUCTION === 'undefined') {
       InsertDebug.step(dbg, 'bulk:start', { source, fileCount: accepted.length, concurrency, bytes: acceptedBytes });
     }

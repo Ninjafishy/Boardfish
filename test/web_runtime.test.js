@@ -111,6 +111,7 @@ test('open and save dialogs use the visible PiP window while the session stays i
 
 test('fallback file picker does not retain focus listener after selected file settles', async () => {
   const harness = loadWebRuntimeHarness();
+  const viewFocusListener = harness.rootListeners.get('focus');
 
   const result = await harness.context.BoardfishRuntime.openFileDialog();
   assert.equal(result.kind, 'web-file');
@@ -119,7 +120,7 @@ test('fallback file picker does not retain focus listener after selected file se
   assert.equal(harness.calls.removed, 1);
 
   harness.runTimers();
-  assert.equal(harness.rootListeners.has('focus'), false);
+  assert.equal(harness.rootListeners.get('focus'), viewFocusListener);
 });
 
 test('web board open defers image byte extraction during container read', async () => {
@@ -718,6 +719,40 @@ test('a stalled write times out, aborts, and retires the uncertain target', asyn
   assert.equal(aborts, 1);
   assert.equal(ref.unusable, true);
   assert.equal(harness.context.BoardfishRuntime.canSaveToExistingTarget(ref), false);
+});
+
+test('a writer opened after its save times out is aborted without writing or committing', async () => {
+  const harness = loadWebRuntimeHarness();
+  harness.context.BoardfishWebLimits = { validateBoardPayload() {} };
+  harness.context.BoardfishWebBoardContainer = {
+    async createBoardContainerBlob() { return { blob: new Blob(['board']) }; },
+  };
+  let finishOpening, aborts = 0, writes = 0, closes = 0, locked = false;
+  const opening = new Promise(resolve => { finishOpening = resolve; });
+  const handle = { createWritable() { return opening; } };
+  const ref = { kind: 'web-file-handle', handle, name: 'delayed-board.bf' };
+  const save = harness.context.BoardfishRuntime.saveBoard(ref, { objects: [] });
+  await new Promise(setImmediate);
+  harness.runTimers();
+  await assert.rejects(save, /Save Timed Out: Opening File/);
+  assert.equal(ref.unusable, true);
+  locked = true;
+  finishOpening({
+    async write() { writes++; },
+    async close() { closes++; },
+    async abort() { aborts++; locked = false; },
+  });
+  await new Promise(setImmediate);
+  assert.equal(aborts, 1);
+  assert.equal(writes, 0);
+  assert.equal(closes, 0);
+  handle.createWritable = async () => {
+    assert.equal(locked, false, 'the abandoned writer must release the file for retry');
+    return { async write() { writes++; }, async close() { closes++; } };
+  };
+  await harness.context.BoardfishRuntime.saveBoard({ kind: 'web-file-handle', handle }, { objects: [] });
+  assert.equal(writes, 1);
+  assert.equal(closes, 1);
 });
 
 test('download refs are not reusable save targets', () => {

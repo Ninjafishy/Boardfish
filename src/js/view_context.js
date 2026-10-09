@@ -11,10 +11,10 @@ function createBoardfishView(ownerWindow, ownerDocument) {
   const frames = new Map();
   const timeouts = new Map();
   const beforeChange = new Set();
-  const afterChange = new Set();
   const capture = (options) => typeof options === 'boolean' ? options : !!options?.capture;
   const target = (kind) => kind === 'window' ? activeWindow : activeDocument;
   const now = () => (ownerWindow.performance || globalThis.performance).now();
+  const wallNow = () => (ownerWindow.Date || Date).now();
 
   function removeListener(kind, type, callback, options) {
     const index = listeners.findIndex((entry) => entry.kind === kind && entry.type === type &&
@@ -62,18 +62,24 @@ function createBoardfishView(ownerWindow, ownerDocument) {
     frames.delete(id);
   }
 
+  function timeoutRemaining(timeout) {
+    // performance.now() can stop during system sleep on some platforms.
+    return Math.max(0, Math.min(timeout.deadline - now(), timeout.wallDeadline - wallNow()));
+  }
+
   function scheduleTimeout(id, timeout) {
     const source = typeof activeWindow?.setTimeout === 'function' ? activeWindow : globalThis;
     timeout.source = source;
     timeout.nativeId = source.setTimeout(() => {
       if (!timeouts.delete(id)) return;
       timeout.callback();
-    }, Math.max(0, timeout.deadline - now()));
+    }, timeoutRemaining(timeout));
   }
 
   function requestTimeout(callback, delay = 0) {
     const id = nextTimeoutId++;
-    const timeout = { callback, deadline: now() + Math.max(0, Number(delay) || 0) };
+    const duration = Math.max(0, Number(delay) || 0);
+    const timeout = { callback, deadline: now() + duration, wallDeadline: wallNow() + duration };
     timeouts.set(id, timeout);
     scheduleTimeout(id, timeout);
     return id;
@@ -84,6 +90,27 @@ function createBoardfishView(ownerWindow, ownerDocument) {
     if (!timeout) return;
     timeout.source.clearTimeout(timeout.nativeId);
     timeouts.delete(id);
+  }
+
+  function recoverDueTimeouts() {
+    // Focus can return without a setWindow transition. If browser scheduling
+    // stalled while PiP was inactive, settle overdue save guards and yields
+    // from the next live event instead of waiting for that same stalled queue.
+    if (!timeouts.size) return;
+    for (const [id, timeout] of Array.from(timeouts)) {
+      if (!timeouts.has(id) || timeoutRemaining(timeout) > 0) continue;
+      cancelTimeout(id);
+      timeout.callback();
+    }
+  }
+
+  for (const type of ['focus', 'pageshow']) addListener('window', type, recoverDueTimeouts);
+  addListener('document', 'resume', recoverDueTimeouts);
+  addListener('document', 'visibilitychange', () => {
+    if (activeDocument?.visibilityState === 'visible') recoverDueTimeouts();
+  });
+  for (const type of ['pointerdown', 'keydown', 'wheel', 'contextmenu']) {
+    addListener('document', type, recoverDueTimeouts, { capture: true, passive: true });
   }
 
   function yieldToEventLoop() {
@@ -117,7 +144,6 @@ function createBoardfishView(ownerWindow, ownerDocument) {
     }
     for (const [id, frame] of frames) scheduleFrame(id, frame);
     for (const [id, timeout] of timeouts) scheduleTimeout(id, timeout);
-    for (const callback of afterChange) callback();
   }
 
   return Object.freeze({
@@ -133,9 +159,7 @@ function createBoardfishView(ownerWindow, ownerDocument) {
     addDocumentListener: (type, callback, options) => addListener('document', type, callback, options),
     removeDocumentListener: (type, callback, options) => removeListener('document', type, callback, options),
     addWindowListener: (type, callback, options) => addListener('window', type, callback, options),
-    removeWindowListener: (type, callback, options) => removeListener('window', type, callback, options),
     beforeChange(callback) { beforeChange.add(callback); return () => beforeChange.delete(callback); },
-    onChange(callback) { afterChange.add(callback); return () => afterChange.delete(callback); },
   });
 }
 

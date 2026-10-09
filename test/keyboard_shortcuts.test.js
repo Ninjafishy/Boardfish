@@ -71,8 +71,9 @@ function loadKeyboard(overrides = {}) {
   };
   Object.assign(context, overrides);
   vm.createContext(context);
+  const viewListenerCount = listeners.length;
   vm.runInContext(keyboardSource, context, { filename: 'src/js/keyboard.js' });
-  const keydownListeners = listeners.filter((listener) => listener.type === 'keydown');
+  const keydownListeners = listeners.slice(viewListenerCount).filter((listener) => listener.type === 'keydown');
   return {
     calls,
     context,

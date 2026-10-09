@@ -149,9 +149,7 @@ const shouldCollectOpenBoardMetrics = (dbg = null) => {
 const getBoardOpenDebugMetrics = (dbg, data) => {
   return shouldCollectOpenBoardMetrics(dbg) ? getBoardOpenMetrics(data) : {};
 };
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
 function getImageStoreOpenDebugSample(limit = 12) {
   return BoardfishBoardDocument.getImageStoreDebugSample(imageStore, boardDocumentDeps(), limit);
 }

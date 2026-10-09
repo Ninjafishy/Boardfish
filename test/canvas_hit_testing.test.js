@@ -210,7 +210,7 @@ function loadTextEditMenuHarness() {
   return context;
 }
 
-function loadTextEditPasteHarness() {
+function loadTextEditPasteHarness({ htmlFixture } = {}) {
   const source = readSource('src/js/context_menu.js');
   const readStart = source.indexOf('const readTextClipboardForEditMenu');
   const readEnd = source.indexOf('const replaceTextEditSelection', readStart);
@@ -251,7 +251,15 @@ function loadTextEditPasteHarness() {
     MenuDebug: { log() {} },
   };
 
+  if (htmlFixture) {
+    context.document = { createElement: () => htmlFixture.createTemplate() };
+    context.navigator.clipboard.read = () => {
+      calls.clipboardReadActivations.push(context.clipboardActivation);
+      return Promise.resolve([htmlFixture.clipboardItem('Elizabeth\n\n\n\nDana')]);
+    };
+  }
   vm.createContext(context);
+  vm.runInContext(readSource('src/js/clipboard_io.js'), context);
   vm.runInContext(
     `${source.slice(readStart, readEnd)}\n${source.slice(pasteStart, pasteEnd)}\n` +
       'this.pasteTextIntoEditSelection = pasteTextIntoEditSelection;\n',
@@ -358,6 +366,18 @@ test('external text Paste starts its clipboard read before user activation expir
   assert.equal(context.calls.replacements.length, 1);
   assert.equal(context.calls.replacements[0].text, 'external text');
   assert.equal(context.calls.replacements[0].options.inputType, 'insertFromPaste');
+});
+
+test('text edit Paste menu reads rich lists during user activation and removes item margins', async () => {
+  const { element: el, clipboardHtmlFixture } = require('../test-support/clipboard.js');
+  const context = loadTextEditPasteHarness({
+    htmlFixture: clipboardHtmlFixture(el('ol', el('li', el('p', 'Elizabeth')), el('li', el('p', 'Dana')))),
+  });
+  const paste = context.pasteTextIntoEditSelection();
+  context.clipboardActivation = false;
+  await paste;
+  assert.deepEqual(context.calls.clipboardReadActivations, [true]);
+  assert.equal(context.calls.replacements[0].text, 'Elizabeth\nDana');
 });
 
 test('stale internal text candidate primes external fallback before user activation expires', async () => {
@@ -743,7 +763,8 @@ test('unsaved changes dialog suppresses browser context menu without closing', (
 test('global capture wheel zoom over the zoom pill is handled once by the board', () => {
   const context = loadCanvasWheelHarness();
   const windowWheel = context.listeners.window.find((entry) => entry.type === 'wheel');
-  const documentWheel = context.listeners.document.find((entry) => entry.type === 'wheel');
+  // Passive timeout recovery can observe the event but must never zoom again.
+  const documentWheel = context.listeners.document.find((entry) => entry.type === 'wheel' && !entry.options?.passive);
   assert.equal(windowWheel.options.capture, true);
   assert.equal(windowWheel.options.passive, false);
   assert.equal(documentWheel, undefined);

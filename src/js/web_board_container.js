@@ -19,22 +19,12 @@
   const imageSourceCrcCache = new WeakMap();
   const imageSourceArchiveIdentityCache = new WeakMap();
 
-  function textEncoder() {
-    if (!utf8TextEncoder) utf8TextEncoder = new TextEncoder();
-    return utf8TextEncoder;
-  }
-
-  function textDecoder() {
-    if (!utf8TextDecoder) utf8TextDecoder = new TextDecoder();
-    return utf8TextDecoder;
-  }
-
   function utf8Encode(text) {
-    return textEncoder().encode(String(text));
+    return (utf8TextEncoder ||= new TextEncoder()).encode(String(text));
   }
 
   function utf8Decode(bytes) {
-    return textDecoder().decode(bytes);
+    return (utf8TextDecoder ||= new TextDecoder()).decode(bytes);
   }
 
   function boardTextCharacters(board) {
@@ -525,10 +515,6 @@
     return { mime: match[1].toLowerCase(), base64: match[2] };
   }
 
-  function dataUrlToBytes(dataUrl) {
-    return base64ToBytes(dataUrlParts(dataUrl).base64);
-  }
-
   function dataUrlByteLength(dataUrl) {
     const base64 = dataUrlParts(dataUrl).base64.replace(/\s/g, '');
     const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
@@ -709,7 +695,7 @@
     if (isWebImageRef(source)) {
       return source.__bytes || null;
     }
-    if (typeof source === 'string') return dataUrlToBytes(source);
+    if (typeof source === 'string') return base64ToBytes(dataUrlParts(source).base64);
     if (source instanceof Uint8Array) return source;
     if (source instanceof ArrayBuffer) return new Uint8Array(source);
     if (ArrayBuffer.isView(source)) return new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
@@ -927,8 +913,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const startedAt = nowMs();
     let phaseStart = startedAt;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
+
     const containerFileBytes = Number(input?.size) || 0;
     phaseStart = nowMs();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -938,8 +923,7 @@
     const zipTailBytes = directory.tailBytes;
     const centralDirectoryBytes = directory.centralBytes;
     const zipOpenMs = nowMs() - phaseStart;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
+
     const warnings = [];
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const boardEntry = entries.get('board.json');

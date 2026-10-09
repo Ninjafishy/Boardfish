@@ -643,8 +643,7 @@ const copyTextEditSelectionFromProxy = async (
     textEditorClipboardLog(step, objectsMap.get(id), payload);
     stepStartedAt = now;
   };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
+
   logStep('copy:text-selection-payload-start', {
     sourceFound: objectsMap.has(id),
     ...textEditorSelectionDebugStats(selection, sourceValue),
@@ -859,8 +858,7 @@ const replaceTextEditProxyRange = (proxy, text, start, end, selectionMode = 'end
   }
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const rangeTextStartedAt = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
+
   var domSyncResult =
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
     syncTextEditProxyDomValue(proxy, value);
@@ -956,6 +954,9 @@ const tryNativeExternalTextPaste = (id, proxy, text, options = {}) =>
   tryNativeTextEditPaste(id, proxy, () => {
     const rawPastedText = normalizeTextContent(text);
     const pastedText = textForTextObjectPaste(rawPastedText);
+    const clipboardData = options.event?.clipboardData;
+    const nativeText = clipboardData?.getData?.('text/plain') || clipboardData?.getData?.('text');
+    if (nativeText && normalizeTextContent(nativeText) !== pastedText) return '';
     return pastedText === rawPastedText ? pastedText : '';
   }, options);
 

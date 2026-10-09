@@ -4,14 +4,10 @@ var OpenDebug = (() => {
   const MAX_EVENTS = 5000;
   let initialRenderDebugDepth = 0;
 
-  function sanitize(value) {
-    return sanitizeDebugMeta(value, { redactPattern: /dataUrl|src|base64|imageStore/i, roundNumbers: true });
-  }
-
   const core = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish open]',
-    sanitize,
+    sanitize: sanitizeImageDebugMeta,
     invokeResult: (result) => result?.debug || result || null,
   });
   const events = core._events;
@@ -261,8 +257,7 @@ var OpenDebug = (() => {
   }
 
   function latestOpenEvents() {
-    const starts = events.filter(e => e.step === 'start' && /^open/.test(e.op || ''));
-    const lastStart = starts[starts.length - 1];
+    const lastStart = debugLast(events, e => e.step === 'start' && /^open/.test(e.op || ''));
     if (!lastStart) return [];
     return events.filter(e => e.id === lastStart.id);
   }

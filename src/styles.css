@@ -18,11 +18,14 @@
   --regular_text: 400;
   --white_font: #fbfbfe;
   --menu-secondary-color: #70707a;
+  /* Intentional: shortcut text keeps this color in every interaction state.
+     Preserve it and omit hover/focus/pressed color overrides unless explicitly requested. */
   --menu-shortcut-color: #b8b8bc;
   --firefox-menu-bg: #42414d;
   --firefox-menu-border: var(--menu-secondary-color);
   --firefox-menu-text: var(--white_font);
   --menu_hover_bg: #5e5d69;
+  /* Intentional pressed-surface color; preserve unless explicitly requested. */
   --menu_pressed_bg: #7b7a84;
   --firefox-menu-hover-bg: var(--menu_hover_bg);
   --firefox-menu-active-bg: var(--menu_pressed_bg);
@@ -48,6 +51,7 @@
   --selection-outline: rgba(10, 132, 255, 1);
   --selection-handle-bg: #f8fafc;
   --selection-handle-shadow: 0 1px 3px rgba(0,0,0,0.28);
+  /* Intentional destructive-action red; preserve unless explicitly requested. */
   --danger-text: #FF453A;
   --danger-bg: rgba(255, 69, 58, 0.18);
   --danger-hover-bg: rgba(255, 69, 58, 0.26);
@@ -91,9 +95,9 @@ body[data-theme="dark"] #pip-placeholder { color: var(--white_font); }
   border: 1px solid var(--firefox-menu-border);
   border-radius: var(--pill-radius);
   cursor: pointer;
+  transition: background-color var(--smooth-slide-duration) var(--smooth-slide-ease);
 }
-#pip-return:focus-visible { background: var(--firefox-menu-hover-bg); }
-#pip-return:focus-visible { outline: 2px solid var(--selection-outline); outline-offset: 3px; }
+#pip-return:focus-visible { background: var(--firefox-menu-hover-bg); outline: 2px solid var(--selection-outline); outline-offset: 3px; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -290,6 +294,11 @@ body {
   gap: 8px;
 }
 
+#ctx-actions.horizontal {
+  width: max-content;
+  flex-direction: row;
+}
+
 /* Highlight-nudge interaction partition. Add .ui-highlight-nudge to opt new controls in. */
 :where(.ctx-item, .ui-highlight-nudge) {
   --ui-highlight-nudge-transform: translateX(0);
@@ -300,8 +309,7 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .ctx-action-item:hover, .ctx-item:hover, #island:hover #isl-zoom { background: var(--firefox-menu-hover-bg); }
-  #pip-return:hover { background: var(--firefox-menu-hover-bg); }
+  .ctx-action-item:hover, .ctx-item:hover, #pip-return:hover, #island:hover #isl-zoom { background: var(--firefox-menu-hover-bg); }
   #dlg-discard:hover { background: var(--danger-hover-bg); }
   :where(.ctx-item:hover, .ui-highlight-nudge:hover, #island:hover .ui-highlight-nudge) {
     --ui-highlight-nudge-transform: translateX(var(--highlight-nudge-x));
@@ -333,10 +341,11 @@ body {
   overflow: hidden;
   text-decoration: none;
   transform: var(--ui-highlight-nudge-transform);
-  transition: transform var(--smooth-slide-duration) var(--smooth-slide-ease);
+  transition:
+    background-color var(--smooth-slide-duration) var(--smooth-slide-ease),
+    transform var(--smooth-slide-duration) var(--smooth-slide-ease);
 }
 .ctx-action-item:focus-visible { background: var(--firefox-menu-hover-bg); }
-.ctx-action-item.hotspot-active,
 .ctx-action-item[aria-pressed="true"] { background: var(--menu-active-bg); }
 .ctx-action-icon svg {
   position: relative;
@@ -388,12 +397,23 @@ body {
 .ctx-item:focus-visible {
   background: var(--firefox-menu-hover-bg);
 }
+.ctx-item:focus-visible,
+.ctx-action-item:focus-visible {
+  outline: 2px solid var(--selection-outline);
+  outline-offset: -2px;
+}
 @media (hover: none), (pointer: coarse) {
   .ctx-item:focus-visible {
     --ui-highlight-nudge-transform: translateX(0);
     background: transparent;
   }
 }
+/* Menu pointer presses remain explicit so touch cancellation clears them. */
+.dialog-action:active,
+.ctx-item:focus-visible:active,
+.ctx-action-item:focus-visible:active,
+.ctx-action-item.hotspot-active,
+#pip-return:active,
 .ctx-item.menu-pressed {
   background: var(--menu-active-bg);
   transition-duration: 0ms;
@@ -422,6 +442,7 @@ body {
   overscroll-behavior: none;
   touch-action: none;
   border-radius: var(--pill-radius);
+  width: max-content;
   max-width: calc(100vw - 32px);
 }
 
@@ -456,6 +477,8 @@ body {
   cursor: default;
   min-height: var(--menu-item-height);
   padding: var(--menu-item-padding);
+  /* Preserve the single-line inset when a status message wraps. */
+  padding-block: calc((var(--menu-item-height) - var(--pill-text-line-height)) / 2);
   font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
   line-height: var(--pill-text-line-height);
   color: var(--firefox-menu-text);
@@ -508,6 +531,11 @@ body {
   display: none;
   position: fixed;
   inset: 0;
+  padding:
+    calc(var(--safe-area-top) + var(--menu-shell-padding))
+    calc(var(--safe-area-right) + var(--menu-shell-padding))
+    calc(var(--safe-area-bottom) + var(--menu-shell-padding))
+    calc(var(--safe-area-left) + var(--menu-shell-padding));
   background: var(--dialog-overlay-bg);
   backdrop-filter: blur(12px) saturate(150%);
   -webkit-backdrop-filter: blur(12px) saturate(150%);

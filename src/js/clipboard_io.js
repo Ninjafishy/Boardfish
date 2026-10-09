@@ -137,12 +137,87 @@
     return imageFile;
   }
 
-  function readClipboardTextFromEvent(clipboardData) {
+  function readClipboardTextFromEvent(clipboardData, prepareText = (text) => text) {
     if (!clipboardData) return '';
-    return clipboardData.getData?.('text/plain') || clipboardData.getData?.('text') || '';
+    const text = clipboardData.getData?.('text/plain') || clipboardData.getData?.('text') || '';
+    let html = '';
+    try { html = clipboardData.getData?.('text/html') || ''; } catch {}
+    return normalizeClipboardListSpacing(prepareText(text), html);
   }
 
-  async function readClipboardTextFromBrowser(items = []) {
+  function normalizeClipboardListSpacing(text, html) {
+    // Browser plain text can turn list-item margins into several empty lines.
+    // Use the inert HTML only to identify item boundaries, keeping the actual
+    // plain text (including its markers and indentation) as the source of truth.
+    if (!/\n[^\S\n]*\n/.test(text) || !/<li[\s>]/i.test(html)) return text;
+    try {
+      const doc = typeof boardDocument === 'function' ? boardDocument() : root.document;
+      const template = doc.createElement('template');
+      template.innerHTML = html;
+      const parts = [];
+      const boundaries = new Set();
+      const explicitBreaks = new Set();
+      let offset = 0;
+      const withoutWhitespace = (value) => value.replace(/\s/g, '');
+      const visit = (parent) => {
+        let previousItemEnd = -1;
+        for (const node of parent.childNodes) {
+          if (node.nodeType === 3) {
+            const value = withoutWhitespace(node.nodeValue);
+            parts.push(value);
+            offset += value.length;
+          } else if (node.nodeType === 1) {
+            const tag = node.localName;
+            if (/^(?:script|style|template|noscript)$/.test(tag)) continue;
+            if (tag === 'br') explicitBreaks.add(offset);
+            if (tag === 'li') {
+              const start = offset;
+              visit(node);
+              if (offset > start && previousItemEnd === start) boundaries.add(start);
+              // Empty list items represent intentional space.
+              previousItemEnd = offset > start ? offset : -1;
+            } else {
+              visit(node);
+              previousItemEnd = -1;
+            }
+          }
+        }
+      };
+      visit(template.content);
+      if (!boundaries.size) return text;
+
+      const lines = text.replace(/\r\n?/g, '\n').split('\n');
+      const htmlText = parts.join('');
+      let lineContents = lines.map(withoutWhitespace);
+      if (lineContents.join('') !== htmlText) {
+        // Some browsers include generated list markers in plain text only.
+        lineContents = lines.map((line) => withoutWhitespace(line.replace(
+          /^\s*(?:[-*+•‣◦▪▫]|\d+[.)]|[A-Za-z][.)])[^\S\n]+/, '',
+        )));
+        if (lineContents.join('') !== htmlText) return text;
+      }
+      offset = 0;
+      return lines.filter((line, index) => {
+        offset += lineContents[index].length;
+        return /\S/.test(line) || !boundaries.has(offset) || explicitBreaks.has(offset);
+      }).join('\n');
+    } catch {
+      // Missing or unusable HTML must never prevent a plain-text paste.
+      return text;
+    }
+  }
+
+  async function readClipboardTextFromBrowser(items = null, prepareText = (text) => text) {
+    if (!items) {
+      items = [];
+      if (clipboardNavigator().clipboard?.read) {
+        try {
+          items = await clipboardNavigator().clipboard.read();
+        } catch {
+          // Older browsers may only support reading plain text.
+        }
+      }
+    }
     // Reuse the clipboard snapshot, including items read while checking a
     // Boardfish token. Office apps can supply text and an image of the same cells.
     for (const item of items) {
@@ -150,13 +225,23 @@
       try {
         const blob = await item.getType('text/plain');
         const text = await blob.text();
-        if (/\S/.test(text)) return text;
+        if (/\S/.test(text)) {
+          let html = '';
+          try {
+            if (/\n[^\S\n]*\n/.test(text) && item.types.includes('text/html')) {
+              html = await (await item.getType('text/html')).text();
+            }
+          } catch {
+            // HTML is optional; retain the readable plain-text representation.
+          }
+          return normalizeClipboardListSpacing(prepareText(text), html);
+        }
       } catch {
         // One unreadable representation must not prevent the remaining fallbacks.
       }
     }
     try {
-      return await clipboardNavigator().clipboard?.readText?.() || '';
+      return prepareText(await clipboardNavigator().clipboard?.readText?.() || '');
     } catch {
       // Image-only clipboards may reject text reads; keep image paste available.
       return '';
