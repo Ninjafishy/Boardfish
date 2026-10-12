@@ -92,21 +92,6 @@ const endOpeningFreeze = () => {
 
 // ─── Save / Open ─────────────────────────────────────────────────────────────
 
-function boardDocumentDeps() {
-  return {
-    imageStoreBytesEstimate,
-    rawImageStore: imageStore,
-    rawObjects: objects,
-    historyLength: boardHistory.length,
-    historyIndex,
-    dirty: isDirty(),
-    runtime: {
-      imageBitmapCache,
-      imageBitmapFailed,
-    },
-  };
-}
-
 function boardDataForSave() {
   return BoardfishBoardDocument.createBoardDataForSave({
     viewport: { panX, panY, zoom },
@@ -223,7 +208,7 @@ function createOpenTextWarmupTarget() {
 }
 
 function warmOpenTextLineForDraw(target, obj, line) {
-  if (!target?.context || !line || !String(line.text ?? '').length) return false;
+  if (!target?.context || !line || !String(line.text ?? '').length) return;
   const context = target.context;
   const dpr = typeof window !== 'undefined' ? (Number(window.devicePixelRatio) || 1) : 1;
   const viewZoom = Number(zoom) || 1;
@@ -244,10 +229,7 @@ function warmOpenTextLineForDraw(target, obj, line) {
       margin + LINE_H * deviceScale - textY * deviceScale,
     );
     drawTextLineRange(context, line, obj);
-    return true;
-  } catch {
-    return false;
-  }
+  } catch {}
 }
 
 async function hydrateTextDrawCachesForOpen() {

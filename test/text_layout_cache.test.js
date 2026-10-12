@@ -204,15 +204,14 @@ test('ASCII fast path preserves exact wrapped layout and auto-height', () => {
     startIndex: line.startIndex,
     endIndex: line.endIndex,
     caretEndIndex: line.caretEndIndex,
-    nextStartIndex: line.nextStartIndex,
     logicalLineIndex: line.logicalLineIndex,
     y: line.y,
     textY: line.textY,
     prefixWidths: Array.from(line.prefixWidths),
   }))), [
-    { text: 'alpha beta', startIndex: 0, endIndex: 10, caretEndIndex: 11, nextStartIndex: 11, logicalLineIndex: 0, y: 36, textY: 52, prefixWidths: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
-    { text: 'gamma', startIndex: 11, endIndex: 16, caretEndIndex: 16, nextStartIndex: 16, logicalLineIndex: 0, y: 60, textY: 76, prefixWidths: [0, 1, 2, 3, 4, 5] },
-    { text: '1234  5678', startIndex: 17, endIndex: 27, caretEndIndex: 27, nextStartIndex: 27, logicalLineIndex: 1, y: 84, textY: 100, prefixWidths: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    { text: 'alpha beta', startIndex: 0, endIndex: 10, caretEndIndex: 11, logicalLineIndex: 0, y: 36, textY: 52, prefixWidths: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    { text: 'gamma', startIndex: 11, endIndex: 16, caretEndIndex: 16, logicalLineIndex: 0, y: 60, textY: 76, prefixWidths: [0, 1, 2, 3, 4, 5] },
+    { text: '1234  5678', startIndex: 17, endIndex: 27, caretEndIndex: 27, logicalLineIndex: 1, y: 84, textY: 100, prefixWidths: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
   ]);
   assert.equal(height, context.TEXT_PAD * 2 + context.LINE_H * 3);
   assert.deepEqual(segmented, []);
@@ -413,7 +412,7 @@ test('text drawing places each glyph at measured prefix positions', () => {
   const [line] = textLayout.getTextLayout(obj);
   const calls = [];
 
-  const stats = textLayout.drawTextLineRange({
+  textLayout.drawTextLineRange({
     font: '',
     fillText(text, x, y) {
       calls.push({ text, x, y });
@@ -427,7 +426,7 @@ test('text drawing places each glyph at measured prefix positions', () => {
   );
 
   calls.length = 0;
-  const cachedStats = textLayout.drawTextLineRange({
+  textLayout.drawTextLineRange({
     font: '',
     fillText(text, x, y) {
       calls.push({ text, x, y });
@@ -455,7 +454,7 @@ test('opening hydration can prepare every text draw plan before the first canvas
   for (const line of layout) textLayout.prepareTextLineForDraw(line);
 
   for (const line of layout) {
-    const stats = textLayout.drawTextLineRange({ fillText() {} }, line, obj);
+    textLayout.drawTextLineRange({ fillText() {} }, line, obj);
   }
 });
 
@@ -474,7 +473,7 @@ test('text drawing batches pixel-equivalent plain ASCII spans only', () => {
   const [line] = textLayout.getTextLayout(obj);
   const calls = [];
 
-  const stats = textLayout.drawTextLineRange({
+  textLayout.drawTextLineRange({
     font: '',
     fillText(text, x, y) {
       calls.push({ text, x, y });
@@ -503,7 +502,7 @@ test('text drawing splits the Geist contextual tt pair', () => {
   const [line] = textLayout.getTextLayout(obj);
   const calls = [];
 
-  const stats = textLayout.drawTextLineRange({
+  textLayout.drawTextLineRange({
     font: '',
     fillText(text) {
       calls.push(text);
@@ -533,7 +532,7 @@ test('text drawing keeps the exact per-grapheme path for fallback fonts and unve
     const [line] = textLayout.getTextLayout(obj);
     const calls = [];
 
-    const stats = textLayout.drawTextLineRange({
+    textLayout.drawTextLineRange({
       font: '',
       fillText(text) { calls.push(text); },
     }, line, obj);
@@ -682,21 +681,18 @@ test('soft wrapping fills each line and consumes separators at every text size',
       startIndex: line.startIndex,
       endIndex: line.endIndex,
       caretEndIndex: line.caretEndIndex,
-      nextStartIndex: line.nextStartIndex,
     }));
     const expected = Array.from({ length: repeats }, (_, index) => ({
       text: 'alpha beta',
       startIndex: index * 11,
       endIndex: index * 11 + 10,
       caretEndIndex: (index + 1) * 11,
-      nextStartIndex: (index + 1) * 11,
     }));
     expected.push({
       text: 'hi',
       startIndex: repeats * 11,
       endIndex: repeats * 11 + 2,
       caretEndIndex: repeats * 11 + 2,
-      nextStartIndex: repeats * 11 + 2,
     });
     assert.deepEqual(plain(lines), expected, `${repeats} repeated word groups`);
   }
@@ -720,12 +716,11 @@ test('caret range stays on the current line for trailing overflow spaces', () =>
     startIndex: line.startIndex,
     endIndex: line.endIndex,
     caretEndIndex: line.caretEndIndex,
-    nextStartIndex: line.nextStartIndex,
   }));
 
   assert.deepEqual(plain(lines), [
-    { text: 'placeholder', startIndex: 0, endIndex: 11, caretEndIndex: 15, nextStartIndex: 15 },
-    { text: 'hi', startIndex: 16, endIndex: 18, caretEndIndex: 18, nextStartIndex: 18 },
+    { text: 'placeholder', startIndex: 0, endIndex: 11, caretEndIndex: 15 },
+    { text: 'hi', startIndex: 16, endIndex: 18, caretEndIndex: 18 },
   ]);
 });
 
@@ -747,21 +742,18 @@ test('trailing overflow spaces retain fitting spaces and caret ranges at every t
       startIndex: line.startIndex,
       endIndex: line.endIndex,
       caretEndIndex: line.caretEndIndex,
-      nextStartIndex: line.nextStartIndex,
     }));
     const expected = Array.from({ length: repeats }, (_, index) => ({
       text: 'hi  ',
       startIndex: index * 7,
       endIndex: index * 7 + 4,
       caretEndIndex: (index + 1) * 7,
-      nextStartIndex: (index + 1) * 7,
     }));
     expected.push({
       text: 'next',
       startIndex: repeats * 7 + 1,
       endIndex: repeats * 7 + 5,
       caretEndIndex: repeats * 7 + 5,
-      nextStartIndex: repeats * 7 + 5,
     });
     assert.deepEqual(plain(lines), expected, `${repeats} repeated lines`);
   }
@@ -786,7 +778,6 @@ test('viewport layout retains consumed trailing whitespace in every cache state'
       if (indexed) textLayout.getTextAutoHeight(obj);
       const range = textLayout.getTextLayoutForLineRange(obj, 0, layout.length - 1);
       assert.deepEqual(plain(Array.from(range)), plain(layout), `${indexed ? 'indexed' : 'cold'} range`);
-      assert.equal(range.totalLines, layout.length);
     }
   }
 });
@@ -1008,7 +999,6 @@ test('large text insertion patches cached layout instead of rebuilding every lin
     startIndex: line.startIndex,
     endIndex: line.endIndex,
     caretEndIndex: line.caretEndIndex,
-    nextStartIndex: line.nextStartIndex,
     logicalLineIndex: line.logicalLineIndex,
     y: line.y,
     textY: line.textY,
@@ -1067,15 +1057,14 @@ test('blank line deletion patches cached layout to match a fresh layout', () => 
     startIndex: line.startIndex,
     endIndex: line.endIndex,
     caretEndIndex: line.caretEndIndex,
-    nextStartIndex: line.nextStartIndex,
     logicalLineIndex: line.logicalLineIndex,
     y: line.y,
   }));
 
   assert.deepEqual(comparable(patchedLayout), comparable(freshLayout));
   assert.deepEqual(plain(comparable(patchedLayout)), [
-    { text: 'line 1', startIndex: 0, endIndex: 6, caretEndIndex: 6, nextStartIndex: 6, logicalLineIndex: 0, y: context.TEXT_PAD },
-    { text: 'line 2', startIndex: 7, endIndex: 13, caretEndIndex: 13, nextStartIndex: 13, logicalLineIndex: 1, y: context.TEXT_PAD + context.LINE_H },
+    { text: 'line 1', startIndex: 0, endIndex: 6, caretEndIndex: 6, logicalLineIndex: 0, y: context.TEXT_PAD },
+    { text: 'line 2', startIndex: 7, endIndex: 13, caretEndIndex: 13, logicalLineIndex: 1, y: context.TEXT_PAD + context.LINE_H },
   ]);
 });
 
@@ -1108,15 +1097,12 @@ test('long tokens have consistent wrapping, auto-height, and viewport layout acr
       assert.equal(line.startIndex, index * 10);
       assert.equal(line.endIndex, end);
       assert.equal(line.caretEndIndex, end);
-      assert.equal(line.nextStartIndex, end);
     }
     const first = Math.max(0, expectedLines - 3);
     const cachedRange = textLayout.getTextLayoutForLineRange(obj, first, expectedLines - 1);
     const freshRange = textLayout.getTextLayoutForLineRange(createObject(), first, expectedLines - 1);
     assert.deepEqual(plain(Array.from(cachedRange)), plain(layout.slice(first)));
     assert.deepEqual(plain(Array.from(freshRange)), plain(layout.slice(first)));
-    assert.equal(cachedRange.totalLines, expectedLines);
-    assert.equal(freshRange.totalLines, expectedLines);
   }
 });
 
@@ -1323,7 +1309,6 @@ test('auto-height keeps unwrapped logical lines exact without full layout cache'
   assert.equal(count, 160);
   assert.equal(obj.h, 160 * context.LINE_H + context.TEXT_PAD * 2);
   assert.equal(textLayout.hasObjectLayoutCache(obj), false);
-  assert.equal(viewportLayout.totalLines, 160);
   assert.deepEqual(plain(viewportLayout.slice(0, 3).map((line) => ({
     text: line.text,
     startIndex: line.startIndex,
@@ -1360,8 +1345,6 @@ test('viewport text layout exactly matches inclusive visible-line boundaries', (
   textLayout.syncTextAutoHeight(obj);
 
   const visible = textLayout.getTextLayoutForViewport(obj, viewportRect);
-
-  assert.equal(visible.totalLines, full.length);
   assert.deepEqual(plain(visible.map((line) => ({
     text: line.text,
     startIndex: line.startIndex,
@@ -1413,7 +1396,6 @@ test('auto-height count cache also stores line index for viewport reuse', () => 
   assert.ok(count > visible.length);
   assert.equal(indexEntriesBeforeViewport, 120);
   assert.equal(textLayout.wrappedLineIndexCacheSize(obj), 120);
-  assert.equal(visible.totalLines, count);
   assert.equal(textLayout.hasObjectLayoutCache(obj), false);
   assert.ok(visible.length > 0);
 });
@@ -1536,8 +1518,6 @@ test('viewport line cache keeps blank lines during full range prewarm', () => {
   };
 
   const full = textLayout.getTextLayoutForLineRange(obj, 0, 119);
-
-  assert.equal(full.totalLines, 120);
   assert.equal(full.length, 120);
   assert.equal(textLayout.viewportLineCacheSize(obj), 120);
   assert.equal(full.filter((line) => line.text === '').length, 24);

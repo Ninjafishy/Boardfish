@@ -59,7 +59,6 @@ test('web image export writes original bytes to a picked folder', async () => {
     const result = await globalThis.BoardfishExportUtils.downloadImageObjects(
       [{ id: 'obj-1', type: 'image', data: { imgKey: 'img-1' } }], { targetMode: 'folder' },
     );
-    assert.equal(result.method, 'directory-picker');
     assert.equal(result.downloadedCount, 1);
     assert.equal(writes.length, 1);
     assert.match(writes[0].name, /^image_[0-9a-f]{6}\.png$/);

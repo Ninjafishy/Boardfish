@@ -194,7 +194,7 @@ test('inserted immutable Blob sources reuse CRC without changing saved bytes', a
   assert.equal(source.__blob instanceof Blob, true);
   assert.notEqual(source.__blob, blob);
   assert.equal(source.__bytes, undefined);
-  const first = await WebContainer.createBoardContainerBlob(board, { 'img-9': source });
+  await WebContainer.createBoardContainerBlob(board, { 'img-9': source });
   const second = await WebContainer.createBoardContainerBlob(board, { 'img-9': source });
 
   const reopened = await WebContainer.readBoardContainer(second.blob);

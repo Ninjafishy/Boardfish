@@ -22,12 +22,6 @@ function newImgKey() {
 const isWebImageRef = (src) => !!globalThis.BoardfishWebBoardContainer?.isWebImageRef?.(src);
 const isImageSource = (src) => typeof src === 'string' ? !!src : isWebImageRef(src);
 
-function imageStoreBytesEstimate(src) {
-  if (typeof src === 'string') return src.length;
-  if (isWebImageRef(src)) return Number(src.bytes || 0) || 0;
-  return 0;
-}
-
 const isImageDisplayCacheRequestCurrent = (key, source, generation) => (
   generation === _imageStoreGeneration && imageStore[key] === source
 );

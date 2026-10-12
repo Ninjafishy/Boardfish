@@ -44,7 +44,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
     enterOptions: [],
     history: [],
     renders: [],
-    logs: [],
     viewportPans: [],
     viewportZoomPans: [],
     viewportTransforms: [],
@@ -135,8 +134,8 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
     flushEditHistoryCheckpoint() {},
 
     scheduleRender(select, overlay) { context.renders.push({ select, overlay }); },
-    scheduleTransform(changed, source, event) {
-      context.viewportTransforms.push({ changed, source, event });
+    scheduleTransform(changed) {
+      context.viewportTransforms.push({ changed });
     },
     BoardfishViewportState: {
       panBy(dx, dy) { context.viewportPans.push({ dx, dy }); },
@@ -471,14 +470,12 @@ test('a mobile pinch schedules the same canonical viewport transform frame as de
   dispatchTouch('touchstart', [first, second], [second]);
   const movedFirst = touch(1, 75, 100);
   const movedSecond = touch(2, 225, 100);
-  const moveEvent = dispatchTouch('touchmove', [movedFirst, movedSecond], [movedFirst, movedSecond]);
+  dispatchTouch('touchmove', [movedFirst, movedSecond], [movedFirst, movedSecond]);
 
   assert.deepEqual(context.viewportZoomPans, [{ zoom: 1.5, panX: -75, panY: -50 }]);
   assert.equal(context.viewportTransforms.length, 1);
   assert.deepEqual(context.viewportTransforms[0], {
     changed: true,
-    source: undefined,
-    event: undefined,
   });
 });
 
@@ -513,7 +510,7 @@ test('releasing a dragged text highlight does not open the text edit menu', () =
   context._editEl = context.editProxy;
   context.layoutHitTest = () => hits.shift() ?? 4;
 
-  context.startTextSelectionDrag({ clientX: 12, clientY: 22 }, context.obj, { x: 12, y: 22 });
+  context.startTextSelectionDrag(context.obj, { x: 12, y: 22 });
   context.latestDrag().move({ clientX: 42, clientY: 22 });
   const renderCount = context.renders.length;
   context.latestDrag().move({ clientX: 42, clientY: 22 });
@@ -527,7 +524,7 @@ test('ending text edit makes its active selection drag inert', () => {
   const context = loadCanvasInputHarness();
   context.editingId = context.obj.id;
   context._editEl = context.editProxy;
-  context.startTextSelectionDrag({ clientX: 12, clientY: 22 }, context.obj, { x: 12, y: 22 });
+  context.startTextSelectionDrag(context.obj, { x: 12, y: 22 });
   const renderCount = context.renders.length;
 
   context._editEl = null;
@@ -548,7 +545,7 @@ test('dragging text highlight syncs stale short edit proxy before selecting logi
   context._editEl = context.editProxy;
   context.layoutHitTest = () => hits.shift() ?? logicalValue.length;
 
-  context.startTextSelectionDrag({ clientX: 12, clientY: 22 }, context.obj, { x: 12, y: 22 });
+  context.startTextSelectionDrag(context.obj, { x: 12, y: 22 });
   context.latestDrag().move({ clientX: 72, clientY: 22 });
 
   assert.equal(context.editProxy.value, logicalValue);
@@ -562,7 +559,7 @@ test('releasing a caret-only text click does not open the text edit menu', () =>
   context._editEl = context.editProxy;
   context.layoutHitTest = () => 2;
 
-  context.startTextSelectionDrag({ clientX: 12, clientY: 22 }, context.obj, { x: 12, y: 22 });
+  context.startTextSelectionDrag(context.obj, { x: 12, y: 22 });
   context.latestDrag().up?.({ button: 0, clientX: 12, clientY: 22 });
 
   assert.deepEqual(context.editProxy.selection, [2, 2]);
@@ -576,7 +573,7 @@ test('text click stores visual line preference at wrapped line start', () => {
   context._editEl = context.editProxy;
   context.layoutHitTestCaret = () => ({ index: 3, lineStartIndex: 3 });
 
-  context.startTextSelectionDrag({ clientX: 12, clientY: 44 }, context.obj, { x: 12, y: 44 });
+  context.startTextSelectionDrag(context.obj, { x: 12, y: 44 });
 
   assert.deepEqual(context.editProxy.selection, [3, 3]);
   assert.equal(context.obj._textEditCaretIndex, 3);
@@ -591,7 +588,7 @@ test('double-clicking text while editing places the caret without selecting a wo
   context._editEl = context.editProxy;
   context.layoutHitTest = () => 10;
 
-  context.startTextSelectionDrag({ clientX: 12, clientY: 22, detail: 2 }, context.obj, { x: 12, y: 22 });
+  context.startTextSelectionDrag(context.obj, { x: 12, y: 22 });
 
   assert.deepEqual(context.editProxy.selection, [10, 10]);
 });

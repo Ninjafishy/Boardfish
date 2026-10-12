@@ -299,7 +299,7 @@
     const preparePayload = async () => {
       if (writesExistingHandle && sourceTargetSameEntry !== false && typeof stabilizeImageSources === 'function') {
         await stabilizeImageSources(board, rawImageStore);
-      } else writesExistingHandle && sourceTargetSameEntry === false;
+      }
 
       const created = await root.BoardfishWebBoardContainer.createBoardContainerBlob(
         board,
@@ -336,7 +336,7 @@
         board,
         rawImageStore,
       );
-      if (recovered !== true && Number(recovered?.refreshed || 0) <= 0) throw err;
+      if (recovered !== true) throw err;
 
       payload = await preparePayload();
       await writePayload(payload);

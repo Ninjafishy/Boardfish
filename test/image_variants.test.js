@@ -8,7 +8,6 @@ const vm = require('node:vm');
 function loadImageVariants() {
   const context = {
     zoom: 1,
-    console,
     Map,
     Math,
     clearTimeout() {},
@@ -30,7 +29,6 @@ function loadImageVariants() {
 function loadImageVariantsWithBitmap(supportsCreateImageBitmap = true) {
   const context = {
     zoom: 1,
-    console,
     Map,
     Math,
     clearTimeout() {},
@@ -314,7 +312,7 @@ test('open image cache settle drains every scaled task and drawable warmup', asy
     { kind: 'full-image', key: 'img-a' },
   );
 
-  const result = await context.settleOpenImageDrawCaches(2);
+  await context.settleOpenImageDrawCaches(2);
 
   assert.deepEqual(calls.sort(), ['scaled-a', 'scaled-b']);
   assert.equal(context.imageScaledVariantQueue.length, 0);
@@ -326,7 +324,6 @@ test('scaled image variants enable resizing when createImageBitmap is available'
 
   assert.equal(context.VIEWPORT_IMAGE_SCALING_SUPPORTED, true);
   assert.equal(context.viewportImageScalingEnabled, true);
-  assert.equal(context.isViewportImageScalingActive(), true);
 
   const fullSource = { width: 100, height: 100 };
   const selected = context.selectImageSourceForDraw(
@@ -657,7 +654,6 @@ test('scaled image variants stay disabled when createImageBitmap is unavailable'
 
   assert.equal(context.VIEWPORT_IMAGE_SCALING_SUPPORTED, false);
   assert.equal(context.viewportImageScalingEnabled, false);
-  assert.equal(context.isViewportImageScalingActive(), false);
 });
 
 test('stale scaled image variant tasks skip resize work', async () => {

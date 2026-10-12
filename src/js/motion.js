@@ -189,7 +189,7 @@
     requestMotionFrame();
   };
 
-  const textSelectionMotionForDraw = (id, motion, zoom = 1) => {
+  const textSelectionMotionForDraw = (motion, zoom = 1) => {
     if (!motion) return null;
     const elapsed = drawTime - motion.startedAt;
     const transform = transformAtElapsed(motion, elapsed, zoom);

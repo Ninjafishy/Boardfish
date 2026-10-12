@@ -89,7 +89,6 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
   const calls = { addText: [] };
   const context = {
     performance,
-    console,
     Promise,
     calls,
     document: {

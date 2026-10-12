@@ -14,7 +14,7 @@ const DEFAULT_TEXT_BOX_HEIGHT = TEST_NEW_TEXT_EDIT_MIN_LINES * TEST_LINE_H + TES
 const DEFAULT_TEXT_BOX_WIDTH = DEFAULT_TEXT_BOX_HEIGHT * 6;
 
 function loadTextEditorHelpers() {
-  const context = { console };
+  const context = {};
   vm.createContext(context);
   vm.runInContext(
     readSource('src/js/text_editor.js') +
@@ -29,7 +29,6 @@ function loadTextEditorHelpers() {
 function loadTextEditorIntegrationHelpers() {
   const context = {
     performance,
-    console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     document: {
       createElement() { return { getContext: createUnitTextContext }; },
@@ -48,7 +47,7 @@ function loadTextEditorIntegrationHelpers() {
     invalidateOffscreen() {},
     markDirty(obj) { context.dirty.push(obj.id); },
     pushHistory(reason) { context.histories.push(reason); },
-    scheduleRender(board, overlay, reason) { context.renders.push({ board, overlay, reason }); },
+    scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
   };
   vm.createContext(context);
   vm.runInContext(
@@ -88,8 +87,6 @@ function loadTextClipboardFreshnessHarness({ maybeStale = false } = {}) {
       calls.currentOptions = options;
       return true;
     },
-
-    textEditorClipStep() {},
   };
 
   vm.createContext(context);
@@ -131,7 +128,6 @@ function loadExitEditHarness() {
   };
   const context = {
     performance,
-    console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],
     obj,
@@ -389,7 +385,7 @@ test('large text paste proxy replacement assigns value directly instead of setRa
       setRangeTextCalled = true;
     },
   };
-  const result = replaceTextEditProxyRange(proxy, 'PASTE', largePrefix.length, largePrefix.length, 'end');
+  replaceTextEditProxyRange(proxy, 'PASTE', largePrefix.length, largePrefix.length, 'end');
 
   assert.equal(setRangeTextCalled, false);
 
@@ -415,7 +411,7 @@ test('large synthetic proxy replacement can defer the textarea DOM value', () =>
       setRangeTextCalled = true;
     },
   };
-  const result = replaceTextEditProxyRange(proxy, '', 10, 30, 'start', true);
+  replaceTextEditProxyRange(proxy, '', 10, 30, 'start', true);
 
   assert.equal(setRangeTextCalled, false);
 
@@ -448,7 +444,7 @@ test('small proxy replacement starts from logical text when DOM value is stale',
     },
   };
 
-  const result = replaceTextEditProxyRange(proxy, 'X', 1, 1, 'end');
+  replaceTextEditProxyRange(proxy, 'X', 1, 1, 'end');
 
   assert.equal(proxy.value, 'aXbc');
   assert.equal(proxy._boardfishLogicalValue, 'aXbc');
@@ -497,7 +493,7 @@ test('verified Boardfish text selection paste can use native textarea insertion'
     inputType: 'insertFromPaste',
   });
 
-  assert.equal(result.text, 'PASTE');
+  assert.equal(result, true);
   assert.equal(proxy.value, 'hello ');
   assert.equal(pendingState.replacement.start, 6);
   assert.equal(pendingState.replacement.end, 6);
@@ -829,7 +825,7 @@ test('text edit input resizes the textbox height in update mode', () => {
   assert.equal(obj.w, 800);
   assert.equal(obj.h, 8 * TEST_LINE_H + TEST_TEXT_PAD * 2);
   assert.deepEqual(context.dirty, [obj.id]);
-  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true, reason: undefined });
+  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true });
 });
 
 test('typing after history restore uses logical text when proxy DOM value is stale', () => {
@@ -960,7 +956,7 @@ test('enter expands a large existing text box immediately', () => {
   assert.equal(key.prevented, true);
   assert.equal(obj.data.content, `${largeText}\n`);
   assert.equal(obj.h, 2 * TEST_LINE_H + TEST_TEXT_PAD * 2);
-  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true, reason: undefined });
+  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true });
 });
 
 test('pasting another 100k characters expands an existing textbox and its outline immediately', () => {
@@ -994,7 +990,7 @@ test('pasting another 100k characters expands an existing textbox and its outlin
   assert.equal(obj.data.content, nextValue);
   assert.ok(obj.h > initialHeight);
   assert.equal(obj.h, context.getTextLayout(obj).length * TEST_LINE_H + TEST_TEXT_PAD * 2);
-  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true, reason: undefined });
+  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true });
 
   const pastedHeight = obj.h;
   context.exitEdit();
@@ -1026,7 +1022,7 @@ test('typing and pasting update exact bounds across text sizes and layout cache 
 
         const label = `${inputType}, ${size} characters, ${cache} cache`;
         assert.equal(obj.h, oldHeight + TEST_LINE_H, label);
-        assert.deepEqual(context.renders.at(-1), { board: true, overlay: true, reason: undefined }, label);
+        assert.deepEqual(context.renders.at(-1), { board: true, overlay: true }, label);
         if (cache !== 'full') {
           assert.equal(obj._layoutCache, null, label);
           assert.equal(obj._textWrappedLineIndexCacheContent, obj.data.content, label);
@@ -1088,7 +1084,7 @@ for (const cached of [true, false]) test(`pasted text shrinks after deletion wit
   assert.equal(obj.data.content, nextValue);
   assert.equal(obj.data.content.length >= 20000, true);
   assert.equal(obj.h, 10 * TEST_LINE_H + TEST_TEXT_PAD * 2);
-  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true, reason: undefined });
+  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true });
 });
 
 test('undo-restored large pasted text shrinks on the next selected delete', () => {
@@ -1126,14 +1122,13 @@ test('undo-restored large pasted text shrinks on the next selected delete', () =
   assert.equal(obj.h, 10 * TEST_LINE_H + TEST_TEXT_PAD * 2);
   assert.equal(obj._editMinLines, 1);
   assert.equal(obj._textEditPreservedMinLines, undefined);
-  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true, reason: undefined });
+  assert.deepEqual(context.renders.at(-1), { board: true, overlay: true });
 });
 
 test('large keyboard structural delete avoids textarea setRangeText', () => {
   const context = loadLiveTextEditResizeHarness();
   const { obj } = context;
   const largeText = `${'word '.repeat(5000)}tail`;
-  const steps = [];
 
   obj.data = { content: largeText };
 
@@ -1156,7 +1151,6 @@ test('large keyboard structural delete avoids textarea setRangeText', () => {
   assert.equal(context.proxy._boardfishDomValueStale, true);
   assert.equal(context.proxy.selectionStart, 10);
   assert.equal(context.proxy.selectionEnd, 10);
-  const mutationStep = steps.find((event) => event.step === 'keydown-delete-textarea-mutated');
 });
 
 test('editing existing default-height text can shrink below the default new textbox height', () => {
@@ -1215,7 +1209,7 @@ test('exiting a newly created one-line text box keeps default size when content 
 
 test('exiting unchanged existing text keeps cached layout and skips size history', () => {
   const context = loadExitEditHarness();
-  const cachedLayout = [{ text: 'Hi', startIndex: 0, endIndex: 2, nextStartIndex: 2 }];
+  const cachedLayout = [{ text: 'Hi', startIndex: 0, endIndex: 2 }];
   Object.assign(context.obj, {
     h: SINGLE_LINE_TEXT_BOX_HEIGHT,
     _editMinLines: 5,

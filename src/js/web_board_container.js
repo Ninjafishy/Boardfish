@@ -85,10 +85,6 @@
     return crc >>> 0;
   }
 
-  function nowMs() {
-    return performance.now();
-  }
-
   function yieldToEventLoop() {
     if (root.scheduler?.yield) return root.scheduler.yield();
     return new Promise((resolve) => setTimeout(resolve, 0));
@@ -226,11 +222,9 @@
     }
     const centralOffset = offset;
     const eocd = endOfCentralDirectory(normalized.length, centralSize, centralOffset);
-    const byteLength = offset + centralSize + eocd.length;
     const blob = new Blob(localParts.concat(centralParts, eocd), { type: 'application/octet-stream' });
     const result = {
       blob,
-      byteLength,
       crcs: normalized.map((entry) => entry.crc),
     };
 
@@ -357,8 +351,6 @@
       : await blobRangeToBytes(blob, info.centralOffset, info.centralOffset + info.centralSize);
     return {
       entries: parseCentralDirectoryBytes(centralBytes, info.entryCount),
-      tailBytes: tailBytes.length,
-      centralBytes: centralBytes.length,
     };
   }
 
@@ -587,9 +579,8 @@
 
   function cacheImageSourceCrc(source, byteLength, crc) {
     const identity = imageSourceCrcIdentity(source);
-    if (!identity || !Number.isInteger(crc)) return false;
+    if (!identity || !Number.isInteger(crc)) return;
     imageSourceCrcCache.set(source, { identity, byteLength, crc: crc >>> 0 });
-    return true;
   }
 
   function archivedImageSourceIdentity(source, byteLength) {
@@ -602,13 +593,12 @@
 
   function cacheImageSourceArchiveIdentity(source, byteLength, crc) {
     const identity = imageSourceCrcIdentity(source);
-    if (!identity || !Number.isInteger(crc)) return false;
+    if (!identity || !Number.isInteger(crc)) return;
     imageSourceArchiveIdentityCache.set(source, {
       identity,
       byteLength,
       crc: crc >>> 0,
     });
-    return true;
   }
 
   function blobForWebImageRef(source) {
@@ -779,16 +769,10 @@
       if (!data) throw new Error(`Missing Image: ${key}`);
       const byteLength = sourceBlob ? Number(sourceBlob.size) : bytes.length;
       const entry = {
-        key,
         path: canonicalImageEntryPath(key, manifest),
-        mime: mimeForImageSource(source, manifest),
-        ext: manifest.ext || '',
         source,
-        data,
-        bytes,
         byteLength,
         crc: cachedImageSourceCrc(source, byteLength),
-        blob: !!sourceBlob,
       };
       imageEntries.push(entry);
       imageBytes += byteLength;

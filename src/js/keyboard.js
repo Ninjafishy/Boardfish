@@ -51,14 +51,14 @@ function consumeShortcutEvent(e) {
   e.stopPropagation();
 }
 
-function closeMenusForShortcut(shortcutName) {
+function closeMenusForShortcut() {
   if (!hasOpenContextMenu()) return;
   closeOpenMenusExcept('');
 }
 
 function runShortcutCommand(shortcutName, fallback) {
   if (runVisibleMenuCommandForShortcut(shortcutName)) return;
-  closeMenusForShortcut(shortcutName);
+  closeMenusForShortcut();
   fallback();
 }
 

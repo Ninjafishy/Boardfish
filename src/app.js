@@ -31,7 +31,6 @@ var rubberBand       = requireAppElement('rubber-band');
 var addTextBtn       = requireAppElement('btn-add-text');
 var addImageBtn      = requireAppElement('btn-add-image');
 var textCopyBtn      = requireAppElement('text-btn-copy');
-var textPasteBtn     = requireAppElement('text-btn-paste');
 var textDeleteBtn    = requireAppElement('text-btn-delete');
 var textDeleteSep    = requireAppElement('text-sep-delete');
 var dialogOverlay    = document.getElementById('dialog-overlay');

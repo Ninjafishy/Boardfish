@@ -64,7 +64,7 @@ function startIslandBusyMsg(text) {
     done(finalMsg = null, duration = short_message) {
       if (token !== _islMsgToken) return;
       if (finalMsg) return showIslandMsg(finalMsg, duration);
-      return hideIsland();
+      hideIsland();
     },
   };
 }
@@ -78,7 +78,7 @@ function finishPillTask({
   beforeFinish();
   if (busyPill) return busyPill.done(finalMsg, duration);
   if (finalMsg) return showIslandMsg(finalMsg, duration);
-  return hideIsland();
+  hideIsland();
 }
 
 function showIslandMsg(msg, duration = 0) {
@@ -116,7 +116,7 @@ function _rebuildOffscreen(dpr, viewportRect) {
   const view = { zoom, dpr };
   for (const obj of objects) {
     if (obj.type === 'text') continue;
-    if (viewportCullingEnabled && !objectIntersectsRect(obj, viewportRect)) continue;
+    if (!objectIntersectsRect(obj, viewportRect)) continue;
     drawSingleObj(_offCtx, obj, viewportRect, view);
   }
   _offscreenDirty = false;
@@ -278,7 +278,7 @@ const drawTextSelectionJelloOverlays = (context, viewZoom = zoom, motions = null
     const obj = objectsMap.get(id);
     if (!obj || obj.type !== 'text') continue;
     const layout = getTextLayout(obj);
-    const motion = BoardfishMotion.textSelectionMotionForDraw(id, spec, viewZoom);
+    const motion = BoardfishMotion.textSelectionMotionForDraw(spec, viewZoom);
     const selection = motion ? collectTextSelectionRuns(obj, layout, spec.start, spec.end) : null;
     if (!selection) {
       // The normal pass skipped this textbox; an empty selection still needs its text.
@@ -338,7 +338,7 @@ function drawEditingTextOverlay(context, viewZoom = zoom, viewportRect = viewpor
       liveSelEnd === copiedSelectionSpec.end;
     const useCopiedSelectionMotion = copiedSelectionSpec && (liveSelStart === liveSelEnd || liveMatchesCopied);
     const copiedMotion = useCopiedSelectionMotion
-      ? BoardfishMotion.textSelectionMotionForDraw(obj.id, copiedSelectionSpec, viewZoom)
+      ? BoardfishMotion.textSelectionMotionForDraw(copiedSelectionSpec, viewZoom)
       : null;
     if (copiedSelectionSpec && !copiedMotion) BoardfishMotion.cancelTextSelectionMotion(obj.id);
     const selStart = copiedMotion ? copiedSelectionSpec.start : liveSelStart;
@@ -426,15 +426,12 @@ var _needOverlayRender = false;
 
 const boardRenderer = BoardfishRenderer.createBoardRenderer({
   objects: () => objects,
-  imageStore: () => imageStore,
   imageBitmapCache: () => imageBitmapCache,
-  viewportCullingEnabled: () => viewportCullingEnabled,
   zoom: () => zoom,
   panX: () => panX,
   panY: () => panY,
   dpr: () => window.devicePixelRatio || 1,
   font: FONT,
-  lineHeight: LINE_H,
   canvasTextColor,
   currentViewportWorldRect: viewportWorldRect,
   drawTextLineRange,

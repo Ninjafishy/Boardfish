@@ -43,7 +43,7 @@
         drawH + edgeOverdraw * 2,
       );
       context.restore();
-      return false;
+      return;
     }
 
     const x = obj.x - edgeOverdraw;
@@ -57,7 +57,7 @@
       const y1 = Math.max(y, viewportRect.y1);
       const x2 = Math.min(objRight, viewportRect.x2);
       const y2 = Math.min(objBottom, viewportRect.y2);
-      if (!(x2 > x1 && y2 > y1)) return null;
+      if (!(x2 > x1 && y2 > y1)) return;
       if (x1 !== x || y1 !== y || x2 !== objRight || y2 !== objBottom) {
         const sourceWidth = img.width;
         const sourceHeight = img.height || img.naturalHeight;
@@ -77,12 +77,11 @@
             cropWidth,
             cropHeight,
           );
-          return true;
+          return;
         }
       }
     }
     context.drawImage(img, x, y, w, h);
-    return false;
   }
 
   function createBoardRenderer(deps) {

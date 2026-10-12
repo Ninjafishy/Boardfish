@@ -35,12 +35,10 @@ test('web runtime owns local board file IO', () => {
 });
 
 test('image storage is web-ref and data-url based', () => {
-  const types = readSource('src/js/board_types.js');
   const imageState = readSource('src/js/image_state.js');
   const imageInsert = readSource('src/js/image_insert.js');
   const boardContainer = readSource('src/js/web_board_container.js');
 
-  assert.match(types, /MANIFEST: 'manifest'/);
   assert.match(imageState, /blobForImageSource/);
   assert.match(imageInsert, /createWebImageSourceFromBlob\(file, imgKey\)/);
   assert.doesNotMatch(imageInsert, /readAsArrayBuffer/);

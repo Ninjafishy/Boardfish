@@ -15,7 +15,6 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     historyIndex: 0,
     _dirtyIds: new Set(['text-1']),
     long_message: 1200,
-    console: { error() {} },
     document: { getElementById() { return { addEventListener() {} }; } },
     window: { addEventListener() {} },
     unsavedDialog: { addEventListener() {} },

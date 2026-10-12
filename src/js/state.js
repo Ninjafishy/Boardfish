@@ -69,7 +69,7 @@ function sendSelectedToBack() {
 }
 
 function flipSelectedImages() {
-  const flipped = BoardfishEditorState.commitMutation('flip-image', () => {
+  BoardfishEditorState.commitMutation('flip-image', () => {
     let didFlip = false;
     for (const id of selectedIds) {
       const obj = objectsMap.get(id);
@@ -81,8 +81,6 @@ function flipSelectedImages() {
     }
     return didFlip;
   }, { invalidate: true });
-
-  if (!flipped) {  return; }
 }
 
 function rotateSelectedImages() {

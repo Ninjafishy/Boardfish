@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
 function loadRenderer(overrides = {}) {
-  const context = { performance, ...overrides };
+  const context = { ...overrides };
   vm.createContext(context);
   let source = readSource('src/js/renderer.js');
 
@@ -25,14 +25,11 @@ function createImageRenderer(BoardfishRenderer, obj, source, overrides = {}) {
       currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 100, y2: 100 }),
       dpr: () => 1,
       imageBitmapCache: () => ({ 'img-1': source }),
-      imageStore: () => ({ 'img-1': 'source' }),
-      lineHeight: 24,
       objectIntersectsRect: () => true,
       objects: () => [obj],
       panX: () => 0,
       panY: () => 0,
       selectImageSourceForDraw: () => (source),
-      viewportCullingEnabled: () => true,
       zoom: () => 1,
     ...overrides,
   });
@@ -44,8 +41,8 @@ function loadMotion(overrides = {}) {
   const context = {
     matchMedia: () => ({ matches: false }),
     performance: { now: () => currentTime },
-    scheduleRender(board, overlay, source) {
-      renderCalls.push({ board, overlay, source });
+    scheduleRender(board, overlay) {
+      renderCalls.push({ board, overlay });
     },
     ...overrides,
   };
@@ -100,7 +97,6 @@ test('text renderer uses the viewport-aware layout path', () => {
       assert.strictEqual(rect, viewportRect);
       return [{ text: 'one', y: 30 }, { text: 'two', y: 54 }];
     },
-    lineHeight: 24,
   });
 
   renderer.drawSingleObj({}, obj, viewportRect);
@@ -130,20 +126,17 @@ test('image renderer crops untransformed images to the visible viewport', () => 
     currentViewportWorldRect: () => ({ x1: 0, y1: 25, x2: 60, y2: 45 }),
     dpr: () => 1,
     imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({}),
-    lineHeight: 24,
     objectIntersectsRect: () => true,
     objects: () => [obj],
     panX: () => 0,
     panY: () => 0,
     selectImageSourceForDraw: () => (source),
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
   renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
   drawImageCalls.length = 0;
-  const result = renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
+  renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
 
   assert.deepEqual(drawImageCalls, [[
     source,
@@ -239,18 +232,15 @@ test('image renderer keeps smoothing enabled for active full fallback', () => {
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 1000, y2: 1000 }),
     dpr: () => 1,
     imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({ 'img-1': 'source' }),
-    lineHeight: 24,
     objectIntersectsRect: () => true,
     objects: () => [obj],
     panX: () => 0,
     panY: () => 0,
     selectImageSourceForDraw: () => (source),
-    viewportCullingEnabled: () => true,
     zoom: () => 0.1,
   });
 
-  const result = renderer.drawVisibleObjects(context);
+  renderer.drawVisibleObjects(context);
 
   assert.deepEqual(drawSmoothingEnabled, [true]);
   assert.equal(context.imageSmoothingEnabled, true);
@@ -299,8 +289,6 @@ test('viewport navigation keeps culling and uses the canonical image draw path',
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 1000, y2: 600 }),
     dpr: () => 2,
     imageBitmapCache: () => ({ 'img-1': source, 'img-2': source }),
-    imageStore: () => ({ 'img-1': 'source', 'img-2': 'source' }),
-    lineHeight: 24,
     objectIntersectsRect: (selectedObj) => selectedObj.id === obj.id,
     objects: () => [obj, offscreenObj],
     panX: () => 0,
@@ -309,11 +297,10 @@ test('viewport navigation keeps culling and uses the canonical image draw path',
       selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
       return source;
     },
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  const result = renderer.drawVisibleObjects(context);
+  renderer.drawVisibleObjects(context);
 
   assert.deepEqual(plain(selectCalls.map((call) => call.activeInput)), [false]);
   assert.equal(selectCalls[0].view.activeInput, undefined);
@@ -352,8 +339,6 @@ test('animated image motion keeps smoothing and prioritizes variant selection', 
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 1000, y2: 1000 }),
     dpr: () => 1,
     imageBitmapCache: () => ({ 'img-1': source }),
-    imageStore: () => ({ 'img-1': 'source' }),
-    lineHeight: 24,
     objectIntersectsRect: () => false,
     objectMotionForDraw: () => ({ translateY: -3 }),
     objects: () => [obj],
@@ -363,11 +348,10 @@ test('animated image motion keeps smoothing and prioritizes variant selection', 
       selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
       return source;
     },
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  const result = renderer.drawVisibleObjects(context);
+  renderer.drawVisibleObjects(context);
 
   assert.deepEqual(plain(selectCalls.map((call) => call.activeInput)), [true]);
   assert.deepEqual(drawSmoothingEnabled, [true]);
@@ -410,7 +394,7 @@ test('animated image motion draws an image that jiggles into the viewport', () =
     objectMotionForDraw: () => ({ translateY: 10 }),
   });
 
-  const result = renderer.drawVisibleObjects(context);
+  renderer.drawVisibleObjects(context);
 
   assert.equal(drawImageCalls.length, 1);
 });
@@ -475,7 +459,7 @@ test('renderer filters visible objects by type', () => {
   }));
   const renderer = loadRenderer({}).createBoardRenderer({
     currentViewportWorldRect: () => ({ x1: -10, y1: -10, x2: 30, y2: 30 }),
-    dpr: () => 1, zoom: () => 1, viewportCullingEnabled: () => true,
+    dpr: () => 1, zoom: () => 1,
     objects: () => objects, objectIntersectsRect: () => true,
     imageBitmapCache: () => ({ image: source }),
     selectImageSourceForDraw: () => source,
@@ -502,16 +486,14 @@ test('renderer can skip arbitrary object ids while drawing visible objects', () 
       drawnText.push(line.text);
     },
     getTextLayout: (obj) => [{ text: obj.data.content, y: obj.y }],
-    lineHeight: 24,
     objectIntersectsRect: () => true,
     objects: () => [textA, textB],
     panX: () => 0,
     panY: () => 0,
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  const result = renderer.drawVisibleObjects(
+  renderer.drawVisibleObjects(
     {}, undefined, new Set(['text-a']),
   );
 
@@ -537,19 +519,16 @@ test('text renderer draws the exact viewport-aware layout range', () => {
     getTextLayoutForViewport(_obj, viewportRect) {
       assert.deepEqual(viewportRect, { x1: 0, y1: 0, x2: 200, y2: 47 });
       const layout = [{ text: 'visible', y: 0 }];
-      layout.totalLines = 3;
       return layout;
     },
-    lineHeight: 24,
     objectIntersectsRect: () => true,
     objects: () => [text],
     panX: () => 0,
     panY: () => 0,
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  const result = renderer.drawVisibleObjects(context);
+  renderer.drawVisibleObjects(context);
 
   assert.deepEqual(drawnLines, ['visible']);
 });
@@ -578,7 +557,6 @@ test('text context configuration persists until canvas state resets', () => {
     drawTextLineRange() {},
     getTextLayout: () => [{ text: 'plain', y: 0 }],
     font: '12px sans-serif',
-    lineHeight: 24,
     panX: () => 0,
     panY: () => 0,
     zoom: () => 1,
@@ -628,25 +606,15 @@ test('text renderer keeps measured text drawing at low zoom instead of switching
     drawTextLineRange(_context, line, _obj, _start, _end, options = {}) {
       drawnText.push(line.text);
       assert.equal(options.fast, undefined);
-      return {
-        chars: line.text.length,
-        drawnChars: line.text.length,
-        drawUnits: line.text.length,
-        drawCalls: 2,
-        runs: 1,
-        skippedTabs: 0,
-      };
     },
     getTextLayout() {
       layoutCalls++;
       return [{ text: 'tiny', y: 20, prefixWidths: [0, 12, 24, 36, 48] }];
     },
-    lineHeight: 24,
     objectIntersectsRect: () => true,
     objects: () => [text],
     panX: () => 0,
     panY: () => 0,
-    viewportCullingEnabled: () => true,
     zoom: () => 0.2,
   });
 
@@ -676,12 +644,6 @@ test('text renderer keeps direct text rendering', () => {
     dpr: () => 2,
     drawTextLineRange(_context, line) {
       drawnLines.push(line.text);
-      return {
-        chars: line.text.length,
-        drawnChars: line.text.length,
-        drawUnits: line.text.length,
-        runs: 1,
-      };
     },
     getTextLayout() {
       return [
@@ -689,12 +651,10 @@ test('text renderer keeps direct text rendering', () => {
         { text: 'cached two', y: 44, textY: 60 },
       ];
     },
-    lineHeight: 24,
     objectIntersectsRect: () => true,
     objects: () => [text],
     panX: () => 0,
     panY: () => 0,
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
@@ -724,23 +684,15 @@ test('animated text keeps direct text rendering', () => {
     dpr: () => 2,
     drawTextLineRange(_context, line) {
       drawnLines.push(line.text);
-      return {
-        chars: line.text.length,
-        drawnChars: line.text.length,
-        drawUnits: line.text.length,
-        runs: 1,
-      };
     },
     getTextLayout() {
       return [{ text: 'moving text', y: 20, textY: 36 }];
     },
-    lineHeight: 24,
     objectIntersectsRect: () => true,
     objectMotionForDraw: () => ({ translateX: 1 }),
     objects: () => [text],
     panX: () => 0,
     panY: () => 0,
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
@@ -784,17 +736,15 @@ test('animated text draws source lines that jiggle down into the viewport', () =
     getTextLayoutForViewport(_obj, rect) {
       return lines.filter((line) => line.y + 4 > rect.y1 && line.y < rect.y2);
     },
-    lineHeight: 4,
     objectIntersectsRect: () => true,
     objectMotionForDraw: () => ({ translateY: 10 }),
     objects: () => [obj],
     panX: () => 0,
     panY: () => 0,
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  const result = renderer.drawVisibleObjects(
+  renderer.drawVisibleObjects(
     context, viewportRect,
   );
 
@@ -890,7 +840,7 @@ test('editing preserves image jiggles and layer order while caching static image
     Object.assign(context, {
       objects, editingId: null, zoom: 1, _boardOpening: false, window: { devicePixelRatio: 1 },
       ctx: canvas, _offscreen: offscreen, _offCtx: { ...canvas, drawImage() { cacheBuilds++; } },
-      _offscreenDirty: true, boardCanvas: { width: 800, height: 600 }, viewportCullingEnabled: true,
+      _offscreenDirty: true, boardCanvas: { width: 800, height: 600 },
 
       viewportWorldRect: () => ({ x1: -1000, y1: -1000, x2: 1000, y2: 1000 }),
       objectIntersectsRect: () => true, syncBoardCanvasBackingStore() {},
@@ -898,7 +848,7 @@ test('editing preserves image jiggles and layer order while caching static image
       drawEditingTextOverlay() { calls.push('editor'); },
     });
     Object.assign(context, loadRenderer(overrides).createBoardRenderer({
-      objects: () => objects, zoom: () => 1, dpr: () => 1, viewportCullingEnabled: () => true,
+      objects: () => objects, zoom: () => 1, dpr: () => 1,
       panX: () => 0, panY: () => 0, canvasTextColor: () => '#111',
       objectIntersectsRect: context.objectIntersectsRect,
       hasObjectMotionsForDraw: context.BoardfishMotion.hasObjectMotionsForDraw,
@@ -910,7 +860,6 @@ test('editing preserves image jiggles and layer order while caching static image
     }));
     let source = readSource('src/js/viewport.js')
       .match(/function (?:_rebuildOffscreen|drawBoard)\([\s\S]*?\n\}/g).join('\n');
-    source = source.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '');
     vm.runInContext(source, context);
     const draw = (time, bypass = false) => { calls.length = 0; setTime(time); context.drawBoard(bypass); };
     context.BoardfishMotion.applyCopyFeedback({ objects: [objects.find(obj => obj.id === type)] });
@@ -1055,17 +1004,17 @@ test('copy text selection jiggle uses fixed screen-distance translation independ
   }), true);
   setTime(100);
   const shortSpec = motion.beginDraw().get('text-1');
-  const shortAtZoom1 = motion.textSelectionMotionForDraw('text-1', shortSpec, 1);
-  const shortAtZoom2 = motion.textSelectionMotionForDraw('text-1', shortSpec, 2);
+  const shortAtZoom1 = motion.textSelectionMotionForDraw(shortSpec, 1);
+  const shortAtZoom2 = motion.textSelectionMotionForDraw(shortSpec, 2);
   setTime(420);
-  const shortLate = motion.textSelectionMotionForDraw('text-1', shortSpec, 1);
+  const shortLate = motion.textSelectionMotionForDraw(shortSpec, 1);
 
   setTime(1000);
   assert.equal(motion.applyCopyFeedback({
     textSelection: { id: 'text-1', start: 2, end: 40, hasSelection: true },
   }), true);
   setTime(1100);
-  const longAtZoom1 = motion.textSelectionMotionForDraw('text-1', motion.beginDraw().get('text-1'), 1);
+  const longAtZoom1 = motion.textSelectionMotionForDraw(motion.beginDraw().get('text-1'), 1);
 
   assert.notEqual(shortAtZoom1.translateX, 0);
   assert.notEqual(shortAtZoom1.translateY, 0);
@@ -1322,7 +1271,7 @@ test('copy jiggle drives frames through the viewport scheduler', () => {
 
   setTime(0);
   assert.equal(motion.applyCopyFeedback({ objects: [obj] }), true);
-  assert.deepEqual(renderCalls, [{ board: true, overlay: true, source: undefined }]);
+  assert.deepEqual(renderCalls, [{ board: true, overlay: true }]);
 
   setTime(16);
   const frame = motion.objectMotionForDraw(obj, 1);
@@ -1330,7 +1279,7 @@ test('copy jiggle drives frames through the viewport scheduler', () => {
   motion.afterViewportRenderFrame();
 
   assert.equal(renderCalls.length, 2);
-  assert.deepEqual(renderCalls[1], { board: true, overlay: true, source: undefined });
+  assert.deepEqual(renderCalls[1], { board: true, overlay: true });
 });
 
 test('empty motion state bypasses reduced-motion media queries', () => {
@@ -1361,7 +1310,7 @@ test('text selection copy feedback uses fixed translation and deformation', () =
 
   setTime(100);
   const motions = context.BoardfishMotion.beginDraw();
-  const motion = context.BoardfishMotion.textSelectionMotionForDraw('text-1', motions.get('text-1'));
+  const motion = context.BoardfishMotion.textSelectionMotionForDraw(motions.get('text-1'));
 
   assert.notEqual(motion.translateX, 0);
   assert.notEqual(motion.translateY, 0);
@@ -1394,8 +1343,8 @@ test('text selection copy feedback can be cancelled before the selected text cha
 
   assert.equal(context.BoardfishMotion.cancelTextSelectionMotion('text-1'), true);
   const motions = context.BoardfishMotion.beginDraw();
-  assert.equal(context.BoardfishMotion.textSelectionMotionForDraw('text-1', motions.get('text-1')), null);
-  assert.ok(context.BoardfishMotion.textSelectionMotionForDraw('text-2', motions.get('text-2')));
+  assert.equal(context.BoardfishMotion.textSelectionMotionForDraw(motions.get('text-1')), null);
+  assert.ok(context.BoardfishMotion.textSelectionMotionForDraw(motions.get('text-2')));
   assert.deepEqual([...motions.keys()], ['text-2']);
   assert.equal(context.BoardfishMotion.cancelTextSelectionMotion('missing'), false);
 });
@@ -1420,8 +1369,6 @@ function loadCopyDeselectFrame({ emptySelection = false } = {}) {
   Object.assign(context, {
     editingId: null,
     objectsMap: new Map([[obj.id, obj]]),
-    viewportCullingEnabled: true,
-    VIEWPORT_TEXT_DRAW_STATS_DISABLED: { collectStats: false },
     getTextLayout: () => lines,
     objectIntersectsRect: () => true,
     drawTextLineRange(_ctx, line, _obj, start = 0, end = line.text.length) {
@@ -1440,7 +1387,6 @@ function loadCopyDeselectFrame({ emptySelection = false } = {}) {
     '\nglobalThis.drawCopiedOverlay = drawTextSelectionJelloOverlays;', context);
   const renderer = loadRenderer().createBoardRenderer({
     objects: () => [obj],
-    viewportCullingEnabled: () => true,
     zoom: () => 1,
     dpr: () => 1,
     objectIntersectsRect: () => true,
@@ -1468,7 +1414,7 @@ for (const range of [{ start: 0, end: 11 }, { start: 2, end: 6 }]) {
     assert.deepEqual(frame.draws, [], 'normal pass reserves the textbox for the copy overlay');
     // Other board drawing takes the clock past the 500ms animation deadline.
     frame.setTime(501, false);
-    assert.ok(motion.textSelectionMotionForDraw(frame.obj.id, specs.get(frame.obj.id)));
+    assert.ok(motion.textSelectionMotionForDraw(specs.get(frame.obj.id)));
     frame.drawOverlay(specs);
     const text = frame.obj.data.content;
     assert.deepEqual(frame.draws.splice(0), [text.slice(0, range.start), text.slice(range.end), text.slice(range.start, range.end)].filter(Boolean));

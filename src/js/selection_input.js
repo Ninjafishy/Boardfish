@@ -157,7 +157,7 @@ function blockShieldInput(e) {
     e.type === 'keydown' &&
     (e.key === 'Escape' || e.key === 'Meta' || e.key === 'OS' || e.metaKey)
   ) {
-    if (typeof cancelRubberBandSelection === 'function' && cancelRubberBandSelection('key-cancel')) {
+    if (typeof cancelRubberBandSelection === 'function' && cancelRubberBandSelection()) {
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       return;
@@ -351,13 +351,12 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
       }
 
       // ── Single text: resize width only ──
-      const { x: ox, y: oy, w: ow, h: oh } = obj;
+      const { x: ox, y: oy, w: ow } = obj;
 
       let dragMinTextW = null;
-      function applyResize(clientX, clientY, eventZoom, ev) {
+      function applyResize(clientX, eventZoom) {
         const dx = (clientX - startX) / eventZoom;
-        const dy = (clientY - startY) / eventZoom;
-        let x = ox, y = oy, w = ow, h = oh;
+        let x = ox, y = oy, w = ow;
 
         if (dragMinTextW == null) {
           dragMinTextW = getTextMinWidth(obj);
@@ -381,7 +380,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
       const resizeCommitter = createRafCommitter(applyResize);
 
       beginDocumentDrag({
-        move: (ev) => resizeCommitter.schedule(ev.clientX, ev.clientY, zoom, ev),
+        move: (ev) => resizeCommitter.schedule(ev.clientX, zoom),
         up() {
           resizeCommitter.flush();
 

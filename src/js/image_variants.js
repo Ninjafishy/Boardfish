@@ -22,7 +22,6 @@ var IMAGE_VARIANT_ACTIVE_OVERSCALE_LIMIT = 1.18;
 var imageScaledVariantPrewarmTimer = null;
 
 var IMAGE_VARIANT_PREWARM_PAD_PX = 768;
-var viewportCullingEnabled = true;
 var VIEWPORT_IMAGE_SCALING_SUPPORTED = typeof createImageBitmap === 'function';
 var viewportImageScalingEnabled = VIEWPORT_IMAGE_SCALING_SUPPORTED;
 var drawableBitmapWarmupCanvas = null;
@@ -30,8 +29,6 @@ var drawableBitmapWarmupContext = null;
 var drawableBitmapWarmupQueue = new Map();
 var drawableBitmapWarmupScheduled = false;
 var drawableBitmapWarmupReady = new WeakSet();
-
-function isViewportImageScalingActive() { return viewportImageScalingEnabled; }
 
 function bitmapByteSize(bitmap) {
   return (bitmap?.width || 0) * (bitmap?.height || 0) * 4;
@@ -136,21 +133,18 @@ function scheduleDrawableBitmapWarmupQueue() {
 }
 
 function scheduleDrawableBitmapWarmup(source, meta = {}) {
-  if (!isImageVariantDrawableSource(source)) return false;
+  if (!isImageVariantDrawableSource(source)) return;
   if (drawableBitmapWarmupReady.has(source) || drawableBitmapWarmupQueue.has(source)) {
-    return false;
+    return;
   }
   drawableBitmapWarmupQueue.set(source, meta);
 
   scheduleDrawableBitmapWarmupQueue();
-  return true;
 }
 
 function scaledVariantEstimatedBytes(sourceW, sourceH, scale) {
   return Math.max(1, Math.ceil(sourceW * scale)) * Math.max(1, Math.ceil(sourceH * scale)) * 4;
 }
-
-function pendingScaledVariantBytes() { return imageScaledBitmapPendingByteTotal; }
 
 function addPendingScaledVariantBytes(key, bytes) {
   imageScaledBitmapPending.set(key, bytes);
@@ -166,13 +160,12 @@ function removePendingScaledVariantBytes(key) {
 
 function removeScaledImageVariant(key) {
   const entry = imageScaledBitmapCache.get(key);
-  if (!entry) return false;
+  if (!entry) return;
   imageScaledBitmapCache.delete(key);
   imageScaledBitmapBytes -= entry.bytes || 0;
   entry.bitmap?.close?.();
   dropDrawableBitmapWarmup(entry.bitmap);
 
-  return true;
 }
 
 function setScaledImageVariant(key, entry) {
@@ -182,7 +175,6 @@ function setScaledImageVariant(key, entry) {
   while (imageScaledBitmapBytes > IMAGE_VARIANT_MEMORY_LIMIT && imageScaledBitmapCache.size) {
     removeScaledImageVariant(imageScaledBitmapCache.keys().next().value);
   }
-  return entry;
 }
 
 function clearScaledImageVariantCache() {
@@ -458,11 +450,11 @@ function isActiveViewportInput() {
 
 function prewarmVisibleScaledImageVariants(options = {}) {
   if (!viewportImageScalingEnabled || _boardOpening) {
-    return (undefined);
+    return;
   }
   const scale = Number(options.scale) || IMAGE_SCALE;
   if (scale !== IMAGE_SCALE) {
-    return (undefined);
+    return;
   }
   const padPx = Number.isFinite(options.padPx) ? options.padPx : IMAGE_VARIANT_PREWARM_PAD_PX;
   const rect = viewportWorldRect(padPx);

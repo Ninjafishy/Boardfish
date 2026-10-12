@@ -1,4 +1,4 @@
-name: Deploy Production, Beta, and Legacy Web Apps
+name: Deploy Production and Beta Web Apps
 
 on:
   push:
@@ -60,15 +60,6 @@ jobs:
           ref: ${{ steps.beta_ref.outputs.ref }}
           path: beta-source
 
-      - name: Checkout legacy source
-        uses: actions/checkout@v4
-        with:
-          ref: 0ad7d6acb3b73a3afa3878d6b1196822638667ee
-          path: legacy-source
-
-      - name: Update legacy repository link
-        run: sed -i -E 's#https://github.com/[^/" ]+/Boardfish#https://github.com/${{ github.repository }}#g' legacy-source/src/index.html
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -76,12 +67,11 @@ jobs:
           cache-dependency-path: |
             production/package-lock.json
             beta-source/package-lock.json
-            legacy-source/package-lock.json
 
       - name: Install, check, and build all app versions
         shell: bash
         run: |
-          for source_dir in production beta-source legacy-source; do
+          for source_dir in production beta-source; do
             (
               cd "$source_dir"
               npm ci --prefer-offline --no-audit --fund=false
@@ -90,16 +80,13 @@ jobs:
             )
           done
 
-      - name: Assemble production, beta, and legacy site
+      - name: Assemble production and beta site
         shell: bash
         run: |
-          mkdir -p dist-web/beta dist-web/legacy
+          mkdir -p dist-web/beta
           cp -R production/dist-web/. dist-web/
           cp -R beta-source/dist-web/. dist-web/beta/
-          cp -R legacy-source/dist-web/. dist-web/legacy/
-          for preview in beta legacy; do
-            sed -i 's#</head>#  <meta name="robots" content="noindex, nofollow" />\n</head>#' "dist-web/$preview/index.html"
-          done
+          sed -i 's#</head>#  <meta name="robots" content="noindex, nofollow" />\n</head>#' dist-web/beta/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

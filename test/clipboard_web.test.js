@@ -111,7 +111,6 @@ function loadClipboardExportHarness(options = {}) {
   };
   const context = {
     Blob,
-    console,
     Promise,
     document: {
       addEventListener() {},
@@ -197,8 +196,8 @@ function loadClipboardExportHarness(options = {}) {
       return Promise.resolve(options.renderedBlob || null);
     },
     textForClipboard: trimClipboardFixture,
-    scheduleRender(board, overlay, sourceName) {
-      calls.renders.push({ board, overlay, source: sourceName });
+    scheduleRender(board, overlay) {
+      calls.renders.push({ board, overlay });
     },
     setJsClipboard(value) {
       calls.jsClipboards.push(value);
@@ -238,7 +237,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     messages: [],
   };
   const context = {
-    console,
     Promise,
     document: {
       addEventListener() {},
@@ -345,7 +343,6 @@ function loadTextEditCopyHarness(value, options = {}) {
   };
   const context = {
     performance,
-    console,
     editingId: 'text-1',
     _editEl: editProxy,
     objectsMap: new Map([['text-1', { id: 'text-1', type: 'text', data: { content: value } }]]),
@@ -369,8 +366,8 @@ function loadTextEditCopyHarness(value, options = {}) {
 
     clearJsClipboard() {},
     focusTextEditProxyNow(proxy) { proxy?.focus({ preventScroll: true }); },
-    scheduleRender(board, overlay, sourceName) {
-      calls.renders.push({ board, overlay, source: sourceName });
+    scheduleRender(board, overlay) {
+      calls.renders.push({ board, overlay });
     },
     textSelectionForClipboard: trimClipboardFixture,
   };
@@ -567,7 +564,6 @@ test('copying a selected text object jiggles after its clipboard write finishes'
 
 test('a failed text write does not start copy feedback', async () => {
   const context = loadClipboardExportHarness({ deferCopyText: true });
-  context.console = { error() {} };
 
   assert.equal(context.copySelected(), true);
   assert.deepEqual(context.calls.objectJello, []);
@@ -802,7 +798,6 @@ test('an unrecoverable image fails copy without success feedback', async () => {
   const context = loadClipboardExportHarness({
     selectedObject: { id: 'broken', type: 'image', data: { imgKey: 'missing' } },
   });
-  context.console = { error() {} };
   assert.equal(await context.copySelected(), false);
   assert.deepEqual(context.calls.objectJello, []);
 });
@@ -829,8 +824,6 @@ test('a rejected system image write does not start copy feedback', async () => {
     isWebImageRef: (source) => source?.web === true,
     deferCopyImage: true,
   });
-
-  context.console = { error() {} };
   const copyPromise = context.copySelected();
   assert.deepEqual(context.calls.objectJello, []);
   context.calls.rejectNextCopiedImage();

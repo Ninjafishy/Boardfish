@@ -51,8 +51,8 @@ function loadDuplicateHarness({ realLimits = false } = {}) {
       idCounter++;
       return `dup-${idCounter}`;
     },
-    scheduleRender(board, overlay, reason) {
-      calls.renders.push({ board, overlay, reason });
+    scheduleRender(board, overlay) {
+      calls.renders.push({ board, overlay });
     },
     pushHistory(reason) {
       calls.histories.push(reason);

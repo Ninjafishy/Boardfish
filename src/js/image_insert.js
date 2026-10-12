@@ -15,11 +15,9 @@ function finishBulkImageInsert() {
     scheduleRender(true, true);
     pushHistory('bulk-image-insert');
   }
-  const added = _bulkImageInsertAdded;
   if (_bulkImageInsertDepth === 0) {
     _bulkImageInsertAdded = 0;
   }
-  return added;
 }
 
 const webImageExtForFile = (file) => (
@@ -129,7 +127,6 @@ async function pickAndInsertImages(x, y) {
 
 async function insertImageFiles(files, x, y) {
 
-  let added = 0;
   const accepted = [];
 
   let contentLimitDropped = false;
@@ -186,7 +183,6 @@ async function insertImageFiles(files, x, y) {
 
         if (obj) {
           addedIds[acceptedIndex] = obj.id;
-          added++;
         }
       } catch {}
     });

@@ -22,7 +22,7 @@ function clearTextRuntimeCache(obj) {
 }
 
 function cloneTextObjectRuntimeCaches(source, target) {
-  if (!source || !target || source.type !== 'text' || target.type !== 'text') return target;
+  if (!source || !target || source.type !== 'text' || target.type !== 'text') return;
   const content = String(target.data?.content ?? '').replace(/\r\n?/g, '\n');
   if (
     Array.isArray(source._layoutCache) &&
@@ -34,7 +34,6 @@ function cloneTextObjectRuntimeCaches(source, target) {
     target._layoutCacheW = source._layoutCacheW;
     target._layoutCacheY = target.y;
   }
-  return target;
 }
 
 function makeEditProxy({

@@ -242,7 +242,6 @@ test('cacheImage queues full bitmap draw warmup for active-fallback safety', asy
   const src = 'data:image/png;base64,boardfish';
   context.scheduleDrawableBitmapWarmup = (source, meta) => {
     warmups.push({ source, meta });
-    return true;
   };
   context.imageStore['img-1'] = src;
 

@@ -210,9 +210,9 @@ test('shielded system key cancels active rubber-band selection before blocking i
   const context = loadSelectionInputHarness([]);
   context._rubberBandDragActive = true;
   context._inputShieldStack.push('rubber-band');
-  context.cancelCalls = [];
-  context.cancelRubberBandSelection = (reason) => {
-    context.cancelCalls.push(reason);
+  context.cancelCalls = 0;
+  context.cancelRubberBandSelection = () => {
+    context.cancelCalls++;
     context._rubberBandDragActive = false;
     return true;
   };
@@ -223,7 +223,7 @@ test('shielded system key cancels active rubber-band selection before blocking i
     metaKey: true,
   });
 
-  assert.deepEqual(context.cancelCalls, ['key-cancel']);
+  assert.equal(context.cancelCalls, 1);
   assert.equal(event.defaultPrevented, true);
   assert.equal(event.propagationStopped, true);
 });

@@ -11,7 +11,6 @@ function loadStateCloneHarness() {
   const context = {
     cloneTextObjectRuntimeCaches(source, target) {
       target._runtimeCopiedFrom = source.id;
-      return target;
     },
   };
   vm.createContext(context);

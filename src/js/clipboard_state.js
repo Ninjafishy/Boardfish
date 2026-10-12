@@ -35,7 +35,7 @@ function setJsClipboard(value) {
     : (++_jsClipboardWebTokenCounter, `bf-${Date.now().toString(36)}-${_jsClipboardWebTokenCounter.toString(36)}`);
   _jsClipboardWebTokenWritten = false;
   _jsClipboardWebMaybeStale = false;
-  return ++_jsClipboardToken;
+  _jsClipboardToken++;
 }
 
 function clearJsClipboard() {

@@ -73,17 +73,16 @@ function loadViewportRenderSchedulerHarness({ selected = false, overlayVisible =
   assert.ok(functionStart > 0, 'scheduleRender is missing');
   const functionEnd = source.indexOf('\n}', source.indexOf('function scheduleRender(', functionStart));
   assert.ok(functionEnd > functionStart, 'scheduleRender is unterminated');
-  const scheduled = [];
   const context = {
     selected,
-    scheduled,
+    scheduled: 0,
     selOverlay: createElement('sel-overlay'),
     multiSelOverlay: createElement('multi-sel-overlay'),
     hasSelection() {
       return context.selected;
     },
-    scheduleFrame(sourceName) {
-      scheduled.push(sourceName);
+    scheduleFrame() {
+      context.scheduled++;
     },
   };
   if (overlayVisible) context.selOverlay.classList.add('visible');
@@ -283,7 +282,7 @@ test('automatic board refreshes sync active overlays while explicit false opts o
     context.scheduleRender(true, null);
     assert.equal(context.renderFlags().board, true);
     assert.equal(context.renderFlags().overlay, true);
-    assert.equal(context.scheduled.length, 1);
+    assert.equal(context.scheduled, 1);
   }
 
   const idle = loadViewportRenderSchedulerHarness();

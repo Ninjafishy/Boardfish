@@ -50,7 +50,7 @@ function setTextEditProxyLogicalValue(proxy, value = '', domSynced = true) {
 
 function syncTextEditProxyDomValue(proxy, value = '', selection = null) {
   if (!proxy._boardfishDomValueStale) {
-    return false;
+    return;
   }
   const text = String(value ?? '');
   proxy.value = text;
@@ -61,7 +61,6 @@ function syncTextEditProxyDomValue(proxy, value = '', selection = null) {
     const end = Math.max(start, Math.min(Math.trunc(Number(selection.end ?? start)) || start, max));
     proxy.setSelectionRange(start, end, selection.direction || 'none');
   }
-  return true;
 }
 
 function setTextEditProxySelectionRange(proxy, start, end = start, direction = 'none', value) {
@@ -538,7 +537,7 @@ const tryNativeTextEditPaste = (id, proxy, readText, options = {}) => {
   if (!text) return false;
   if (!canApplyTextEditReplacement(obj, currentProxyValue, selection.start, selection.end, text)) {
     options.event.preventDefault();
-    return { rejected: true };
+    return true;
   }
   const inputState = {
     ...selection,
@@ -554,9 +553,7 @@ const tryNativeTextEditPaste = (id, proxy, readText, options = {}) => {
 
   beginTextEditHistoryAction(id, inputState);
   proxy?._boardfishSetPendingInputState?.(inputState);
-  return {
-    text,
-  };
+  return true;
 };
 
 const tryNativeBoardfishTextSelectionPaste = (id, proxy, payload, options = {}) =>
@@ -564,10 +561,7 @@ const tryNativeBoardfishTextSelectionPaste = (id, proxy, payload, options = {}) 
     if (!boardfishPasteEventMatchesCurrentTextSelectionClipboard(options.event)) return '';
     const text = textForTextObjectPaste(payload.text || '');
     return normalizeTextContent(options.fallbackText || '') === text ? text : '';
-  }, {
-    ...options,
-    path: 'jsClipboard-text-selection-native',
-  });
+  }, options);
 
 const tryNativeExternalTextPaste = (id, proxy, text, options = {}) =>
   tryNativeTextEditPaste(id, proxy, () => {
@@ -799,11 +793,7 @@ function enterEdit(id, {
       };
 
       const nativePaste = tryNativeBoardfishTextSelectionPaste(id, proxy, candidate, nativePasteOptions);
-      if (nativePaste) {
-        if (nativePaste.rejected) return;
-
-        return;
-      }
+      if (nativePaste) return;
     }
     if (fallbackText) {
       const nativeExternalOptions = {
@@ -812,11 +802,7 @@ function enterEdit(id, {
       };
 
       const nativeExternalPaste = tryNativeExternalTextPaste(id, proxy, fallbackText, nativeExternalOptions);
-      if (nativeExternalPaste) {
-        if (nativeExternalPaste.rejected) return;
-
-        return;
-      }
+      if (nativeExternalPaste) return;
     }
     event.preventDefault();
     const pasteEventText = () => {

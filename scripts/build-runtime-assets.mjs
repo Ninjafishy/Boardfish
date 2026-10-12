@@ -1,7 +1,6 @@
 import { mkdir, readFile, rm, writeFile, cp } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { WEB_SCRIPTS } from '../src/js/startup_manifest.mjs';
@@ -101,10 +100,6 @@ async function buildBundle(variantName, config) {
   await writeFile(outPath, result.code);
   await writeIndex(config.outDir, `<script src="${bundle}"></script>`, bundle);
   await writeServiceWorker(config.outDir, [bundle]);
-
-  const rawKb = Math.round(Buffer.byteLength(result.code) / 1024 * 10) / 10;
-  const gzipKb = Math.round(gzipSync(result.code).length / 1024 * 10) / 10;
-  console.log(`${variantName}: ${bundle} ${rawKb} KB raw, ${gzipKb} KB gzip`);
 }
 
 const requested = process.argv.slice(2);

@@ -67,8 +67,8 @@ function loadCanvasWheelHarness() {
       },
       panBy() { return true; },
     },
-    scheduleTransform(changed, source, event) {
-      context.transforms.push({ changed, source, event });
+    scheduleTransform(changed) {
+      context.transforms.push(changed);
     },
     createRafCommitter: () => ({ schedule() {}, flush() {} }),
     beginDocumentDrag() {},
@@ -115,8 +115,8 @@ function loadResetZoomHarness({ objects = [], panX = 0, panY = 0, zoom = 1, sele
         context.panY = nextPanY; return true;
       },
     },
-    scheduleTransform(changed, sourceName) {
-      context.transforms.push(sourceName);
+    scheduleTransform(changed) {
+      context.transforms.push(changed);
     },
     deselectAll() {
       context.deselectCalls++;
@@ -137,7 +137,6 @@ function loadMenuCommandHarness() {
 
   const context = {
     calls: [],
-    console,
 
     MENU_COMMANDS: {
       'btn-open': (event) => context.calls.push(event),
@@ -175,7 +174,6 @@ function loadTextEditMenuHarness() {
       },
     },
     textCopyBtn: { style: {} },
-    textPasteBtn: { style: { display: '' } },
     textDeleteSep: { style: {} },
     textDeleteBtn: { style: {} },
     textCtxMenu: {},
@@ -323,7 +321,6 @@ test('opening the text editing context menu keeps Paste visible without reading 
   context.showTextEditContextMenuAt(24, 48);
 
   assert.equal(context.calls.clipboardReads, 0);
-  assert.equal(context.textPasteBtn.style.display, '');
   assert.equal(context.textCopyBtn.style.display, 'none');
   assert.equal(context.textDeleteSep.style.display, 'none');
   assert.equal(context.textDeleteBtn.style.display, 'none');

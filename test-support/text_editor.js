@@ -65,7 +65,6 @@ function loadLiveTextEditResizeHarness() {
   });
   const context = {
     performance,
-    console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],
     obj,
@@ -137,7 +136,7 @@ function loadLiveTextEditResizeHarness() {
     markDirty(obj) { context.dirty.push(obj.id); },
     pushHistory(reason, dirty) { if (dirty) context.dirty.push(...dirty); context.histories.push(reason); },
     pushEditHistoryIfChanged() { return false; },
-    scheduleRender(board, overlay, reason) { context.renders.push({ board, overlay, reason }); },
+    scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
     invalidateOffscreen() {},
     setInterval() { return 5; },
     clearInterval() {},

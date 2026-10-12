@@ -92,8 +92,7 @@ test('ZIP creation returns a Blob without reading archive bytes back into memory
       { name: 'payload.bin', data: new Uint8Array(byteLength) },
     ]);
     assert.ok(payload.blob instanceof NativeBlob);
-    assert.equal(payload.blob.size, payload.byteLength);
-    assert.ok(payload.byteLength > byteLength);
+    assert.ok(payload.blob.size > byteLength);
   }
 });
 
@@ -179,7 +178,7 @@ test('writes and reads Boardfish .bf containers in browser format', async () => 
   assert.equal(source.bytes, 4);
   assert.deepEqual(WebContainer.bytesForImageSource(source), new Uint8Array([1, 2, 3, 4]));
 
-  const savedAgain = await WebContainer.createBoardContainerBlob(board, result.board.imageStore);
+  await WebContainer.createBoardContainerBlob(board, result.board.imageStore);
 });
 
 test('read rejects unsupported image metadata during entry derivation', async () => {
@@ -215,7 +214,7 @@ test('container creation validates the one exact UTF-8 board serialization befor
     ],
   };
   const validations = [];
-  const payload = await WebContainer.createBoardContainerBlob(
+  await WebContainer.createBoardContainerBlob(
     board,
     { 'img-1': new Uint8Array([1, 2, 3, 4]) },
     {
@@ -431,7 +430,7 @@ test('Blob lazy opens use range reads and preserve exact image bytes on re-save'
     },
   });
 
-  const savedAgain = await WebContainer.createBoardContainerBlob(board, opened.board.imageStore);
+  await WebContainer.createBoardContainerBlob(board, opened.board.imageStore);
   assert.equal(fullImageBlobReads, 0);
 
   const savedThird = await WebContainer.createBoardContainerBlob(board, opened.board.imageStore);

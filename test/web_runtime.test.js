@@ -148,7 +148,6 @@ test('web save validates once per payload stage and commits after writing', asyn
       events.push('stabilize-image-sources');
       assert.equal(board.objects.length, 1);
       assert.equal(imageStore, rawImageStore);
-      return { refreshed: 1, bytes: 4, skipped: '' };
     },
     async createBoardContainerBlob(board, imageStore, options) {
       events.push('create-container');
@@ -158,22 +157,6 @@ test('web save validates once per payload stage and commits after writing', asyn
       options.validateBoardPayload({ objectCount: 1, boardJsonBytes: 120, imageBytes: 4 });
       return {
         blob: savedBlob,
-        boardJsonBytes: 120,
-        imageBytes: 4,
-        imageCount: 1,
-        jsonStringifyMs: 2,
-        jsonEncodeMs: 3,
-        imageEntriesMs: 4,
-        validationMs: 5,
-        zipMs: 6,
-        crcMs: 7,
-        crcComputedBytes: 124,
-        crcComputedEntries: 2,
-        crcReusedEntries: 0,
-        blobImageBytes: 4,
-        byteArrayImageBytes: 0,
-        zipMode: 'blob-parts',
-        zipBytes: 200,
       };
     },
   };
@@ -188,7 +171,7 @@ test('web save validates once per payload stage and commits after writing', asyn
   };
   const board = { objects: [{ id: 'obj-1' }] };
 
-  const result = await harness.context.BoardfishRuntime.saveBoard(
+  await harness.context.BoardfishRuntime.saveBoard(
     { kind: 'web-file-handle', handle, name: 'board.bf' },
     board,
     { imageStore: rawImageStore },
@@ -219,7 +202,6 @@ test('Save As skips volatile image detachment only for a confirmed distinct targ
         return source;
       },
       expectedStabilizations: 0,
-      expectedSkip: 'distinct-target',
     },
     {
       name: 'same target',
@@ -227,7 +209,6 @@ test('Save As skips volatile image detachment only for a confirmed distinct targ
         return targetHandle;
       },
       expectedStabilizations: 1,
-      expectedSkip: '',
     },
     {
       name: 'unknown target relationship',
@@ -238,7 +219,6 @@ test('Save As skips volatile image detachment only for a confirmed distinct targ
         return { name: 'source.bf' };
       },
       expectedStabilizations: 1,
-      expectedSkip: '',
     },
   ];
 
@@ -250,7 +230,6 @@ test('Save As skips volatile image detachment only for a confirmed distinct targ
       harness.context.BoardfishWebBoardContainer = {
         async stabilizeVolatileImageRefs() {
           events.push('stabilize');
-          return { refreshed: 1, bytes: 4, skipped: '' };
         },
         async createBoardContainerBlob() {
           events.push('create-container');
@@ -268,7 +247,7 @@ test('Save As skips volatile image detachment only for a confirmed distinct targ
       };
       const sourceHandle = testCase.sourceHandle(targetHandle);
 
-      const result = await harness.context.BoardfishRuntime.saveBoard(
+      await harness.context.BoardfishRuntime.saveBoard(
         { kind: 'web-file-handle', handle: targetHandle, name: 'copy.bf' },
         { objects: [] },
         {
@@ -347,7 +326,7 @@ test('distinct-target save rebuilds once from a fresh source after write-time Bl
     },
   };
 
-  const result = await harness.context.BoardfishRuntime.saveBoard(
+  await harness.context.BoardfishRuntime.saveBoard(
     { kind: 'web-file-handle', handle: targetHandle, name: 'copy.bf' },
     board,
     {
@@ -412,7 +391,7 @@ test('same-target save recovers a stale source before container preparation', as
   };
   const ref = { kind: 'web-file-handle', handle, name: 'same-target.bf' };
 
-  const result = await harness.context.BoardfishRuntime.saveBoard(ref, board, {
+  await harness.context.BoardfishRuntime.saveBoard(ref, board, {
     imageStore: rawImageStore,
     sourceFileRef: ref,
   });
@@ -485,7 +464,7 @@ test('a recoverable TypeError without volatile image candidates is not retried',
     },
     async recoverMatchingVolatileImageRefsFromContainer() {
       recoveryCalls++;
-      return { refreshed: 0, bytes: 0, skipped: 'no-volatile-images' };
+      return false;
     },
   };
   const sourceHandle = { async getFile() { return {}; } };
@@ -516,7 +495,6 @@ test('a stalled Save As entry comparison times out to conservative detachment', 
   harness.context.BoardfishWebBoardContainer = {
     async stabilizeVolatileImageRefs() {
       events.push('stabilize');
-      return { refreshed: 0, bytes: 0, skipped: '' };
     },
     async createBoardContainerBlob() {
       events.push('create-container');

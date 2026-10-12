@@ -151,7 +151,7 @@ const copySelected = (options = {}) => {
         return true;
       } catch {
         return false;
-      } finally {}
+      }
     };
     const storedSource = BoardfishImageStore.getSource(obj.data.imgKey);
     const renderedPngBlob = async () => {

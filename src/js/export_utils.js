@@ -96,8 +96,8 @@
   async function downloadImageObjects(imageObjs, options = {}) {
     const progress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const target = await pickWebExportTarget(imageObjs, options);
-    if (target?.cancelled) return { downloadedCount: 0, skippedCount: 0, method: 'picker', cancelled: true };
-    if (typeof options.onStart === 'function') options.onStart({ totalCount: imageObjs.length, target });
+    if (target?.cancelled) return { downloadedCount: 0 };
+    if (typeof options.onStart === 'function') options.onStart();
 
     if (target?.directoryHandle) {
       return saveImageObjectsToDirectory(imageObjs, target.directoryHandle, options
@@ -106,16 +106,10 @@
 
     const downloads = [];
     const usedNames = new Set();
-    let skippedCount = 0;
-
     for (let i = 0; i < imageObjs.length; i++) {
       const entry = await imageObjectDownloadEntry(imageObjs[i], (imageObjs.length === 1 && options.filename) || uniqueImageExportName(imageObjs[i], usedNames),
       );
-      if (!entry) {
-        skippedCount++;
-
-        continue;
-      }
+      if (!entry) continue;
       downloads.push(entry);
 
       progress?.({
@@ -128,11 +122,10 @@
       }
     }
 
-    if (!downloads.length) return { downloadedCount: 0, skippedCount, method: 'none' };
+    if (!downloads.length) return { downloadedCount: 0 };
 
     const single = downloads.length === 1;
-    let data, filename, mime, byteLength;
-    const method = target?.handle ? (single ? 'file-picker' : 'zip-file-picker') : (single ? 'download' : 'zip');
+    let data, filename, mime;
 
     if (single) {
       const item = downloads[0];
@@ -147,19 +140,13 @@
       data = zip.blob;
       filename = target?.filename || `images_${randomHex()}.zip`;
       mime = 'application/zip';
-      byteLength = zip.byteLength;
     }
     progress?.({ phase: 'save-start', preparedCount: downloads.length, totalCount: imageObjs.length });
 
     await saveExportData(data, target, filename, mime);
 
     progress?.({ phase: 'save-progress', preparedCount: downloads.length, finishedCount: downloads.length, totalCount: imageObjs.length });
-    const result = { downloadedCount: downloads.length, skippedCount, method };
-    if (!single) {
-      result.filename = filename;
-      result.bytes = byteLength;
-    }
-    return result;
+    return { downloadedCount: downloads.length };
   }
 
   async function pickWebExportTarget(imageObjs, options = {}) {
@@ -196,7 +183,7 @@
     if (typeof root.showDirectoryPicker !== 'function') return null;
     try {
       const handle = await root.showDirectoryPicker({ mode: 'readwrite' });
-      return handle ? { directoryHandle: handle, filename: '', method: 'directory-picker' } : { cancelled: true };
+      return handle ? { directoryHandle: handle } : { cancelled: true };
     } catch (err) {
       if (err?.name === 'AbortError') return { cancelled: true };
 
@@ -215,7 +202,6 @@
 
   async function writeEntryToDirectory(directoryHandle, entry) {
     await writeFileHandle(await directoryHandle.getFileHandle(entry.name, { create: true }), entry.data);
-    return entry.data?.size || entry.data?.length || 0;
   }
 
   async function saveImageObjectsToDirectory(imageObjs, directoryHandle, options = {}) {
@@ -224,9 +210,6 @@
     let savedCount = 0;
     let failedCount = 0;
     let skippedCount = 0;
-
-    let bytes = 0;
-    const errors = [];
 
     for (let i = 0; i < imageObjs.length; i++) {
       const name = uniqueImageExportName(imageObjs[i], usedNames);
@@ -251,14 +234,10 @@
       });
 
       try {
-        const written = await writeEntryToDirectory(directoryHandle, entry);
+        await writeEntryToDirectory(directoryHandle, entry);
         savedCount++;
-
-        bytes += written;
-      } catch (err) {
+      } catch {
         failedCount++;
-
-        if (errors.length < 10) errors.push(`${entry.name}: ${err?.message || err}`);
       }
 
       progress?.({
@@ -272,25 +251,15 @@
       }
     }
 
-    return {
-      downloadedCount: savedCount,
-      savedCount,
-      failedCount,
-      skippedCount,
-      missingCount: skippedCount,
-      method: 'directory-picker',
-      bytes,
-      errors,
-    };
+    return { downloadedCount: savedCount };
   }
 
   async function saveExportData(data, target, fallbackName, type) {
     if (target?.handle) {
       await writeFileHandle(target.handle, data);
-      return true;
+      return;
     }
     root.BoardfishRuntime.downloadBlob(data instanceof Blob && data.type === type ? data : new Blob([data], { type }), fallbackName);
-    return false;
   }
 
   function withImageExtension(name, ext) {

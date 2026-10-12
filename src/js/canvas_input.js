@@ -86,8 +86,7 @@ function startMousePan(e) {
       lastClientX = ev.clientX;
       lastClientY = ev.clientY;
   }
-  function onUp(ev) {}
-  beginDocumentDrag({ move: onMove, up: onUp });
+  beginDocumentDrag({ move: onMove, up() {} });
 }
 
 function createSelectionDragSession(startClientX, startClientY) {
@@ -136,16 +135,16 @@ hideRubberBandSelectionVisual = () => {
   rubberBand.style.display = 'none';
 };
 
-cancelRubberBandSelection = (reason = 'cancel') => {
+cancelRubberBandSelection = () => {
   if (!_rubberBandDragActive) return false;
-  const cancelEvent = { __boardfishRubberBandCancel: true, reason };
+  const cancelEvent = { __boardfishRubberBandCancel: true };
   if (_rubberBandSelectionCleanup) _rubberBandSelectionCleanup(cancelEvent);
   else hideRubberBandSelectionVisual();
   return true;
 };
 
 function startRubberBandSelection(e, additive) {
-  cancelRubberBandSelection('restart');
+  cancelRubberBandSelection();
   if (!additive) deselectAll();
   const rbStartX = e.clientX, rbStartY = e.clientY;
   beginRubberBandDrag();
@@ -212,7 +211,7 @@ function textCaretHitAtWorldPoint(obj, point, preferFull = false) {
   return hit;
 }
 
-function startTextSelectionDrag(e, obj, wp) {
+function startTextSelectionDrag(obj, wp) {
   flushEditHistoryCheckpoint();
   const el = _editEl;
 
@@ -242,10 +241,7 @@ function startTextSelectionDrag(e, obj, wp) {
     _caretVisible = true;
     scheduleRender(true, false);
   }
-  function onSelUp(ev) {
-    if (!ev || ev.__boardfishDragCancel) return;
-  }
-  beginDocumentDrag({ move: onSelMove, up: onSelUp });
+  beginDocumentDrag({ move: onSelMove, up() {} });
 }
 
 function startObjectDrag(e, obj) {
@@ -317,7 +313,7 @@ canvas.addEventListener('mousedown', (e) => {
 
   // Click inside the currently edited text object: position caret / start drag-select
   if (editingId && obj.id === editingId && selectedIds.size === 1) {
-    startTextSelectionDrag(e, obj, wp);
+    startTextSelectionDrag(obj, wp);
     return;
   }
 
