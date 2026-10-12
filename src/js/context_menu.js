@@ -82,10 +82,6 @@ function updateCtxActionStates() {
   darkModeMenuBtn.setAttribute('aria-pressed', appTheme === 'dark' ? 'true' : 'false');
 }
 
-function closeCtxActions() {
-  closeFloatingSurface(ctxActions);
-}
-
 function openCtxMenuAt(x, y) {
   closeOpenMenusExcept('ctx-menu');
   updateCtxActionStates();
@@ -119,7 +115,7 @@ function openCtxMenuAt(x, y) {
 function closeCtxMenu() {
   clearMenuCommandPressState();
   closeFloatingSurface(ctxMenu);
-  closeCtxActions();
+  closeFloatingSurface(ctxActions);
 }
 
 function closeObjCtxMenu() {
@@ -499,13 +495,13 @@ canvas.addEventListener('contextmenu', (e) => {
   showCanvasContextMenuAt(e.clientX, e.clientY);
 });
 
-for (const id in MENU_COMMANDS) {
-  if (!Object.hasOwn(MENU_COMMANDS, id)) continue;
-  document.getElementById(id)?.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    runMenuCommand(event.currentTarget, 'click', event);
-  });
+function onMenuClick(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  runMenuCommand(event.currentTarget, 'click', event);
+}
+for (const id of Object.keys(MENU_COMMANDS)) {
+  document.getElementById(id)?.addEventListener('click', onMenuClick);
 }
 
 document.addEventListener(HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown', (e) => {

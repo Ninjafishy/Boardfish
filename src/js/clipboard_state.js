@@ -51,14 +51,10 @@ function jsClipboardStillCurrent(options = {}) {
   const clipboardTokenChecked = options.webClipboardTokenChecked === true;
   const clipboardToken = options.webClipboardToken || '';
   if (clipboardTokenChecked && (_jsClipboardWebTokenWritten || clipboardToken)) {
-    const current = !!clipboardToken && clipboardToken === _jsClipboardWebToken;
-
-    return current;
+    return !!clipboardToken && clipboardToken === _jsClipboardWebToken;
   }
   const age = Date.now() - _jsClipboardSetAt;
-  const current = !_jsClipboardWebMaybeStale || age < 750;
-
-  return current;
+  return !_jsClipboardWebMaybeStale || age < 750;
 }
 
 if (typeof window !== 'undefined') {

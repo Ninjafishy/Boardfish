@@ -70,13 +70,11 @@
     const data = await canvasToPngBlob(canvas);
     if (!data) return null;
 
-    const entry = {
+    return {
       name: withImageExtension(name, 'png'),
       data,
       mime: 'image/png',
     };
-
-    return entry;
   }
 
   async function imageSourceDownloadEntry(source, name) {
@@ -85,9 +83,7 @@
     try {
       const data = await readableImageSourceBlob(source);
       const ext = guessImageExtForSource(source);
-      const entry = { name: withImageExtension(name, ext), data, mime: webRef ? source.mime || mimeForImageExt(ext) : dataUrlMime(source) };
-
-      return entry;
+      return { name: withImageExtension(name, ext), data, mime: webRef ? source.mime || mimeForImageExt(ext) : dataUrlMime(source) };
     } catch {
       return null;
     }
@@ -208,8 +204,6 @@
     const progress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const usedNames = new Set();
     let savedCount = 0;
-    let failedCount = 0;
-    let skippedCount = 0;
 
     for (let i = 0; i < imageObjs.length; i++) {
       const name = uniqueImageExportName(imageObjs[i], usedNames);
@@ -217,11 +211,9 @@
       const entry = await imageObjectDownloadEntry(imageObjs[i], name
       );
       if (!entry) {
-        skippedCount++;
-
         progress?.({
           phase: 'prepare-progress',
-          preparedCount: savedCount + failedCount + skippedCount,
+          preparedCount: i + 1,
           totalCount: imageObjs.length,
         });
         continue;
@@ -229,21 +221,19 @@
 
       progress?.({
         phase: 'prepare-progress',
-        preparedCount: savedCount + failedCount + skippedCount + 1,
+        preparedCount: i + 1,
         totalCount: imageObjs.length,
       });
 
       try {
         await writeEntryToDirectory(directoryHandle, entry);
         savedCount++;
-      } catch {
-        failedCount++;
-      }
+      } catch {}
 
       progress?.({
         phase: 'save-progress',
-        preparedCount: savedCount + failedCount + skippedCount,
-        finishedCount: savedCount + failedCount + skippedCount,
+        preparedCount: i + 1,
+        finishedCount: i + 1,
         totalCount: imageObjs.length,
       });
       if (i % 2 === 1 || i === imageObjs.length - 1) {

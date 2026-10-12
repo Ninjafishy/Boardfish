@@ -225,7 +225,7 @@ test('status and zoom pill preserve their shared visual motion surface', () => {
     assert.match(block, /line-height: var\(--pill-text-line-height\);/);
     assert.match(block, /min-width: var\(--pill-text-min-width\);/);
     assert.match(block, /max-width: var\(--pill-text-max-width\);/);
-    assert.match(block, /transform: var\(--ui-highlight-nudge-transform\);/);
+    assert.match(styles, /\.ctx-action-item,\s*\.ctx-item,\s*#isl-zoom\s*\{[^}]*transform: var\(--ui-highlight-nudge-transform\);/);
     assert.match(block, /transition:\s*[\s\S]*background-color var\(--smooth-slide-duration\) var\(--smooth-slide-ease\),[\s\S]*color var\(--smooth-slide-duration\) var\(--smooth-slide-ease\),[\s\S]*transform var\(--smooth-slide-duration\) var\(--smooth-slide-ease\);/);
   }
   assert.match(styles, /#island\[data-mode="message"\] #isl-zoom\s*\{[\s\S]*--ui-highlight-nudge-transform: translateX\(0\);/);

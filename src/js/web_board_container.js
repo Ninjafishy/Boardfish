@@ -223,12 +223,10 @@
     const centralOffset = offset;
     const eocd = endOfCentralDirectory(normalized.length, centralSize, centralOffset);
     const blob = new Blob(localParts.concat(centralParts, eocd), { type: 'application/octet-stream' });
-    const result = {
+    return {
       blob,
       crcs: normalized.map((entry) => entry.crc),
     };
-
-    return result;
   }
 
   async function blobToBytes(blob) {
@@ -788,11 +786,9 @@
       const crc = zip.crcs[i + 1];
       cacheImageSourceCrc(entry.source, entry.byteLength, crc);
     }
-    const result = {
+    return {
       blob: zip.blob,
     };
-
-    return result;
   }
 
   async function readBoardContainer(input, options = {}) {
@@ -910,9 +906,7 @@
         : createWebImageRef({ path, mime, ext, bytes });
     }
     board.imageStore = nextSources;
-    const result = { board };
-
-    return result;
+    return { board };
   }
 
   const api = Object.freeze({

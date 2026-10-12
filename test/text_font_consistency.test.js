@@ -40,9 +40,10 @@ test('DOM text uses the shared app font rendering defaults', () => {
   assert.deepEqual(fontWeightDeclarations, ['400']);
   assert.equal(
     [...css.matchAll(/font:\s*var\(--text-font-style\)\s+var\(--regular_text\)\s+var\(--menu-item-font-size\)\s+var\(--text-font-family\);/g)].length,
-    5
+    2
   );
-  assert.match(css, /\.ctx-shortcut\s*\{[\s\S]*font: var\(--text-font-style\) var\(--regular_text\) var\(--menu-item-font-size\) var\(--text-font-family\);[\s\S]*line-height: inherit;[\s\S]*\}/);
+  assert.match(css, /\.ctx-action-item,\s*\.ctx-item,\s*\.ctx-shortcut,\s*#isl-zoom\s*\{\s*font: var\(--text-font-style\) var\(--regular_text\) var\(--menu-item-font-size\) var\(--text-font-family\);\s*\}/);
+  assert.match(css, /\.ctx-shortcut\s*\{[\s\S]*line-height: inherit;/);
   assert.match(html, /id="ctx-btn-dark-mode"[\s\S]*<svg viewBox="0 0 24 24"/);
   assert.doesNotMatch(html, /Material\+Symbols|fonts\.googleapis\.com|fonts\.gstatic\.com/);
   assert.doesNotMatch(html, /wght[^"]*100\.\.700/);

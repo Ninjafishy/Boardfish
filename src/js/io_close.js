@@ -177,12 +177,10 @@ async function hydrateImageForDisplay(key) {
 
   await (pendingReady || cacheImage(key, source));
 
-  const displayReady = BoardfishImageStore.hasDisplayImage(key);
-
-  return displayReady;
+  return BoardfishImageStore.hasDisplayImage(key);
 }
 
-async function hydrateImageKeysWithLimit(keys, concurrency = getOpenHydrationConcurrency()) {
+async function hydrateImageKeysWithLimit(keys, concurrency = openHydrationConcurrency) {
   let anyHydrated = false;
   await mapWithConcurrency(keys, concurrency, async (key) => {
     try {
@@ -201,7 +199,7 @@ function createOpenTextWarmupTarget() {
     canvas.width = 2048;
     canvas.height = 512;
     const context = canvas.getContext?.('2d') || null;
-    return context ? { canvas, context } : null;
+    return context ? { context } : null;
   } catch {
     return null;
   }
@@ -261,16 +259,15 @@ function queueVisibleImageHydration(limit) {
 }
 
 async function finishOpenedBoard() {
-  const visibleKeys = getVisibleImageKeys(Infinity);
-  const hydrationKeys = getPendingHydratableImageKeys([...visibleKeys]);
+  const hydrationKeys = getPendingHydratableImageKeys(getVisibleImageKeys());
 
-  const imageHydrationPromise = hydrateImageKeysWithLimit(hydrationKeys, getOpenHydrationConcurrency());
+  const imageHydrationPromise = hydrateImageKeysWithLimit(hydrationKeys, openHydrationConcurrency);
   const textHydrationPromise = hydrateTextDrawCachesForOpen();
   await Promise.all([
     imageHydrationPromise,
     textHydrationPromise,
   ]);
-  await settleOpenImageDrawCaches(getOpenHydrationConcurrency());
+  await settleOpenImageDrawCaches(openHydrationConcurrency);
 
   _boardOpening = false;
   applyTransform();
@@ -329,9 +326,7 @@ const saveBoardImpl = async (saveAs = false) => {
   const releaseInputShield = acquireInputShield({ visual: false, keepSelectionOverlay: true });
   try {
     if (saveAs) {
-      const defaultName = `${BoardfishExportUtils.randomHex()}.bf`;
-      const chooseFile = () => BoardfishRuntime.saveFileDialog(defaultName);
-      fileRef = await chooseFile();
+      fileRef = await BoardfishRuntime.saveFileDialog(`${BoardfishExportUtils.randomHex()}.bf`);
       if (!fileRef) {
         releaseInputShield();
         return false;

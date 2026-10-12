@@ -60,9 +60,7 @@ const createWebSourcePngClipboardBlob = (obj, source) => {
   if (typeof Blob === 'undefined') return null;
   if (webSourceClipboardMime(source) !== 'image/png') return null;
 
-  return readableImageSourceBlob(source).then((blob) => {
-    return blob;
-  }).catch(() => {
+  return readableImageSourceBlob(source).catch(() => {
     return null;
   });
 };

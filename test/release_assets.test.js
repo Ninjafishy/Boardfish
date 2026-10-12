@@ -2,22 +2,15 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readSource, readJson } = require('../test-support/source.js');
+const { readSource, readJson, listFiles } = require('../test-support/source.js');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const root = path.join(__dirname, '..');
 
-function sourceFiles(directory) {
-  return fs.readdirSync(path.join(root, directory), { withFileTypes: true }).flatMap(entry => {
-    const file = path.join(directory, entry.name);
-    return entry.isDirectory() ? sourceFiles(file) : /\.(?:js|mjs)$/.test(file) ? [file] : [];
-  });
-}
-
 test('app sources contain no diagnostic hooks, logging, or build-dependent behavior', () => {
-  for (const file of sourceFiles('src')) {
+  for (const file of listFiles('src', (file) => /\.(?:js|mjs)$/.test(file))) {
     assert.doesNotMatch(readSource(file), /\bdebugger\b|\b[A-Za-z_$]*Debug[A-Za-z_$]*\b|BOARDFISH_(?:DEV_DIAGNOSTICS|PRODUCTION)|DEBUG_TOOLS_ENABLED|\bconsole\s*\./, file);
   }
 });

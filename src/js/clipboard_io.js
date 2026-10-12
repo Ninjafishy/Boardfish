@@ -87,12 +87,7 @@
       return null;
     }
 
-    const imageFile = supportedClipboardImageFile(clipboardData.items || [], clipboardData.files || []);
-    if (!imageFile) {
-      return null;
-    }
-
-    return imageFile;
+    return supportedClipboardImageFile(clipboardData.items || [], clipboardData.files || []);
   }
 
   function readClipboardTextFromEvent(clipboardData) {

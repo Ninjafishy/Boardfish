@@ -53,9 +53,7 @@ function renderImageToCanvas(obj, sourceImg = null) {
 
 function canvasToPngBlob(canvas) {
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      resolve(blob);
-    }, 'image/png');
+    canvas.toBlob(resolve, 'image/png');
   });
 }
 
@@ -134,12 +132,12 @@ function scheduleImageReadyRender() {
 }
 
 var _imageHydrationScheduled = false;
-var _imageHydrationQueue = new Map();
+var _imageHydrationQueue = new Set();
 
 function queueImageHydration(key) {
   const source = imageStore[key];
   if (imageBitmapCache[key] || _imageHydrationQueue.has(key) || !isImageSource(source)) return;
-  _imageHydrationQueue.set(key);
+  _imageHydrationQueue.add(key);
   scheduleImageHydration();
 }
 
@@ -153,7 +151,7 @@ function processImageHydrationQueue() {
   _imageHydrationScheduled = false;
   const batchStart = performance.now();
   let count = 0;
-  for (const [key] of _imageHydrationQueue) {
+  for (const key of _imageHydrationQueue) {
     if (count > 0 && performance.now() - batchStart >= 6) break;
     _imageHydrationQueue.delete(key);
     const source = imageStore[key];

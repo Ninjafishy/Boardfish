@@ -28,7 +28,7 @@ test('web runtime owns local board file IO', () => {
   assert.match(runtime, /downloadBlob\(payload\.blob, fileNameFromRef\(ref, 'board\.bf'\)\)/);
   assert.match(runtime, /root\.BoardfishRuntime = api;/);
   assert.match(io, /const chooseFile = BoardfishRuntime\.openFileDialog;/);
-  assert.match(io, /BoardfishRuntime\.saveFileDialog\(defaultName\)/);
+  assert.match(io, /BoardfishRuntime\.saveFileDialog\(`\$\{BoardfishExportUtils\.randomHex\(\)\}\.bf`\)/);
   assert.match(io, /BoardfishRuntime\.readBoard\(fileRef\)/);
   assert.match(io, /BoardfishRuntime\.saveBoard\(fileRef, data, \{ imageStore, \.\.\.options \}\)/);
   assert.match(io, /invokeSaveBoard\(fileRef[\s\S]*?\{ sourceFileRef: currentFileRef \}/);
@@ -132,7 +132,7 @@ test('dev server returns 400 for malformed URL encodings', () => {
 test('image hydration queue processes until its time budget is consumed', () => {
   const imageState = readSource('src/js/image_state.js');
 
-  assert.match(imageState, /var _imageHydrationQueue = new Map\(\);/);
+  assert.match(imageState, /var _imageHydrationQueue = new Set\(\);/);
   assert.match(imageState, /if \(count > 0 && performance\.now\(\) - batchStart >= 6\) break;/);
   assert.match(imageState, /cacheImage\(key, source\s*\);/);
 });

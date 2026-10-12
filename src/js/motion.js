@@ -192,9 +192,7 @@
   const textSelectionMotionForDraw = (motion, zoom = 1) => {
     if (!motion) return null;
     const elapsed = drawTime - motion.startedAt;
-    const transform = transformAtElapsed(motion, elapsed, zoom);
-
-    return transform;
+    return transformAtElapsed(motion, elapsed, zoom);
   };
 
   const cancelTextSelectionMotion = (id) => textSelectionMotions.delete(id);

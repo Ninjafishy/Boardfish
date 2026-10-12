@@ -180,7 +180,7 @@ function restoreSnapshot(s, editStateOverride) {
 
   BoardfishEditorState.setSelection(obj?.type === 'text' ? [obj.id] : [...selectedIds]);
 
-  renderAll();
+  scheduleRender(true, true);
 
   if (!editState || !editState.id) {
     return;
@@ -272,10 +272,4 @@ function redo() {
   const actionEntry = boardHistory[historyIndex];
 
   restoreSnapshot(actionEntry);
-}
-
-// ─── Render ───────────────────────────────────────────────────────────────────
-
-function renderAll() {
-  scheduleRender(true, true);
 }

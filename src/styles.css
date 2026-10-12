@@ -278,31 +278,46 @@ body {
   }
 }
 
+.ctx-action-item,
+.ctx-item,
+.ctx-shortcut,
+#isl-zoom {
+  font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
+}
+
+.ctx-action-item,
+.ctx-item,
+#isl-zoom {
+  align-items: center;
+  color: var(--firefox-menu-text);
+  background: transparent;
+  letter-spacing: var(--menu-item-letter-spacing);
+  transform: var(--ui-highlight-nudge-transform);
+}
+
+.ctx-action-item,
+.ctx-item {
+  line-height: var(--menu-item-line-height);
+  border-radius: var(--menu-item-radius);
+  text-align: left;
+  cursor: default;
+  box-shadow: none;
+}
+
 .ctx-action-item {
   position: relative;
   display: flex;
-  align-items: center;
   justify-content: center;
   min-width: var(--menu-item-height);
   width: var(--menu-item-height);
   height: var(--menu-item-height);
-  font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
-  line-height: var(--menu-item-line-height);
-  color: var(--firefox-menu-text);
-  background: transparent;
   border: 0;
-  border-radius: var(--menu-item-radius);
   outline: none;
-  box-shadow: none;
-  cursor: default;
-  letter-spacing: var(--menu-item-letter-spacing);
   white-space: nowrap;
-  text-align: left;
   isolation: isolate;
   contain: paint;
   overflow: hidden;
   text-decoration: none;
-  transform: var(--ui-highlight-nudge-transform);
   transition: transform var(--smooth-slide-duration) var(--smooth-slide-ease);
 }
 .ctx-action-item:focus-visible { background: var(--firefox-menu-hover-bg); }
@@ -321,23 +336,12 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 18px;
-  align-items: center;
   width: 100%;
   height: var(--menu-item-height);
   padding: var(--menu-item-padding);
-  font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
-  line-height: var(--menu-item-line-height);
-  color: var(--firefox-menu-text);
-  background: transparent;
   border: none;
-  border-radius: var(--menu-item-radius);
-  text-align: left;
-  cursor: default;
-  letter-spacing: var(--menu-item-letter-spacing);
   user-select: none;
   -webkit-user-select: none;
-  box-shadow: none;
-  transform: var(--ui-highlight-nudge-transform);
   transition:
     background-color var(--smooth-slide-duration) var(--smooth-slide-ease),
     transform var(--smooth-slide-duration) var(--smooth-slide-ease);
@@ -350,7 +354,6 @@ body {
 }
 .ctx-shortcut {
   color: var(--menu-shortcut-color);
-  font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
   line-height: inherit;
   justify-self: end;
   white-space: nowrap;
@@ -426,21 +429,15 @@ body {
   cursor: default;
   min-height: var(--menu-item-height);
   padding: var(--menu-item-padding);
-  font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
   line-height: var(--pill-text-line-height);
-  color: var(--firefox-menu-text);
-  background: transparent;
   border-radius: var(--pill-radius);
-  letter-spacing: var(--menu-item-letter-spacing);
   white-space: normal;
   min-width: var(--pill-text-min-width);
   max-width: var(--pill-text-max-width);
   display: inline-flex;
-  align-items: center;
   justify-content: center;
   text-align: center;
   overflow: hidden;
-  transform: var(--ui-highlight-nudge-transform);
   transition:
     background-color var(--smooth-slide-duration) var(--smooth-slide-ease),
     color var(--smooth-slide-duration) var(--smooth-slide-ease),

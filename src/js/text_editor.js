@@ -464,9 +464,7 @@ const boardfishTextClipboardStillCurrent = async (event = null) => {
   }
 
   const currentOptions = { webClipboardTokenChecked, webClipboardToken };
-  const current = jsClipboardStillCurrent(currentOptions);
-
-  return current;
+  return jsClipboardStillCurrent(currentOptions);
 };
 
 const readBoardfishTextClipboardPayloadForPaste = async (event = null) => {

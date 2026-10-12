@@ -15,10 +15,6 @@
   const FILE_COMPARISON_TIMEOUT_MS = 5000;
   const FILE_WRITE_MIN_BYTES_PER_SECOND = 2 * 1024 * 1024;
 
-  function isAbortError(err) {
-    return err?.name === 'AbortError';
-  }
-
   function webFileRef(file, name = '') {
     return {
       kind: 'web-file',
@@ -142,14 +138,6 @@
     return Math.min(FILE_OPERATION_MAX_TIMEOUT_MS, FILE_OPERATION_TIMEOUT_MS + transferMs);
   }
 
-  function hasOpenFileSystemAccess() {
-    return typeof root.showOpenFilePicker === 'function';
-  }
-
-  function hasSaveFileSystemAccess() {
-    return typeof root.showSaveFilePicker === 'function';
-  }
-
   function pickFileWithInput(accept) {
     return new Promise((resolve) => {
       const input = document.createElement('input');
@@ -197,12 +185,12 @@
   }
 
   const unlessAborted = (picker) => picker.catch((err) => {
-    if (isAbortError(err)) return null;
+    if (err?.name === 'AbortError') return null;
     throw err;
   });
 
   async function openFileDialog() {
-    if (!hasOpenFileSystemAccess()) return pickFileWithInput('.bf');
+    if (typeof root.showOpenFilePicker !== 'function') return pickFileWithInput('.bf');
     const handles = await unlessAborted(root.showOpenFilePicker({
       multiple: false,
       types: BOARD_FILE_TYPES,
@@ -212,7 +200,7 @@
   }
 
   async function saveFileDialog(defaultName = 'board.bf') {
-    if (!hasSaveFileSystemAccess()) return webDownloadRef(defaultName);
+    if (typeof root.showSaveFilePicker !== 'function') return webDownloadRef(defaultName);
     const handle = await unlessAborted(root.showSaveFilePicker({
       suggestedName: defaultName,
       types: BOARD_FILE_TYPES,
@@ -301,15 +289,13 @@
         await stabilizeImageSources(board, rawImageStore);
       }
 
-      const created = await root.BoardfishWebBoardContainer.createBoardContainerBlob(
+      return await root.BoardfishWebBoardContainer.createBoardContainerBlob(
         board,
         rawImageStore,
         {
           validateBoardPayload,
         },
       );
-
-      return created;
     };
 
     const writePayload = async (payload) => {

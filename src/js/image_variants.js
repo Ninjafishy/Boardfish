@@ -266,13 +266,11 @@ async function createScaledImageVariantBitmap(source, sourceW, sourceH, scale) {
   const w = Math.max(1, Math.ceil(sourceW * scale));
   const h = Math.max(1, Math.ceil(sourceH * scale));
   try {
-    const bitmap = await createImageBitmap(source, {
+    return await createImageBitmap(source, {
       resizeWidth: w,
       resizeHeight: h,
       resizeQuality: 'high',
     });
-
-    return bitmap;
   } catch (_) {
     if (typeof document === 'undefined') throw _;
     const canvas = document.createElement('canvas');
@@ -281,9 +279,7 @@ async function createScaledImageVariantBitmap(source, sourceW, sourceH, scale) {
     const c = canvas.getContext('2d');
     c.imageSmoothingQuality = 'high';
     c.drawImage(source, 0, 0, w, h);
-    const bitmap = await createImageBitmap(canvas);
-
-    return bitmap;
+    return await createImageBitmap(canvas);
   }
 }
 
@@ -390,9 +386,7 @@ function queueScaledImageVariantForReadyImage(key, source) {
     return false;
   }
   const scale = IMAGE_SCALE;
-  const result = queueScaledImageVariant(key, source, scale);
-
-  return result;
+  return queueScaledImageVariant(key, source, scale);
 }
 
 async function settleOpenImageDrawCaches(concurrency = IMAGE_VARIANT_QUEUE_CONCURRENCY) {

@@ -206,9 +206,7 @@ function textCaretHitAtWorldPoint(obj, point, preferFull = false) {
     : getTextLayoutForViewport(obj, { y1: point.y, y2: point.y });
   const layout = visible.length ? visible : getTextLayout(obj);
 
-  const hit = layoutHitTestCaret(layout, point.x, point.y, obj);
-
-  return hit;
+  return layoutHitTestCaret(layout, point.x, point.y, obj);
 }
 
 function startTextSelectionDrag(obj, wp) {
