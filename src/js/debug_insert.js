@@ -6,10 +6,14 @@ var InsertDebug = (() => {
 
   const round = round2;
 
+  function sanitize(meta = {}) {
+    return sanitizeDebugMeta(meta);
+  }
+
   const recorder = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish insert]',
-    sanitize: sanitizeDebugMeta,
+    sanitize,
     onEnable() {
       console.info('Boardfish insert debugger enabled. Use finishDebug({ insert: ["report", "imageBreakdown", "fileBreakdown", "phaseSummary", "summary", "dump"] }) to collect results.');
     },
@@ -104,7 +108,8 @@ var InsertDebug = (() => {
     return rows;
   }
   function report() {
-    const last = debugLast(events, e => e.op === 'insertImages' && e.step === 'end');
+    const insertEnds = events.filter(e => e.op === 'insertImages' && e.step === 'end');
+    const last = insertEnds[insertEnds.length - 1];
     if (!last) {
       const empty = { runs: 0 };
       console.table([empty]);
@@ -125,7 +130,8 @@ var InsertDebug = (() => {
     const out = {
       source: last.meta?.source || '',
       added: last.meta?.added ?? imageEnds.filter(e => e.meta?.added).length,
-      ...debugMetaFields(last, 'fileCount acceptedFileCount'),
+      fileCount: last.meta?.fileCount ?? '',
+      acceptedFileCount: last.meta?.acceptedFileCount ?? '',
       totalMs: last.total ?? '',
       concurrency: concurrencyStep?.meta?.concurrency ?? '',
       timeToFirstObjectMs: start && objectAdd ? round(objectAdd.at - start.at) : '',

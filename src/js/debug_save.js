@@ -1,10 +1,14 @@
 'use strict';
 
 var SaveDebug = (() => {
+  function sanitize(value) {
+    return sanitizeDebugMeta(value, { redactPattern: /dataUrl|src|base64|imageStore/i, roundNumbers: true });
+  }
+
   const core = createDebugRecorder({
     maxEvents: 300,
     label: '[Boardfish save]',
-    sanitize: sanitizeImageDebugMeta,
+    sanitize,
   });
 
   function enable(options = {}) {
@@ -22,7 +26,8 @@ var SaveDebug = (() => {
   function serializedSaveColumns(e) {
     return {
       jsonBytes: e.meta?.rust?.json_bytes ?? '',
-      ...debugMetaFields(e, 'queueMs elapsedMs'),
+      queueMs: e.meta?.queueMs ?? '',
+      elapsedMs: e.meta?.elapsedMs ?? '',
       rustSerializeMs: e.meta?.rust?.serialize_ms ?? '',
       rustJsonStringifyMs: e.meta?.rust?.json_stringify_ms ?? '',
       rustJsonEncodeMs: e.meta?.rust?.json_encode_ms ?? '',
@@ -95,8 +100,10 @@ var SaveDebug = (() => {
   }
 
   function latestRun() {
-    const start = debugLast(core.events, e => e.step === 'start' && /^saveBoard/.test(e.op || ''));
-    return !start ? [] : core.events.filter(e => e.id === start.id);
+    const starts = core.events.filter(e => e.step === 'start' && /^saveBoard/.test(e.op || ''));
+    const start = starts[starts.length - 1];
+    if (!start) return [];
+    return core.events.filter(e => e.id === start.id);
   }
 
   function report() {

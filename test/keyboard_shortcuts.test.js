@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 
 const keyboardSource = readSource('src/js/keyboard.js');
 
@@ -50,6 +50,7 @@ function loadKeyboard(overrides = {}) {
     saveBoard: () => calls.push(['saveBoard']),
     pasteAtPos: (x, y) => calls.push(['pasteAtPos', x, y]),
     enterEdit: (id, options = {}) => calls.push(['enterEdit', id, options]),
+    hasSelection: () => false,
     rotateSelectedImages: () => calls.push(['rotateSelectedImages']),
     flipSelectedImages: () => calls.push(['flipSelectedImages']),
     runAddImagesCommandFromShortcut: () => calls.push(['runAddImagesCommandFromShortcut']),
@@ -70,9 +71,8 @@ function loadKeyboard(overrides = {}) {
   };
   Object.assign(context, overrides);
   vm.createContext(context);
-  const viewListenerCount = listeners.length;
   vm.runInContext(keyboardSource, context, { filename: 'src/js/keyboard.js' });
-  const keydownListeners = listeners.slice(viewListenerCount).filter((listener) => listener.type === 'keydown');
+  const keydownListeners = listeners.filter((listener) => listener.type === 'keydown');
   return {
     calls,
     context,

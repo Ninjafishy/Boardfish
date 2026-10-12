@@ -1,7 +1,6 @@
 'use strict';
 
 (function initExportUtils(root) {
-  const exportWindow = () => typeof boardWindow === 'function' ? boardWindow() : root;
   const { dataUrlMime, extForMime, mimeForExt: mimeForImageExt } = root.BoardfishBoardTypes ||
     (typeof require === 'function' ? require('./board_types.js') : null);
   function guessImageExtFromDataUrl(dataUrl) {
@@ -14,7 +13,8 @@
 
   function guessImageExtForSource(src) {
     if (isWebImageRef(src)) return src.ext === 'jpeg' ? 'jpg' : (src.ext || 'png');
-    return typeof src === 'string' ? guessImageExtFromDataUrl(src) : 'png';
+    if (typeof src === 'string') return guessImageExtFromDataUrl(src);
+    return 'png';
   }
 
   function randomHex() {
@@ -169,7 +169,8 @@
   const imageSourceKind = (source) => {
     if (isWebImageRef(source)) return 'web-ref';
     if (typeof source === 'string') return source.startsWith('data:') ? 'data-url' : 'string';
-    return !source ? 'missing' : typeof source;
+    if (!source) return 'missing';
+    return typeof source;
   };
   const recordWebResolveEntry = (obj, index, entry, ms, extra = {}) => {
     ExportDebug.recordResolve?.({
@@ -363,7 +364,7 @@
       const folderTarget = await pickWebExportDirectory();
       if (folderTarget) return folderTarget;
     }
-    if (typeof exportWindow().showSaveFilePicker !== 'function') return null;
+    if (typeof root.showSaveFilePicker !== 'function') return null;
     const single = imageObjs.length === 1;
     const ext = single ? guessImageExtForObjectExport(imageObjs[0]) : 'zip';
     const mime = single ? mimeForImageExt(ext) : 'application/zip';
@@ -371,7 +372,7 @@
       ? withImageExtension(options.filename || `image_${randomHex()}.${ext}`, ext)
       : (options.filename || `images_${randomHex()}.zip`);
     try {
-      const handle = await exportWindow().showSaveFilePicker({
+      const handle = await root.showSaveFilePicker({
         suggestedName: filename,
         types: [{
           description: single ? 'Image' : 'ZIP archive',
@@ -388,9 +389,9 @@
   }
 
   async function pickWebExportDirectory() {
-    if (typeof exportWindow().showDirectoryPicker !== 'function') return null;
+    if (typeof root.showDirectoryPicker !== 'function') return null;
     try {
-      const handle = await exportWindow().showDirectoryPicker({ mode: 'readwrite' });
+      const handle = await root.showDirectoryPicker({ mode: 'readwrite' });
       return handle ? { directoryHandle: handle, filename: '', method: 'directory-picker' } : { cancelled: true };
     } catch (err) {
       if (err?.name === 'AbortError') return { cancelled: true };

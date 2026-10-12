@@ -43,9 +43,11 @@ const DIAGNOSTIC_CALLS = Object.freeze([
   'recordInputSetupStep',
   'nextTextEditInputDebugSeq',
   'canvasInputDebugRound',
+  'canvasInputNow',
   'canvasInputViewportDebugSnapshot',
   'canvasInputTextDebugLog',
   'logClickEditStep',
+  'objectCommandDebugNow',
   'objectCommandTextStats',
   'imageFileDebugName',
   'imageSourceDebugInfo',
@@ -85,10 +87,14 @@ async function copyStaticAssets(outDir) {
   await writeFile(path.join(outDir, 'styles.css'), css.code);
 }
 
+function resolveScriptPath(script) {
+  return path.resolve(jsRoot, script);
+}
+
 async function concatenateScripts(scripts, variantName) {
   const parts = [];
   for (const script of scripts) {
-    const filePath = path.resolve(jsRoot, script);
+    const filePath = resolveScriptPath(script);
     const source = await readFile(filePath, 'utf8');
     const relative = path.relative(root, filePath).replace(/\\/g, '/');
     parts.push(`\n;/* ${variantName}: ${relative} */\n${source}\n`);

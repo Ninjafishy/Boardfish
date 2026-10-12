@@ -4,10 +4,12 @@ var ClipDebug = (() => {
 
   const MAX_EVENTS = 2000;
 
+  const sanitize = sanitizeDebugMeta;
+
   const core = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish clipboard]',
-    sanitize: sanitizeDebugMeta,
+    sanitize,
   });
   const events = core._events;
 
@@ -152,14 +154,16 @@ var ClipDebug = (() => {
           kind: 'mouse-pan-start',
           at: e.at,
           afterCopyMs: round(e.at - copyStart.at),
-          ...debugMetaFields(e, 'startX startY'),
+          startX: e.meta?.startX ?? '',
+          startY: e.meta?.startY ?? '',
         });
       } else if (e.op === 'eventLoop' && e.step === 'gap') {
         timeline.push({
           kind: 'event-loop-gap',
           at: e.at,
           afterCopyMs: round(e.at - copyStart.at),
-          ...debugMetaFields(e, 'gapMs overMs'),
+          gapMs: e.meta?.gapMs ?? '',
+          overMs: e.meta?.overMs ?? '',
         });
       } else if (e.op === 'longTask' && e.step === 'entry') {
         timeline.push({
@@ -177,7 +181,10 @@ var ClipDebug = (() => {
         at: row.at,
         afterCopyMs: round(row.at - copyStart.at),
         inputSource: row.inputSource || '',
-        ...debugPick(row, 'inputAgeMs queueMs frameMs rafGap'),
+        inputAgeMs: row.inputAgeMs ?? '',
+        queueMs: row.queueMs ?? '',
+        frameMs: row.frameMs ?? '',
+        rafGap: row.rafGap ?? '',
         sources: row.sources || '',
       });
     }
@@ -485,7 +492,8 @@ var ClipDebug = (() => {
         eventAgeMs: e.meta?.eventAgeMs ?? '',
         source: e.meta?.source || '',
         target: e.meta?.target || '',
-        ...debugMetaFields(e, 'defaultPrevented blocked'),
+        defaultPrevented: e.meta?.defaultPrevented ?? '',
+        blocked: e.meta?.blocked ?? '',
       }));
     const eventLoopRows = viewportEvents
       .filter(e => (e.op === 'eventLoop' || e.op === 'longTask') && e.at >= startAt && e.at <= endAt)
@@ -557,7 +565,8 @@ var ClipDebug = (() => {
       maxEditSelectionMs: round(maxEditSelectionMs),
       maxEventLoopGapMs: round(maxEventLoopGapMs),
       maxLongTaskMs: round(maxLongTaskMs),
-      ...debugPick(replacement?.meta, 'oldChars nextChars'),
+      oldChars: replacement?.meta?.oldChars ?? '',
+      nextChars: replacement?.meta?.nextChars ?? '',
       insertedChars: latestMetaValue(run, ['insertedChars', 'textLen', 'fallbackTextChars', 'textCharCount']),
       selectedChars: latestMetaValue(run, ['selectedChars']),
       textBytes: latestMetaValue(run, ['textBytes']),
@@ -565,7 +574,8 @@ var ClipDebug = (() => {
       largestLineChars: latestMetaValue(run, ['largestLineChars']),
       layoutPatched: layoutPatch?.meta?.layoutPatched ?? '',
       layoutPatchMs: layoutPatch?.dt ?? '',
-      ...debugPick(layoutPatch?.meta, 'layoutPatchLineDelta layoutPatchLogicalLineDelta'),
+      layoutPatchLineDelta: layoutPatch?.meta?.layoutPatchLineDelta ?? '',
+      layoutPatchLogicalLineDelta: layoutPatch?.meta?.layoutPatchLogicalLineDelta ?? '',
       layoutPatchReason: layoutPatch?.meta?.layoutPatchReason || '',
       objectWidth: latestMetaValue(run, ['objectWidth']),
       objectHeight: latestMetaValue(run, ['objectHeight']),
@@ -598,7 +608,8 @@ var ClipDebug = (() => {
       .filter(e => textOps.has(e.op) && e.step && e.step !== 'start')
       .map(e => debugRow(e));
     const latestRun = (ops) => {
-      const start = debugLast(events, e => ops.includes(e.op) && e.step === 'start');
+      const starts = events.filter(e => ops.includes(e.op) && e.step === 'start');
+      const start = starts[starts.length - 1];
       if (!start) return { start: null, run: [], end: null };
       const run = events.filter(e => e.id === start.id && e.op === start.op);
       const end = debugLast(run, e => e.step === 'end') || null;
@@ -1004,7 +1015,9 @@ var ViewportDebug = (() => {
     'mouseup',
   ];
 
-  const sanitize = sanitizeRoundedDebugMeta;
+  function sanitize(value) {
+    return sanitizeDebugMeta(value, { roundNumbers: true });
+  }
 
   function push(evt) {
     if (!enabled) return;
@@ -1152,11 +1165,14 @@ var ViewportDebug = (() => {
       key: event?.key || '',
       code: event?.code || '',
       repeat: !!event?.repeat,
-      ...debugPick(event, 'deltaX deltaY'),
+      deltaX: event?.deltaX ?? '',
+      deltaY: event?.deltaY ?? '',
       ...wheelEventMeta(event),
       ...debugPick(event, 'button buttons clientX clientY movementX movementY offsetX offsetY pointerId'),
       pointerType: event?.pointerType || '',
-      ...debugPick(event, 'pressure isPrimary isTrusted'),
+      pressure: event?.pressure ?? '',
+      isPrimary: event?.isPrimary ?? '',
+      isTrusted: event?.isTrusted ?? '',
       ctrlKey: !!event?.ctrlKey,
       metaKey: !!event?.metaKey,
       shiftKey: !!event?.shiftKey,
@@ -1953,7 +1969,7 @@ var ViewportDebug = (() => {
       cacheMB: Math.round(imageScaledBitmapBytes / 1024 / 1024 * 100) / 100,
       limitMB: Math.round(IMAGE_VARIANT_MEMORY_LIMIT / 1024 / 1024),
 	      pending: imageScaledBitmapPending.size,
-	      pendingMB: Math.round(imageScaledBitmapPendingByteTotal / 1024 / 1024 * 100) / 100,
+	      pendingMB: Math.round(pendingScaledVariantBytes() / 1024 / 1024 * 100) / 100,
 	      queued: imageScaledVariantQueue.length,
 	      queueActive: imageScaledVariantQueueActive,
 	      queueConcurrency: IMAGE_VARIANT_QUEUE_CONCURRENCY,
@@ -2172,7 +2188,8 @@ var ViewportDebug = (() => {
         at: e.at,
         kind: e.op,
         step: e.step,
-        ...debugMetaFields(e, 'gapMs overMs'),
+        gapMs: e.meta?.gapMs ?? '',
+        overMs: e.meta?.overMs ?? '',
         durationMs: e.meta?.duration ?? '',
         startTime: e.meta?.startTime ?? '',
       }));
@@ -2228,7 +2245,9 @@ var ViewportDebug = (() => {
           id: e.id,
           at: e.at,
           source,
-          ...debugPick(startMeta, 'queueMs inputAgeMs rafGap'),
+          queueMs: startMeta.queueMs ?? '',
+          inputAgeMs: startMeta.inputAgeMs ?? '',
+          rafGap: startMeta.rafGap ?? '',
           ...debugMetaFields(e, 'frameMs doTransform doBoard doOverlay slow'),
         };
       })
@@ -2371,7 +2390,8 @@ var ViewportDebug = (() => {
           at: e.at,
           kind: e.op,
           step: e.step,
-          ...debugMetaFields(e, 'gapMs overMs'),
+          gapMs: e.meta?.gapMs ?? '',
+          overMs: e.meta?.overMs ?? '',
           durationMs: e.meta?.duration ?? '',
         });
       }

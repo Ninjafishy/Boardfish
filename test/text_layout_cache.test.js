@@ -7,14 +7,6 @@ const vm = require('node:vm');
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
-const lineRange = (line) => ({
-  text: line.text,
-  startIndex: line.startIndex,
-  endIndex: line.endIndex,
-  caretEndIndex: line.caretEndIndex,
-  nextStartIndex: line.nextStartIndex,
-});
-
 function loadTextLayout({
   measureWidth = (text) => String(text).length,
   measureTextMetrics = null,
@@ -59,6 +51,10 @@ function loadTextLayout({
     },
     navigator: { userAgent },
     objects: [],
+    TextSelDebug: {
+      _logHit() {},
+    },
+    scheduleRender() {},
   };
   if (trackSegmenter) {
     const NativeSegmenter = Intl.Segmenter;
@@ -704,7 +700,13 @@ test('soft wrapping fills each line and consumes separators at every text size',
       h: 40,
       data: { content: `${'alpha beta '.repeat(repeats)}hi` },
     };
-    const lines = textLayout.getTextLayout(obj).map(lineRange);
+    const lines = textLayout.getTextLayout(obj).map((line) => ({
+      text: line.text,
+      startIndex: line.startIndex,
+      endIndex: line.endIndex,
+      caretEndIndex: line.caretEndIndex,
+      nextStartIndex: line.nextStartIndex,
+    }));
     const expected = Array.from({ length: repeats }, (_, index) => ({
       text: 'alpha beta',
       startIndex: index * 11,
@@ -736,7 +738,13 @@ test('caret range stays on the current line for trailing overflow spaces', () =>
     data: { content: 'placeholder    \nhi' },
   };
 
-  const lines = textLayout.getTextLayout(obj).map(lineRange);
+  const lines = textLayout.getTextLayout(obj).map((line) => ({
+    text: line.text,
+    startIndex: line.startIndex,
+    endIndex: line.endIndex,
+    caretEndIndex: line.caretEndIndex,
+    nextStartIndex: line.nextStartIndex,
+  }));
 
   assert.deepEqual(plain(lines), [
     { text: 'placeholder', startIndex: 0, endIndex: 11, caretEndIndex: 15, nextStartIndex: 15 },
@@ -757,7 +765,13 @@ test('trailing overflow spaces retain fitting spaces and caret ranges at every t
       h: 40,
       data: { content: `${'hi     '.repeat(repeats)}\nnext` },
     };
-    const lines = textLayout.getTextLayout(obj).map(lineRange);
+    const lines = textLayout.getTextLayout(obj).map((line) => ({
+      text: line.text,
+      startIndex: line.startIndex,
+      endIndex: line.endIndex,
+      caretEndIndex: line.caretEndIndex,
+      nextStartIndex: line.nextStartIndex,
+    }));
     const expected = Array.from({ length: repeats }, (_, index) => ({
       text: 'hi  ',
       startIndex: index * 7,
@@ -838,8 +852,8 @@ test('text lines always start at the left padding', () => {
   assert.equal(Object.hasOwn(line, 'align'), false);
 });
 
-function loadCaretInkLayout() {
-  return loadTextLayout({
+test('text caret x centers between neighboring glyph ink bounds', () => {
+  const { context } = loadTextLayout({
     measureWidth(text) {
       return String(text).length * 10;
     },
@@ -856,10 +870,6 @@ function loadCaretInkLayout() {
       };
     },
   });
-}
-
-test('text caret x centers between neighboring glyph ink bounds', () => {
-  const { context } = loadCaretInkLayout();
   const textLayout = context.__testTextLayout;
   const obj = {
     id: 'text-1',
@@ -880,7 +890,23 @@ test('text caret x centers between neighboring glyph ink bounds', () => {
 });
 
 test('text caret x keeps logical positions next to whitespace', () => {
-  const { context } = loadCaretInkLayout();
+  const { context } = loadTextLayout({
+    measureWidth(text) {
+      return String(text).length * 10;
+    },
+    measureTextMetrics(text, { width }) {
+      if (text === 'X') {
+        return {
+          actualBoundingBoxLeft: -4,
+          actualBoundingBoxRight: 9,
+        };
+      }
+      return {
+        actualBoundingBoxLeft: 0,
+        actualBoundingBoxRight: width,
+      };
+    },
+  });
   const textLayout = context.__testTextLayout;
   const obj = {
     id: 'text-1',
@@ -1359,14 +1385,19 @@ test('viewport text layout exactly matches inclusive visible-line boundaries', (
   const visible = textLayout.getTextLayoutForViewport(obj, viewportRect);
 
   assert.equal(visible.totalLines, full.length);
-  const lineMetrics = (line) => ({
+  assert.deepEqual(plain(visible.map((line) => ({
     text: line.text,
     startIndex: line.startIndex,
     endIndex: line.endIndex,
     y: line.y,
     prefixWidths: Array.from(line.prefixWidths || []),
-  });
-  assert.deepEqual(plain(visible.map(lineMetrics)), plain(expected.map(lineMetrics)));
+  }))), plain(expected.map((line) => ({
+    text: line.text,
+    startIndex: line.startIndex,
+    endIndex: line.endIndex,
+    y: line.y,
+    prefixWidths: Array.from(line.prefixWidths || []),
+  }))));
   const baseY = obj.y + context.TEXT_PAD;
   const epsilon = 0.001;
   for (const [y, lineYs] of [

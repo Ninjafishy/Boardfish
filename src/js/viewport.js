@@ -11,12 +11,13 @@ var long_message = 3 * short_message;
 var _islMsgActive = false;
 var _islMsgTimer = null;
 var _islMsgToken = 0;
-var _islandSyncedZoom;
+var _islandSyncedZoom = NaN;
 
 const formatZoomPercent = () => {
   const pct = Math.max(0, (Number.isFinite(zoom) ? zoom : 1) * 100);
   const roundedPct = Math.round(pct * 10) / 10;
-  return roundedPct >= 10 ? `${Math.round(pct)}%` : `${Math.max(0.1, roundedPct).toFixed(1)}%`;
+  if (roundedPct >= 10) return `${Math.round(pct)}%`;
+  return `${Math.max(0.1, roundedPct).toFixed(1)}%`;
 };
 
 const setPillMessageText = (text) => {
@@ -71,7 +72,8 @@ function startIslandBusyMsg(text) {
     },
     done(finalMsg = null, duration = short_message) {
       if (token !== _islMsgToken) return;
-      return finalMsg ? showIslandMsg(finalMsg, duration) : hideIsland('busy-done');
+      if (finalMsg) return showIslandMsg(finalMsg, duration);
+      return hideIsland('busy-done');
     },
   };
 }
@@ -84,7 +86,8 @@ function finishPillTask({
 } = {}) {
   beforeFinish();
   if (busyPill) return busyPill.done(finalMsg, duration);
-  return finalMsg ? showIslandMsg(finalMsg, duration) : hideIsland('pill-finished');
+  if (finalMsg) return showIslandMsg(finalMsg, duration);
+  return hideIsland('pill-finished');
 }
 
 function showIslandMsg(msg, duration = 0) {
@@ -152,47 +155,27 @@ function markDirty(obj) {
 
 var _canvasResizeObserver = null;
 var _boardSurfaceCssSizeCache = null;
-var _boardCanvasDpr = null;
-var _pendingCanvasResizeX = 0, _pendingCanvasResizeY = 0;
-
-function offsetBoardCanvasForResize(dx, dy) {
-  _pendingCanvasResizeX += dx;
-  _pendingCanvasResizeY += dy;
-  boardCanvas.style.transform = _pendingCanvasResizeX || _pendingCanvasResizeY
-    ? `translate(${_pendingCanvasResizeX}px, ${_pendingCanvasResizeY}px)`
-    : '';
-}
 
 function boardSurfaceCssSize() {
   if (_boardSurfaceCssSizeCache) return _boardSurfaceCssSizeCache;
   const rect = canvas?.getBoundingClientRect?.();
   let width = Number(rect?.width), height = Number(rect?.height);
   if (!(width > 0)) width = Number(boardCanvas?.clientWidth);
-  if (!(width > 0)) width = Number(boardWindow().innerWidth);
+  if (!(width > 0)) width = Number(window.innerWidth);
   if (!(width > 0)) width = 1;
   if (!(height > 0)) height = Number(boardCanvas?.clientHeight);
-  if (!(height > 0)) height = Number(boardWindow().innerHeight);
+  if (!(height > 0)) height = Number(window.innerHeight);
   if (!(height > 0)) height = 1;
   return _boardSurfaceCssSizeCache = { width, height };
 }
 
 function syncBoardCanvasBackingStore(write = true) {
-  const dpr = boardWindow().devicePixelRatio || 1;
-  if (write && (_pendingCanvasResizeX || _pendingCanvasResizeY)) {
-    _pendingCanvasResizeX = _pendingCanvasResizeY = 0;
-    boardCanvas.style.transform = '';
-  }
+  const dpr = window.devicePixelRatio || 1;
   const surface = boardSurfaceCssSize();
   const width = Math.max(1, Math.round(surface.width * dpr));
   const height = Math.max(1, Math.round(surface.height * dpr));
-  if (boardCanvas.width === width && boardCanvas.height === height &&
-      _boardCanvasDpr === dpr) return false;
+  if (boardCanvas.width === width && boardCanvas.height === height) return false;
   if (!write) return true;
-  // Keep the last frame at its rendered scale while a resize waits for RAF.
-  // The surface clips these fixed dimensions instead of stretching the bitmap.
-  boardCanvas.style.width = `${width / dpr}px`;
-  boardCanvas.style.height = `${height / dpr}px`;
-  _boardCanvasDpr = dpr;
   if (boardCanvas.width !== width) boardCanvas.width = width;
   if (boardCanvas.height !== height) boardCanvas.height = height;
   invalidateOffscreen();
@@ -212,22 +195,12 @@ function resizeCanvas(surface = null) {
 
 function startCanvasSizeTracking() {
   if (_canvasResizeObserver) return;
-  const Observer = boardWindow().ResizeObserver || (typeof ResizeObserver === 'function' ? ResizeObserver : null);
-  _canvasResizeObserver = Observer
-    ? new Observer(entries => resizeCanvas(entries?.[0]?.contentRect))
-    : boardWindow().visualViewport || boardWindow();
+  _canvasResizeObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(entries => resizeCanvas(entries?.[0]?.contentRect))
+    : window.visualViewport || window;
   if (_canvasResizeObserver.observe) _canvasResizeObserver.observe(canvas);
   else _canvasResizeObserver.addEventListener('resize', resizeCanvas);
-  BoardfishView.addWindowListener('resize', resizeCanvas);
-}
-
-function restartCanvasSizeTracking() {
-  if (_canvasResizeObserver?.observe) _canvasResizeObserver.disconnect();
-  else _canvasResizeObserver?.removeEventListener('resize', resizeCanvas);
-  _canvasResizeObserver = null;
-  _boardSurfaceCssSizeCache = null;
-  startCanvasSizeTracking();
-  resizeCanvas();
+  window.addEventListener?.('resize', resizeCanvas);
 }
 
 const collectTextSelectionRuns = (obj, layout, selStart, selEnd) => {
@@ -278,7 +251,8 @@ const applyTextSelectionMotionTransform = (context, bounds, motion) => {
 const textLayoutLineIntersectsViewport = (line, viewportRect = null) => {
   if (!viewportRect) return true;
   const y = Number(line?.y);
-  return !Number.isFinite(y) ? true : y + LINE_H >= viewportRect.y1 && y <= viewportRect.y2;
+  if (!Number.isFinite(y)) return true;
+  return y + LINE_H >= viewportRect.y1 && y <= viewportRect.y2;
 };
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
@@ -554,7 +528,7 @@ function drawBoard(bypassEditOffscreenCache = false) {
   let drawnImages = 0;
   let drawnText = 0;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const dpr = boardWindow().devicePixelRatio || 1;
+  const dpr = window.devicePixelRatio || 1;
   const viewportRect = viewportWorldRect(0);
   const textSelectionMotions = BoardfishMotion.beginDraw();
 
@@ -787,7 +761,7 @@ var _needTransform = false;
 var _needBoardRender = false;
 var _needOverlayRender = false;
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-var _frameScheduledAt;
+var _frameScheduledAt = 0;
 var _frameSources = [];
 var _activeRenderSource = 'direct';
 var _lastDrawBoardMeta = null;
@@ -812,7 +786,7 @@ const boardRenderer = BoardfishRenderer.createBoardRenderer({
   zoom: () => zoom,
   panX: () => panX,
   panY: () => panY,
-  dpr: () => boardWindow().devicePixelRatio || 1,
+  dpr: () => window.devicePixelRatio || 1,
   font: FONT,
   lineHeight: LINE_H,
   canvasTextColor,
@@ -930,6 +904,10 @@ function textDrawWarmupLineWidth(line, obj) {
   return Math.max(1, lineXAtOffset(line, obj, textLength) - lineXAtOffset(line, obj, 0));
 }
 
+function textDrawWarmupBaseX(line, obj) {
+  return lineXAtOffset(line, obj, 0);
+}
+
 function resizeTextDrawWarmupCanvas(width, height, target = null) {
   const canvas = target?.canvas || _textDrawWarmupCanvas;
   if (!canvas || target?.target === TEXT_DRAW_WARMUP_TARGET_BOARD) return;
@@ -956,7 +934,7 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
   }
   const maxLines = Math.max(0, Math.trunc(Number(options.maxLines ?? 256)) || 0);
   const viewZoom = Math.max(0.01, Number(options.zoom ?? zoom) || 1);
-  const viewDpr = Math.max(1, Number(options.dpr ?? boardWindow().devicePixelRatio) || 1);
+  const viewDpr = Math.max(1, Number(options.dpr ?? window.devicePixelRatio) || 1);
   const deviceScale = viewZoom * viewDpr;
   const startedAt = performance.now();
   let warmedLines = 0;
@@ -981,7 +959,7 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
         ctx.fillStyle = canvasTextColor();
         ctx.textBaseline = 'alphabetic';
         ctx.font = FONT;
-        const baseX = lineXAtOffset(line, obj, 0);
+        const baseX = textDrawWarmupBaseX(line, obj);
         const textY = Number.isFinite(Number(line.textY)) ? Number(line.textY) : Number(line.y || 0) + TEXT_BASELINE_Y_OFFSET;
         ctx.setTransform(
           deviceScale,
@@ -1022,7 +1000,8 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
 
 function roundTextDrawWarmupZoom(value) {
   const numeric = Number(value);
-  return !Number.isFinite(numeric) ? '' : Math.round(numeric * 10000) / 10000;
+  if (!Number.isFinite(numeric)) return '';
+  return Math.round(numeric * 10000) / 10000;
 }
 
 function normalizeTextDrawWarmupZooms(options = {}) {
@@ -1178,7 +1157,7 @@ function prewarmVisibleTextLayoutCaches(options = {}) {
         const stats = warmTextLayoutDrawLines(obj, drawWarmupLayout, {
           maxLines: remainingWarmupLines,
           zoom: warmupZoom,
-          dpr: boardWindow().devicePixelRatio || 1,
+          dpr: window.devicePixelRatio || 1,
           drawWarmupTarget,
         });
         addTextDrawWarmupAggregate(drawWarmupStats, stats, warmupZoom);
@@ -1375,7 +1354,7 @@ function scheduleFrame(
     });
   }
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  _frameRaf = BoardfishView.requestAnimationFrame(() => {
+  _frameRaf = requestAnimationFrame(() => {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     let sourceLabel = '';
     let sourceCount = 0;

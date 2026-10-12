@@ -26,14 +26,6 @@
     return out;
   }
 
-  function sanitizeImageDebugMeta(value) {
-    return sanitizeDebugMeta(value, { redactPattern: /dataUrl|src|base64|imageStore/i, roundNumbers: true });
-  }
-
-  function sanitizeRoundedDebugMeta(value) {
-    return sanitizeDebugMeta(value, { roundNumbers: true });
-  }
-
   function debugPick(source, names, fallback = '') {
     const out = {};
     for (const name of names.split(' ')) out[name] = source?.[name] ?? fallback;
@@ -174,6 +166,4 @@
   root.debugPick = debugPick;
   root.debugMetaFields = debugMetaFields;
   root.sanitizeDebugMeta = sanitizeDebugMeta;
-  root.sanitizeImageDebugMeta = sanitizeImageDebugMeta;
-  root.sanitizeRoundedDebugMeta = sanitizeRoundedDebugMeta;
 })(typeof window !== 'undefined' ? window : globalThis);

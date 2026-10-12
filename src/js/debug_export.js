@@ -5,10 +5,14 @@ var ExportDebug = (() => {
   const MAX_MASSIVE_SAMPLES = 8;
   let massive = null;
 
+  function sanitize(value) {
+    return sanitizeDebugMeta(value, { roundNumbers: true });
+  }
+
   const core = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish export]',
-    sanitize: sanitizeRoundedDebugMeta,
+    sanitize,
   });
   const events = core._events;
 
@@ -230,7 +234,9 @@ var ExportDebug = (() => {
       atMs: massiveElapsedMs(),
       phase: meta.phase || '',
       ms: Math.round(ms * 100) / 100,
-      ...debugPick(meta, 'processed imageCount entryCount'),
+      processed: meta.processed ?? '',
+      imageCount: meta.imageCount ?? '',
+      entryCount: meta.entryCount ?? '',
     }, 'ms');
     massiveStep('event-loop-yield', meta);
   }
@@ -298,7 +304,8 @@ var ExportDebug = (() => {
       phase: meta.phase || '',
       text,
       finishedCount,
-      ...debugPick(meta, 'preparedCount totalCount'),
+      preparedCount: meta.preparedCount ?? '',
+      totalCount: meta.totalCount ?? '',
     });
     massiveStep('ui-progress', meta);
   }
@@ -521,7 +528,8 @@ var ExportDebug = (() => {
         step: e.step,
         imgKey: e.meta?.imgKey ?? '',
         totalRenderMs: e.dt ?? '',
-        ...debugMetaFields(e, 'width height'),
+        width: e.meta?.width ?? '',
+        height: e.meta?.height ?? '',
         dataUrlMB: e.meta?.bytes ? Math.round(e.meta.bytes / 1024 / 1024 * 100) / 100 : '',
       }))
       .sort((a, b) => Number(b.totalRenderMs || 0) - Number(a.totalRenderMs || 0));
@@ -568,7 +576,8 @@ var ExportDebug = (() => {
       resolveProcessed: massive?.resolve?.processed ?? '',
       resolveDurationMs: massive?.resolve?.durationMs ?? '',
       saveDurationMs: massive?.save?.durationMs ?? '',
-      ...debugPick(massive?.smoothness, 'eventLoopYields maxYieldMs'),
+      eventLoopYields: massive?.smoothness?.eventLoopYields ?? '',
+      maxYieldMs: massive?.smoothness?.maxYieldMs ?? '',
       error: last?.meta?.error || '',
     };
     console.table([out]);

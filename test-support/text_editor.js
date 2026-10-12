@@ -1,7 +1,7 @@
 'use strict';
 
 const { readSource } = require('./source.js');
-const vm = require('./browser_vm.js');
+const vm = require('node:vm');
 
 function createUnitTextContext() {
   return {
@@ -28,7 +28,7 @@ function loadLiveTextEditResizeHarness() {
     z: 1,
     data: { content: 'example text' },
   };
-  const makeProxy = () => ({
+  const makeProxy = (context) => ({
     id: '',
     style: {},
     value: '',
@@ -43,8 +43,8 @@ function loadLiveTextEditResizeHarness() {
       this.listeners[event.type]?.(event);
       return true;
     },
-    focus() {},
-    remove() {},
+    focus() { context.focusedProxy = true; },
+    remove() { context.removedProxy = true; },
     setSelectionRange(start, end, direction = 'none') {
       const max = String(this.value ?? '').length;
       const normalizedStart = Math.max(0, Math.min(Math.trunc(Number(start)) || 0, max));
@@ -65,6 +65,7 @@ function loadLiveTextEditResizeHarness() {
   });
   const context = {
     performance,
+    console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],
     obj,
@@ -78,7 +79,9 @@ function loadLiveTextEditResizeHarness() {
     _editHistoryActionStartState: null,
     _textInputSelectionHistorySuppress: null,
     jsClipboard: null,
+    _jsClipboardWebMaybeStale: false,
     setJsClipboard() {},
+    clearJsClipboard() {},
     getJsClipboardWebToken: () => '',
     _caretVisible: false,
     dirty: [],
@@ -86,7 +89,7 @@ function loadLiveTextEditResizeHarness() {
     renders: [],
     animations: [],
     flushes: 0,
-    TextSelDebug: { _logSelection() {} },
+    TextSelDebug: { _logSelection() {}, _logHit() {} },
     document: {
       activeElement: null,
       body: { appendChild(node) { context.document.activeElement = node; } },
@@ -108,7 +111,7 @@ function loadLiveTextEditResizeHarness() {
             },
           };
         }
-        const proxy = makeProxy();
+        const proxy = makeProxy(context);
         context.proxy = proxy;
         return proxy;
       },
@@ -123,6 +126,9 @@ function loadLiveTextEditResizeHarness() {
     },
     BoardfishMotion: {
       applyCopyFeedback(payload) { context.animations.push(payload); },
+    },
+    BoardfishEditorState: {
+      removeObjectsById() {},
     },
     beginTextEditHistoryAction() {},
     shouldCommitTextEditInputImmediately() { return false; },

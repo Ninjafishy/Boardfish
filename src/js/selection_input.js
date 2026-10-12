@@ -3,7 +3,7 @@ var _selOverlayStyleState = { transform: '', width: '', height: '' };
 var _multiSelBoxes = [], _multiSelMotions = [];
 var _rubberBandDragActive = false;
 var _textMinWidthWarmCancel = null;
-var _textMinWidthWarmObjectId;
+var _textMinWidthWarmObjectId = '';
 const SELECTION_IMAGE_EDGE_OVERDRAW_DEVICE_PX = 1;
 
 function setSelectionOverlayScreenRect(element, state, resting, animated, padDevicePx = 0) {
@@ -11,7 +11,7 @@ function setSelectionOverlayScreenRect(element, state, resting, animated, padDev
   const restingY = resting.y1 * zoom + panY;
   const restingWidth = (resting.x2 - resting.x1) * zoom;
   const restingHeight = (resting.y2 - resting.y1) * zoom;
-  const dpr = boardWindow().devicePixelRatio || 1;
+  const dpr = window.devicePixelRatio || 1;
   const px = 1 / dpr;
   const pad = padDevicePx * px;
   const x1 = Math.floor((restingX - pad) * dpr) * px;
@@ -38,7 +38,8 @@ function selectionOverlayObjectBounds(obj, motion = BoardfishMotion.getLastDrawn
 }
 
 function _cleanOverlay(value) {
-  return Math.abs(value) < 1e-9 ? 0 : Math.round(value * 1e9) / 1e9;
+  if (Math.abs(value) < 1e-9) return 0;
+  return Math.round(value * 1e9) / 1e9;
 }
 
 function beginRubberBandDrag() {
@@ -98,12 +99,16 @@ function selectionInputPerfDebugApi() {
   return typeof ManualPerfDebug !== 'undefined' ? ManualPerfDebug : null;
 }
 
+function selectionResizeDebugNow() {
+  return performance.now();
+}
+
 function selectionResizeDebugRound(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function selectionResizeEventMeta(event = null) {
-  const now = performance.now();
+  const now = selectionResizeDebugNow();
   const timestamp = Number(event?.timeStamp);
   const timeOrigin = typeof performance !== 'undefined' ? Number(performance.timeOrigin) || 0 : 0;
   const eventAt = Number.isFinite(timestamp) && timestamp > 0
@@ -156,15 +161,8 @@ function isUnsavedDialogOpen() {
   return _dialogResolve !== null;
 }
 
-function isInputEventNode(target) {
-  // Adopted controls can retain the opener's prototype while SVG descendants
-  // and newly created controls are wrapped with the PiP window's Node type.
-  const TargetNode = target?.ownerDocument?.defaultView?.Node;
-  return target instanceof Node || (typeof TargetNode === 'function' && target instanceof TargetNode);
-}
-
 function isEventInsideUnsavedDialog(e) {
-  return !!unsavedDialog && isInputEventNode(e.target) && unsavedDialog.contains(e.target);
+  return !!unsavedDialog && e.target instanceof Node && unsavedDialog.contains(e.target);
 }
 
 const _inputEventPointElementCache = new WeakMap();
@@ -175,23 +173,21 @@ function pointedElementForInputEvent(e) {
   const x = Number(e?.clientX);
   const y = Number(e?.clientY);
   const pointed = Number.isFinite(x) && Number.isFinite(y)
-    ? boardDocument().elementFromPoint(x, y)
+    ? document.elementFromPoint(x, y)
     : null;
-  const element = isInputEventNode(pointed) ? pointed : null;
+  const element = pointed instanceof Node ? pointed : null;
   _inputEventPointElementCache.set(e, element);
   return element;
 }
 
 const isEventInsideVisibleSurface = (e, surface) => {
   if (!surface || !surface.classList.contains('visible')) return false;
+  if (e.target instanceof Node && surface.contains(e.target)) return true;
   // A concrete event target is already the browser's hit-test result. Only use
   // elementFromPoint for ambiguous document/window-targeted synthetic events.
-  if (isInputEventNode(e.target)) {
-    if (surface.contains(e.target)) return true;
-    if (e.target.nodeType === 1) return false;
-  }
+  if (e.target instanceof Node && e.target.nodeType === 1) return false;
   const pointed = pointedElementForInputEvent(e);
-  return isInputEventNode(pointed) && surface.contains(pointed);
+  return pointed instanceof Node && surface.contains(pointed);
 };
 
 const isEventInsideVisibleContextMenu = (e) => {
@@ -204,7 +200,7 @@ const isEventInsideVisibleContextMenu = (e) => {
 };
 
 const isEventInsideViewportWheelSurface = (e) => {
-  return (isInputEventNode(e.target) && canvas.contains(e.target)) ||
+  return (e.target instanceof Node && canvas.contains(e.target)) ||
     isEventInsideVisibleContextMenu(e) || isEventInsideVisibleSurface(e, island);
 };
 
@@ -235,7 +231,7 @@ function blockShieldInput(e) {
 }
 var INPUT_SHIELD_EVENT_OPTIONS = { capture: true, passive: false };
 for (const type of ['pointerdown', 'pointermove', 'pointerup', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'auxclick', 'contextmenu', 'wheel', 'keydown', 'keyup', 'beforeinput', 'input', 'paste', 'drop', 'dragover']) {
-  BoardfishView.addDocumentListener(type, blockShieldInput, INPUT_SHIELD_EVENT_OPTIONS);
+  document.addEventListener(type, blockShieldInput, INPUT_SHIELD_EVENT_OPTIONS);
 }
 
 function _setStyleIfChanged(el, prop, value, state) {
@@ -248,7 +244,8 @@ const oppositeSelectionDir = function oppositeSelectionDir(dir) {
   if (dir === 'nw') return 'se';
   if (dir === 'ne') return 'sw';
   if (dir === 'se') return 'nw';
-  return dir === 'sw' ? 'ne' : '';
+  if (dir === 'sw') return 'ne';
+  return '';
 };
 
 const boundsCornerPoint = function boundsCornerPoint(bounds, dir) {
@@ -443,7 +440,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
       let dragMinTextW = null;
       function applyResize(clientX, clientY, eventZoom, ev) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const moveStartedAt = resizeDebugDragId ? performance.now() : 0;
+        const moveStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         const dx = (clientX - startX) / eventZoom;
         const dy = (clientY - startY) / eventZoom;
@@ -451,15 +448,17 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         let minTextW;
         let minWidthMs = '';
+        /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-        const minWidthStartedAt = resizeDebugDragId ? performance.now() : 0;
+        /* BOARDFISH_DEV_DIAGNOSTICS_START */
+        const minWidthStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (dragMinTextW == null) {
           dragMinTextW = getTextMinWidth(obj);
         }
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         minTextW = dragMinTextW;
-        if (resizeDebugDragId) minWidthMs = selectionResizeDebugRound(performance.now() - minWidthStartedAt);
+        if (resizeDebugDragId) minWidthMs = selectionResizeDebugRound(selectionResizeDebugNow() - minWidthStartedAt);
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (resizeEast) w = Math.max(dragMinTextW, ow + dx);
         if (resizeWest) { w = Math.max(dragMinTextW, ow - dx); x = ox + ow - w; }
@@ -478,10 +477,10 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
             h,
             minTextW,
             minWidthMs,
-            moveMs: selectionResizeDebugRound(performance.now() - moveStartedAt),
+            moveMs: selectionResizeDebugRound(selectionResizeDebugNow() - moveStartedAt),
           });
         }
-        const applyStartedAt = resizeDebugDragId ? performance.now() : 0;
+        const applyStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
         const beforeX = obj.x;
         const beforeY = obj.y;
         const beforeW = obj.w;
@@ -513,10 +512,10 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (render) {
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          const clearStartedAt = resizeDebugDragId ? performance.now() : 0;
-          const clearLayoutMs = resizeDebugDragId ? selectionResizeDebugRound(performance.now() - clearStartedAt) : '';
+          const clearStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+          const clearLayoutMs = resizeDebugDragId ? selectionResizeDebugRound(selectionResizeDebugNow() - clearStartedAt) : '';
           const heightBeforeAuto = resizeDebugDragId ? obj.h : 0;
-          const autoHeightStartedAt = resizeDebugDragId ? performance.now() : 0;
+          const autoHeightStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           resetTextEditPreservedMinLines(obj);
           syncTextAutoHeight(obj, getTextMinLines(obj));
@@ -524,7 +523,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           if (resizeDebugDragId) {
             autoHeightDebug = {
               clearLayoutMs,
-              autoHeightMs: selectionResizeDebugRound(performance.now() - autoHeightStartedAt),
+              autoHeightMs: selectionResizeDebugRound(selectionResizeDebugNow() - autoHeightStartedAt),
               autoHeightChanged: obj.h !== heightBeforeAuto,
               autoHeightReason: resizeFinalizing ? 'resize-final' : 'resize',
               layoutInvalidationMethod: 'cache-keyed',
@@ -533,12 +532,12 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
         }
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const scheduleStartedAt = resizeDebugDragId ? performance.now() : 0;
+        const scheduleStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (render) drawBoard(), updateSelectionOverlay();
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         if (resizeDebugDragId) {
-          const scheduleRenderMs = selectionResizeDebugRound(performance.now() - scheduleStartedAt);
+          const scheduleRenderMs = selectionResizeDebugRound(selectionResizeDebugNow() - scheduleStartedAt);
           recordSelectionTextResizeStep('apply-end', resizeDebugDragId, {
             objectId: obj.id,
             beforeX,
@@ -570,7 +569,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
             renderBoard: render,
             renderOverlay: render,
             scheduleRenderMs,
-            applyMs: selectionResizeDebugRound(performance.now() - applyStartedAt),
+            applyMs: selectionResizeDebugRound(selectionResizeDebugNow() - applyStartedAt),
           });
         }
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -586,7 +585,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
               objectId: obj.id,
             });
           }
-          const flushStartedAt = resizeDebugDragId ? performance.now() : 0;
+          const flushStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
           resizeFinalizing = true;
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           resizeCommitter.flush();
@@ -595,14 +594,14 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           if (resizeDebugDragId) {
             recordSelectionTextResizeStep('flush', resizeDebugDragId, {
               objectId: obj.id,
-              flushMs: selectionResizeDebugRound(performance.now() - flushStartedAt),
+              flushMs: selectionResizeDebugRound(selectionResizeDebugNow() - flushStartedAt),
               x: obj.x,
               y: obj.y,
               w: obj.w,
               h: obj.h,
             });
           }
-          const historyStartedAt = resizeDebugDragId ? performance.now() : 0;
+          const historyStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           pushHistory('resize', [obj.id]);
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -610,7 +609,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
             recordSelectionTextResizeStep('history-pushed', resizeDebugDragId, {
               objectId: obj.id,
               historyReason: 'resize',
-              historyMs: selectionResizeDebugRound(performance.now() - historyStartedAt),
+              historyMs: selectionResizeDebugRound(selectionResizeDebugNow() - historyStartedAt),
             });
             selectionInputPerfDebugApi()?.finishTextResizeDrag?.(resizeDebugDragId, {
               objectId: obj.id,
@@ -688,7 +687,9 @@ const normalizeTextEditHistoryState = (id, state = null) => {
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 const textEditHistoryDebugMeta = (id, state = null, normalized = null, extra = {}) => {
   const obj = id ? objectsMap.get(id) : null;
-  const proxyValue = _editEl ? textEditProxyValue(_editEl) : '';
+  const proxyValue = _editEl
+    ? textEditProxyValue(_editEl)
+    : (typeof _editEl?.value === 'string' ? _editEl.value : '');
   const rawStart = state?.start ?? state?.selectionStart ?? _editEl?.selectionStart ?? '';
   const rawEnd = state?.end ?? state?.selectionEnd ?? _editEl?.selectionEnd ?? rawStart;
   const insertedText = state?.replacement ? String(state.replacement.insertedText ?? '') : '';
@@ -782,7 +783,8 @@ const clearEditHistoryCheckpointTimer = () => {
 function flushEditHistoryCheckpoint() {
   clearEditHistoryCheckpointTimer();
   if (typeof _textInputSelectionHistorySuppress !== 'undefined') _textInputSelectionHistorySuppress = null;
-  return !editingId ? false : pushEditHistoryIfChanged(editingId);
+  if (!editingId) return false;
+  return pushEditHistoryIfChanged(editingId);
 }
 
 const shouldCommitTextEditInputImmediately = (inputType = '', hadSelection = false) =>

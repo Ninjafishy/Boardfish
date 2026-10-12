@@ -15,6 +15,10 @@
   const FILE_COMPARISON_TIMEOUT_MS = 5000;
   const FILE_WRITE_MIN_BYTES_PER_SECOND = 2 * 1024 * 1024;
 
+  function isAbortError(err) {
+    return err?.name === 'AbortError';
+  }
+
   function webFileRef(file, name = '') {
     return {
       kind: 'web-file',
@@ -40,7 +44,8 @@
 
   function describeFileRef(ref) {
     if (!ref) return '';
-    return typeof ref === 'string' ? ref : ref.name || ref.handle?.name || ref.file?.name || '';
+    if (typeof ref === 'string') return ref;
+    return ref.name || ref.handle?.name || ref.file?.name || '';
   }
 
   function fileNameFromRef(ref, fallback = 'board.bf') {
@@ -49,11 +54,13 @@
   }
 
   function canSaveToExistingTarget(ref) {
-    return !ref ? false : ref.unusable !== true && ref.kind === 'web-file-handle';
+    if (!ref) return false;
+    return ref.unusable !== true && ref.kind === 'web-file-handle';
   }
 
   function persistentFileHandleFromRef(ref) {
-    return ref?.kind !== 'web-file-handle' ? null : ref.handle || null;
+    if (ref?.kind !== 'web-file-handle') return null;
+    return ref.handle || null;
   }
 
   async function fileRefsAreSameEntry(firstRef, secondRef) {
@@ -90,18 +97,14 @@
     return /^TypeError$/i.test(name) && /failed to fetch|blob|read(?:ing)? (?:the )?file/i.test(message);
   }
 
-  async function recoverBoardImageSources(sourceRef, board, rawImageStore, timeoutMs) {
+  async function recoverBoardImageSources(sourceRef, board, rawImageStore) {
     const sourceHandle = persistentFileHandleFromRef(sourceRef);
     if (!sourceHandle || typeof sourceHandle.getFile !== 'function') return null;
     const freshFile = await waitForFileOperation(
       () => sourceHandle.getFile(),
       'Refreshing Images',
     );
-    return waitForFileOperation(
-      () => root.BoardfishWebBoardContainer.recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore, freshFile),
-      'Refreshing Images',
-      timeoutMs,
-    );
+    return root.BoardfishWebBoardContainer.recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore, freshFile);
   }
 
   function fileOperationTimeoutError(stage) {
@@ -131,12 +134,12 @@
     let timeoutId = 0;
     const operation = Promise.resolve(run());
     const timeout = new Promise((_, reject) => {
-      timeoutId = BoardfishView.setTimeout(() => reject(fileOperationTimeoutError(stage)), timeoutMs);
+      timeoutId = setTimeout(() => reject(fileOperationTimeoutError(stage)), timeoutMs);
     });
     try {
       return await Promise.race([operation, timeout]);
     } finally {
-      if (timeoutId) BoardfishView.clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 
@@ -146,17 +149,15 @@
     return Math.min(FILE_OPERATION_MAX_TIMEOUT_MS, FILE_OPERATION_TIMEOUT_MS + transferMs);
   }
 
-  function boardPreparationTimeoutMs(board, imageStore) {
-    let size = 0;
-    for (const key of Object.keys(board?.imageStore || {})) {
-      const source = imageStore[key];
-      size += Math.max(0, Number(source?.bytes || source?.size || source?.byteLength || source?.length) || 0);
-    }
-    return fileWriteTimeoutMs({ size });
+  function hasOpenFileSystemAccess() {
+    return typeof root.showOpenFilePicker === 'function';
+  }
+
+  function hasSaveFileSystemAccess() {
+    return typeof root.showSaveFilePicker === 'function';
   }
 
   function pickFileWithInput(accept) {
-    const pickerWindow = boardWindow();
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -167,7 +168,7 @@
       let focusCancelTimer = 0;
       const removeFocusFallback = () => {
         if (focusHandler) {
-          pickerWindow.removeEventListener('focus', focusHandler);
+          root.removeEventListener('focus', focusHandler);
           focusHandler = null;
         }
         if (focusCancelTimer) {
@@ -195,21 +196,21 @@
             if (!input.files?.length) done(null);
           }, 500);
         };
-        pickerWindow.addEventListener('focus', focusHandler, { once: true });
+        root.addEventListener('focus', focusHandler, { once: true });
       }, 0);
-      boardDocument().body.appendChild(input);
+      document.body.appendChild(input);
       input.click();
     });
   }
 
   const unlessAborted = (picker) => picker.catch((err) => {
-    if (err?.name === 'AbortError') return null;
+    if (isAbortError(err)) return null;
     throw err;
   });
 
   async function openFileDialog() {
-    if (typeof boardWindow().showOpenFilePicker !== 'function') return pickFileWithInput('.bf');
-    const handles = await unlessAborted(boardWindow().showOpenFilePicker({
+    if (!hasOpenFileSystemAccess()) return pickFileWithInput('.bf');
+    const handles = await unlessAborted(root.showOpenFilePicker({
       multiple: false,
       types: BOARD_FILE_TYPES,
       excludeAcceptAllOption: false,
@@ -218,8 +219,8 @@
   }
 
   async function saveFileDialog(defaultName = 'board.bf') {
-    if (typeof boardWindow().showSaveFilePicker !== 'function') return webDownloadRef(defaultName);
-    const handle = await unlessAborted(boardWindow().showSaveFilePicker({
+    if (!hasSaveFileSystemAccess()) return webDownloadRef(defaultName);
+    const handle = await unlessAborted(root.showSaveFilePicker({
       suggestedName: defaultName,
       types: BOARD_FILE_TYPES,
       excludeAcceptAllOption: false,
@@ -269,16 +270,10 @@
       throw new Error('Permission Denied');
     }
     const timeoutMs = fileWriteTimeoutMs(blob);
-    const opening = Promise.resolve(handle.createWritable());
-    let writable;
-    try {
-      writable = await waitForFileOperation(() => opening, 'Opening File');
-    } catch (err) {
-      // A delayed browser response can acquire a file lock after we time out.
-      // Release that abandoned writer without committing it or blocking retry.
-      opening.then((lateWritable) => lateWritable.abort?.(err)).catch(() => {});
-      throw err;
-    }
+    const writable = await waitForFileOperation(
+      () => handle.createWritable(),
+      'Opening File',
+    );
     let stage = 'Writing File';
     try {
       await waitForFileOperation(() => writable.write(blob), stage, timeoutMs);
@@ -308,7 +303,7 @@
     link.href = url;
     link.download = name;
     link.style.display = 'none';
-    boardDocument().body.appendChild(link);
+    document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
@@ -319,7 +314,6 @@
     const totalStart = performance.now();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const rawImageStore = options.imageStore || root.imageStore || {};
-    const preparationTimeoutMs = boardPreparationTimeoutMs(board, rawImageStore);
     const validateBoardPayload = root.BoardfishWebLimits.validateBoardPayload;
     const writesExistingHandle = ref?.kind === 'web-file-handle';
     const sourceTargetSameEntry = writesExistingHandle && Object.hasOwn(options, 'sourceFileRef')
@@ -341,11 +335,7 @@
       const stabilizeStart = performance.now();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       if (writesExistingHandle && sourceTargetSameEntry !== false && typeof stabilizeImageSources === 'function') {
-        const stabilized = await waitForFileOperation(
-          () => stabilizeImageSources(board, rawImageStore),
-          'Preparing Images',
-          preparationTimeoutMs,
-        );
+        const stabilized = await stabilizeImageSources(board, rawImageStore);
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         imageSourceRefreshMs += performance.now() - stabilizeStart;
         imageSourceRefreshCount += Number(stabilized?.refreshed || 0);
@@ -365,10 +355,12 @@
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       const createStart = performance.now();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      const created = await waitForFileOperation(
-        () => root.BoardfishWebBoardContainer.createBoardContainerBlob(board, rawImageStore, { validateBoardPayload }),
-        'Preparing Board',
-        preparationTimeoutMs,
+      const created = await root.BoardfishWebBoardContainer.createBoardContainerBlob(
+        board,
+        rawImageStore,
+        {
+          validateBoardPayload,
+        },
       );
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
       serializeMs += performance.now() - createStart;
@@ -405,7 +397,6 @@
         options.sourceFileRef,
         board,
         rawImageStore,
-        preparationTimeoutMs,
       );
       if (recovered !== true && Number(recovered?.refreshed || 0) <= 0) throw err;
       /* BOARDFISH_DEV_DIAGNOSTICS_START */

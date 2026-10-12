@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 
 
 function cloneObject(obj, runtimeTextCache = false) {
@@ -50,6 +50,7 @@ function makeEditProxy({
     selectionStart,
     selectionEnd,
     selectionDirection,
+    removed: false,
     focused: false,
     _boardfishLogicalValue: value,
     _boardfishDomValueStale: false,
@@ -57,7 +58,9 @@ function makeEditProxy({
       this._boardfishLogicalValue = String(nextValue ?? '');
       this._boardfishDomValueStale = domSynced === false || this.value !== this._boardfishLogicalValue;
     },
-    remove() {},
+    remove() {
+      this.removed = true;
+    },
     focus() {
       this.focused = true;
     },
@@ -85,6 +88,7 @@ function loadHistoryHarness() {
     clearTimeout() {},
     document: {
       addEventListener() {},
+      removeEventListener() {},
     },
     jsClipboard: null,
     _jsClipboardToken: 0,
@@ -185,6 +189,7 @@ function loadTextEditHistoryStateHarness() {
   const source = readSource('src/js/selection_input.js');
   const start = source.indexOf('const normalizeTextEditHistoryState');
   const context = {
+    editingId: 'text-1',
     objectsMap: new Map(),
     _editEl: null,
     _editHistoryTimer: null,

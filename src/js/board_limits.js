@@ -51,7 +51,8 @@
 
   function canAddObjects(count = 1, options = {}) {
     const nextCount = objectCount() + Math.max(0, Number(count) || 0);
-    return nextCount <= LIMITS.maxObjects ? true : rejectLimit(objectLimitMessage(), options);
+    if (nextCount <= LIMITS.maxObjects) return true;
+    return rejectLimit(objectLimitMessage(), options);
   }
 
   function textCharacterCount(text = '') {
@@ -72,12 +73,14 @@
 
   function canAcceptAdditionalTextCharacters(count = 0, options = {}) {
     const nextCount = currentTextCharacters() + Math.max(0, Number(count) || 0);
-    return nextCount <= LIMITS.maxTextCharacters ? true : rejectLimit(textCharacterLimitMessage(), options);
+    if (nextCount <= LIMITS.maxTextCharacters) return true;
+    return rejectLimit(textCharacterLimitMessage(), options);
   }
 
   function canReplaceText(obj, nextText, options = {}) {
     const nextCount = currentTextCharacters(root.objects, obj) + textCharacterCount(nextText);
-    return nextCount <= LIMITS.maxTextCharacters ? true : rejectLimit(textCharacterLimitMessage(), options);
+    if (nextCount <= LIMITS.maxTextCharacters) return true;
+    return rejectLimit(textCharacterLimitMessage(), options);
   }
 
   let textByteEncoder = null;
@@ -92,7 +95,8 @@
 
   function imageSourceByteLength(source) {
     if (typeof source === 'string' && source.startsWith('data:')) return root.BoardfishWebBoardContainer.dataUrlByteLength(source);
-    return source && typeof source === 'object' ? Number(source.bytes || source.byteLength || 0) || 0 : 0;
+    if (source && typeof source === 'object') return Number(source.bytes || source.byteLength || 0) || 0;
+    return 0;
   }
 
   function currentContentBytes() {
@@ -122,7 +126,8 @@
 
   function canAcceptAdditionalContentBytes(additionalImageBytes = 0, additionalObjectCount = 0, options = {}) {
     const projected = projectedContentBytes(additionalImageBytes, additionalObjectCount, options.baseBytes);
-    return projected <= LIMITS.maxBoardContentBytes ? true : rejectLimit(boardContentLimitMessage(), options);
+    if (projected <= LIMITS.maxBoardContentBytes) return true;
+    return rejectLimit(boardContentLimitMessage(), options);
   }
 
   function validateBoardPayload({ objectCount: nextObjectCount = 0, textCharacters = 0, boardJsonBytes = 0, imageBytes = null } = {}) {

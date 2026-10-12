@@ -46,7 +46,7 @@ unsavedDialog.addEventListener('contextmenu', (e) => {
   e.stopPropagation();
 });
 for (const choice of ['save', 'discard', 'cancel']) {
-  boardDocument().getElementById(`dlg-${choice}`).addEventListener('click', () => _dialogClose(choice));
+  document.getElementById(`dlg-${choice}`).addEventListener('click', () => _dialogClose(choice));
 }
 
 // Returns 'save' | 'discard' | 'cancel'
@@ -81,11 +81,9 @@ const beginOpeningFreeze = () => {
 
 const endOpeningFreeze = () => {
   if (!openingShield) return;
-  boardDocument().body.appendChild(island);
+  document.body.appendChild(island);
   canvas.prepend(boardCanvas);
-  // Preserve the frozen frame's size until resizeCanvas queues its redraw.
-  boardCanvas.style.left = '';
-  boardCanvas.style.top = '';
+  boardCanvas.removeAttribute('style');
   openingShield.classList.remove('active', 'opening-freeze');
   openingShield.replaceChildren();
   openingShield.style.background = '';
@@ -149,7 +147,9 @@ const shouldCollectOpenBoardMetrics = (dbg = null) => {
 const getBoardOpenDebugMetrics = (dbg, data) => {
   return shouldCollectOpenBoardMetrics(dbg) ? getBoardOpenMetrics(data) : {};
 };
+/* BOARDFISH_DEV_DIAGNOSTICS_END */
 
+/* BOARDFISH_DEV_DIAGNOSTICS_START */
 function getImageStoreOpenDebugSample(limit = 12) {
   return BoardfishBoardDocument.getImageStoreDebugSample(imageStore, boardDocumentDeps(), limit);
 }
@@ -169,7 +169,7 @@ function scheduleDebugFrameProbe(api, dbg, label) {
   if (!api.enabled) return null;
   const scheduledAt = performance.now();
   let done = false;
-  BoardfishView.requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
     done = true;
     api.step(dbg, label, { queueMs: performance.now() - scheduledAt });
   });
@@ -426,7 +426,7 @@ function createOpenTextWarmupTarget() {
 function warmOpenTextLineForDraw(target, obj, line) {
   if (!target?.context || !line || !String(line.text ?? '').length) return false;
   const context = target.context;
-  const dpr = typeof window !== 'undefined' ? (Number(boardWindow().devicePixelRatio) || 1) : 1;
+  const dpr = typeof window !== 'undefined' ? (Number(window.devicePixelRatio) || 1) : 1;
   const viewZoom = Number(zoom) || 1;
   const deviceScale = Math.max(0.25, Math.min(4, viewZoom * dpr));
   const margin = 12;
@@ -461,7 +461,7 @@ async function hydrateTextDrawCachesForOpen(
   const startedAt = performance.now();
   let textObjects = 0, textLines = 0, warmedLines = 0, chars = 0;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const fontSet = typeof document !== 'undefined' ? boardDocument().fonts : null;
+  const fontSet = typeof document !== 'undefined' ? document.fonts : null;
   if (fontSet?.ready) {
     try { await fontSet.ready; } catch {}
   }
@@ -716,8 +716,7 @@ const runExclusiveBoardSave = (
 runExclusiveBoardSave.inFlight = null;
 
 function showSaveFailurePill(err) {
-  showIslandMsg(err?.boardfishLimit && err.boardfishUserMessage ||
-    (err?.name === 'TimeoutError' ? 'Save Timed Out' : 'Save Failed'), long_message);
+  showIslandMsg(err?.boardfishLimit && err.boardfishUserMessage || 'Save Failed', long_message);
 }
 
 const saveBoardImpl = async (saveAs = false) => {

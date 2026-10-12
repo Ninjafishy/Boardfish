@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readSource } = require('../test-support/source.js');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 
 
 function cssBlocksForPrelude(source, prelude) {
@@ -37,6 +37,7 @@ function loadCanvasWheelHarness() {
     classList: { add() {}, remove() {} },
   });
   const context = {
+    performance: { now: () => 100 },
     window: {
       addEventListener(type, handler, options) {
         listeners.window.push({ type, handler, options });
@@ -48,24 +49,41 @@ function loadCanvasWheelHarness() {
       },
     },
     canvas: makeTarget('canvas'),
+    boardCanvas: {},
+    objectsMap: new Map(),
+    selectedIds: new Set(),
     editingId: null,
     zoom: 1,
+    panX: 0,
+    panY: 0,
     _rubberBandDragActive: false,
     zoomCalls: [],
     transforms: [],
+    isEventInsideViewportWheelSurface: (e) => e.insideViewportWheelSurface === true,
     ViewportDebug: {
       isEnabled: () => false,
+      start: () => ({}),
       count() {},
+      end() {},
+      timing() {},
     },
     BoardfishViewportState: {
       zoomAroundClient(clientX, clientY, nextZoom) {
         context.zoom = nextZoom;
         context.zoomCalls.push({ clientX, clientY, nextZoom }); return true;
       },
+      panBy() { return true; },
     },
     scheduleTransform(changed, source, event) {
       context.transforms.push({ changed, source, event });
     },
+    createRafCommitter: () => ({ schedule() {}, flush() {} }),
+    beginDocumentDrag() {},
+    isMultiSelected: () => false,
+    BoardObjectGeometry: { topObjectAtWorldPoint: () => null },
+    toWorld: () => ({ x: 0, y: 0 }),
+    deselectAll() {},
+    BoardfishEditorState: { setSelection() {} },
   };
 
   vm.createContext(context);
@@ -129,6 +147,7 @@ function loadMenuCommandHarness() {
 
   const context = {
     calls: [],
+    console,
     MenuDebug: { log() {} },
     MENU_COMMANDS: {
       'btn-open': (event) => context.calls.push(event),
@@ -191,7 +210,7 @@ function loadTextEditMenuHarness() {
   return context;
 }
 
-function loadTextEditPasteHarness({ htmlFixture } = {}) {
+function loadTextEditPasteHarness() {
   const source = readSource('src/js/context_menu.js');
   const readStart = source.indexOf('const readTextClipboardForEditMenu');
   const readEnd = source.indexOf('const replaceTextEditSelection', readStart);
@@ -229,17 +248,10 @@ function loadTextEditPasteHarness({ htmlFixture } = {}) {
     replaceTextEditSelection(text, options) {
       calls.replacements.push({ text, options });
     },
+    MenuDebug: { log() {} },
   };
 
-  if (htmlFixture) {
-    context.document = { createElement: () => htmlFixture.createTemplate() };
-    context.navigator.clipboard.read = () => {
-      calls.clipboardReadActivations.push(context.clipboardActivation);
-      return Promise.resolve([htmlFixture.clipboardItem('Elizabeth\n\n\n\nDana')]);
-    };
-  }
   vm.createContext(context);
-  vm.runInContext(readSource('src/js/clipboard_io.js'), context);
   vm.runInContext(
     `${source.slice(readStart, readEnd)}\n${source.slice(pasteStart, pasteEnd)}\n` +
       'this.pasteTextIntoEditSelection = pasteTextIntoEditSelection;\n',
@@ -270,7 +282,7 @@ test('context menu command buttons use the button click point as the object cent
 
   assert.match(contextMenuSource, /const HAS_POINTER_EVENTS = 'PointerEvent' in window;/);
   assert.match(contextMenuSource, /const BOARD_CURSOR_CLIENT_EVENT_TYPES = Object\.freeze\(\[[\s\S]*HAS_POINTER_EVENTS[\s\S]*'pointermove'[\s\S]*'mousemove'[\s\S]*'click'[\s\S]*'dragover'[\s\S]*'drop'[\s\S]*\]\);/);
-  assert.match(contextMenuSource, /for \(const type of BOARD_CURSOR_CLIENT_EVENT_TYPES\) \{\s*BoardfishView\.addWindowListener\(type, rememberBoardCursorClientPoint, true\);\s*\}/);
+  assert.match(contextMenuSource, /for \(const type of BOARD_CURSOR_CLIENT_EVENT_TYPES\) \{\s*window\.addEventListener\(type, rememberBoardCursorClientPoint, true\);\s*\}/);
   assert.doesNotMatch(contextMenuSource, /document\.addEventListener\(type, rememberBoardCursorClientPoint, true\)/);
   assert.match(contextMenuSource, /function menuCommandWorldPoint\(event = null\) \{[\s\S]*return toWorld\(x, y\);[\s\S]*return boardCursorWorldPoint\(\);[\s\S]*\}/);
   assert.match(contextMenuSource, /const point = menuCommandWorldPoint\(event\);[\s\S]*addText\(point\.x, point\.y, '', \{ anchor: 'center' \}\)/);
@@ -348,18 +360,6 @@ test('external text Paste starts its clipboard read before user activation expir
   assert.equal(context.calls.replacements[0].options.inputType, 'insertFromPaste');
 });
 
-test('text edit Paste menu reads rich lists during user activation and removes item margins', async () => {
-  const { element: el, clipboardHtmlFixture } = require('../test-support/clipboard.js');
-  const context = loadTextEditPasteHarness({
-    htmlFixture: clipboardHtmlFixture(el('ol', el('li', el('p', 'Elizabeth')), el('li', el('p', 'Dana')))),
-  });
-  const paste = context.pasteTextIntoEditSelection();
-  context.clipboardActivation = false;
-  await paste;
-  assert.deepEqual(context.calls.clipboardReadActivations, [true]);
-  assert.equal(context.calls.replacements[0].text, 'Elizabeth\nDana');
-});
-
 test('stale internal text candidate primes external fallback before user activation expires', async () => {
   const context = loadTextEditPasteHarness();
   context._jsClipboardWebMaybeStale = true;
@@ -387,14 +387,14 @@ test('wheel zoom over visible floating UI uses the viewport wheel handler', () =
   const styles = readSource('src/styles.css');
 
   assert.match(inputSource, /function handleViewportWheel\(e\) \{\s*if \(!e\.ctrlKey && !e\.metaKey && !isEventInsideViewportWheelSurface\(e\)\) return;/);
-  assert.match(inputSource, /BoardfishView\.addWindowListener\('wheel', handleViewportWheel, \{ capture: true, passive: false \}\);/);
+  assert.match(inputSource, /window\.addEventListener\('wheel', handleViewportWheel, \{ capture: true, passive: false \}\);/);
   assert.doesNotMatch(inputSource, /canvas\.addEventListener\('wheel'/);
   assert.doesNotMatch(inputSource, /viewportWheelSurfaces/);
   assert.match(inputSource.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_(?:START|END) \*\//g, ''), /const requestedZoom = zoom \* factor;\s*scheduleTransform\(BoardfishViewportState\.zoomAroundClient\(e\.clientX, e\.clientY, requestedZoom\)\s*, 'wheel-zoom', e\s*\);/);
   assert.match(viewportSource, /lastViewportInputAt = now;\s*if \(changed === false && !editingId\) return;/);
   assert.doesNotMatch(inputSource, /const newZoom = Math\.min\(ZOOM_MAX/);
-  assert.match(selectionSource, /boardDocument\(\)\.elementFromPoint\(x, y\)/);
-  assert.match(selectionSource, /if \(e\.target\.nodeType === 1\) return false;/);
+  assert.match(selectionSource, /document\.elementFromPoint\(x, y\)/);
+  assert.match(selectionSource, /if \(e\.target instanceof Node && e\.target\.nodeType === 1\) return false;/);
   assert.match(selectionSource, /const isEventInsideViewportWheelSurface = \(e\) => \{[\s\S]*canvas\.contains\(e\.target\)[\s\S]*isEventInsideVisibleContextMenu\(e\) \|\| isEventInsideVisibleSurface\(e, island\);[\s\S]*\};/);
   assert.match(selectionSource, /const isEventInsideVisibleContextMenu = \(e\) => \{[\s\S]*isEventInsideVisibleSurface\(e, ctxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, objCtxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, ctxActions\)[\s\S]*\};/);
   assert.match(styles, /#island \{[\s\S]*overscroll-behavior: none;[\s\S]*touch-action: none;/);
@@ -599,6 +599,7 @@ test('text edit caret stays inside content bounds at low zoom', () => {
   const context = {
     LINE_H: 24,
     TEXT_PAD: 16,
+    zoom: 1,
     lineCaretXAtOffset(line, obj, offset) {
       return obj.x + context.TEXT_PAD + offset * 10;
     },
@@ -688,6 +689,7 @@ test('overlapping text selection highlight runs share one path fill', () => {
   const drawCalls = [];
   const context = {
     TextSelDebug: { _logDraw() {} },
+    applyTextSelectionMotionTransform() {},
   };
   vm.createContext(context);
   vm.runInContext(
@@ -741,8 +743,7 @@ test('unsaved changes dialog suppresses browser context menu without closing', (
 test('global capture wheel zoom over the zoom pill is handled once by the board', () => {
   const context = loadCanvasWheelHarness();
   const windowWheel = context.listeners.window.find((entry) => entry.type === 'wheel');
-  // Passive timeout recovery can observe the event but must never zoom again.
-  const documentWheel = context.listeners.document.find((entry) => entry.type === 'wheel' && !entry.options?.passive);
+  const documentWheel = context.listeners.document.find((entry) => entry.type === 'wheel');
   assert.equal(windowWheel.options.capture, true);
   assert.equal(windowWheel.options.passive, false);
   assert.equal(documentWheel, undefined);

@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 
 function noopDebugApi() {
   return {
@@ -17,17 +17,39 @@ function noopDebugApi() {
 
 function loadImageState(createImageBitmap) {
   const rafs = [];
+  const timers = [];
   let now = 0;
   const context = {
     Map,
     Set,
     Promise,
+    Error,
     Object,
     Number,
+    Math,
     String,
     Blob,
     performance: { now: () => ++now },
-    document: {},
+    document: {
+      createElement(name) {
+        if (name !== 'canvas') return {};
+        return {
+          width: 0,
+          height: 0,
+          getContext() {
+            return {
+              drawImage() {},
+              scale() {},
+              rotate() {},
+            };
+          },
+        };
+      },
+    },
+    setTimeout(callback, ms = 0) {
+      timers.push({ callback, ms });
+      return timers.length;
+    },
     requestAnimationFrame(cb) {
       rafs.push(cb);
       return rafs.length;
@@ -56,7 +78,7 @@ function loadImageState(createImageBitmap) {
     context,
     { filename: 'image_state.js' },
   );
-  return { context, rafs };
+  return { context, rafs, timers };
 }
 
 test('image readiness throttles board frames and skips work during board opening', () => {

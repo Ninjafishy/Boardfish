@@ -1,7 +1,6 @@
 'use strict';
 
 (function initClipboardIO(root) {
-  const clipboardNavigator = () => typeof boardNavigator === 'function' ? boardNavigator() : root.navigator;
   const BOARDFISH_CLIPBOARD_TOKEN_RE = /<!--\s*boardfish-clipboard:([A-Za-z0-9._:-]+)\s*-->/i;
 
   function createBoardfishClipboardMarker(token) {
@@ -23,7 +22,8 @@
   function imageClipboardHtml(token, dataUrl = '') {
     const marker = createBoardfishClipboardMarker(token);
     const src = String(dataUrl || '');
-    return !src ? boardfishTokenClipboardHtml(token) : `${marker}<img src="${src}" alt="">`;
+    if (!src) return boardfishTokenClipboardHtml(token);
+    return `${marker}<img src="${src}" alt="">`;
   }
 
   async function blobToDataUrl(blob) {
@@ -58,18 +58,23 @@
   }
 
   function readBoardfishClipboardTokenFromEvent(clipboardData) {
-    return !clipboardData ? '' : readBoardfishClipboardTokenFromHtml(clipboardData.getData?.('text/html') || '');
+    if (!clipboardData) return '';
+    return readBoardfishClipboardTokenFromHtml(clipboardData.getData?.('text/html') || '');
   }
 
   function supportsRichClipboardWrite() {
-    return !!clipboardNavigator().clipboard?.write && typeof ClipboardItem !== 'undefined' && typeof Blob !== 'undefined';
+    return !!navigator.clipboard?.write && typeof ClipboardItem !== 'undefined' && typeof Blob !== 'undefined';
   }
 
-  const writeClipboardItem = (parts) => clipboardNavigator().clipboard.write([new ClipboardItem(parts)]);
+  const writeClipboardItem = (parts) => navigator.clipboard.write([new ClipboardItem(parts)]);
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    function clipboardIoElapsedMs(startedAt) {
-    return Math.round((performance.now() - startedAt) * 100) / 100;
+  function clipboardIoNow() {
+    return performance.now();
+  }
+
+  function clipboardIoElapsedMs(startedAt) {
+    return Math.round((clipboardIoNow() - startedAt) * 100) / 100;
   }
 
   function textClipboardStats(text) {
@@ -131,115 +136,9 @@
     return imageFile;
   }
 
-  function readClipboardTextFromEvent(clipboardData, prepareText = (text) => text) {
+  function readClipboardTextFromEvent(clipboardData) {
     if (!clipboardData) return '';
-    const text = clipboardData.getData?.('text/plain') || clipboardData.getData?.('text') || '';
-    let html = '';
-    try { html = clipboardData.getData?.('text/html') || ''; } catch {}
-    return normalizeClipboardListSpacing(prepareText(text), html);
-  }
-
-  function normalizeClipboardListSpacing(text, html) {
-    // Browser plain text can turn list-item margins into several empty lines.
-    // Use the inert HTML only to identify item boundaries, keeping the actual
-    // plain text (including its markers and indentation) as the source of truth.
-    if (!/\n[^\S\n]*\n/.test(text) || !/<li[\s>]/i.test(html)) return text;
-    try {
-      const doc = typeof boardDocument === 'function' ? boardDocument() : root.document;
-      const template = doc.createElement('template');
-      template.innerHTML = html;
-      const parts = [];
-      const boundaries = new Set();
-      const explicitBreaks = new Set();
-      let offset = 0;
-      const withoutWhitespace = (value) => value.replace(/\s/g, '');
-      const visit = (parent) => {
-        let previousItemEnd = -1;
-        for (const node of parent.childNodes) {
-          if (node.nodeType === 3) {
-            const value = withoutWhitespace(node.nodeValue);
-            parts.push(value);
-            offset += value.length;
-          } else if (node.nodeType === 1) {
-            const tag = node.localName;
-            if (/^(?:script|style|template|noscript)$/.test(tag)) continue;
-            if (tag === 'br') explicitBreaks.add(offset);
-            if (tag === 'li') {
-              const start = offset;
-              visit(node);
-              if (offset > start && previousItemEnd === start) boundaries.add(start);
-              // Empty list items represent intentional space.
-              previousItemEnd = offset > start ? offset : -1;
-            } else {
-              visit(node);
-              previousItemEnd = -1;
-            }
-          }
-        }
-      };
-      visit(template.content);
-      if (!boundaries.size) return text;
-
-      const lines = text.replace(/\r\n?/g, '\n').split('\n');
-      const htmlText = parts.join('');
-      let lineContents = lines.map(withoutWhitespace);
-      if (lineContents.join('') !== htmlText) {
-        // Some browsers include generated list markers in plain text only.
-        lineContents = lines.map((line) => withoutWhitespace(line.replace(
-          /^\s*(?:[-*+•‣◦▪▫]|\d+[.)]|[A-Za-z][.)])[^\S\n]+/, '',
-        )));
-        if (lineContents.join('') !== htmlText) return text;
-      }
-      offset = 0;
-      return lines.filter((line, index) => {
-        offset += lineContents[index].length;
-        return /\S/.test(line) || !boundaries.has(offset) || explicitBreaks.has(offset);
-      }).join('\n');
-    } catch {
-      // Missing or unusable HTML must never prevent a plain-text paste.
-      return text;
-    }
-  }
-
-  async function readClipboardTextFromBrowser(items = null, prepareText = (text) => text) {
-    if (!items) {
-      items = [];
-      if (clipboardNavigator().clipboard?.read) {
-        try {
-          items = await clipboardNavigator().clipboard.read();
-        } catch {
-          // Older browsers may only support reading plain text.
-        }
-      }
-    }
-    // Reuse the clipboard snapshot, including items read while checking a
-    // Boardfish token. Office apps can supply text and an image of the same cells.
-    for (const item of items) {
-      if (!item.types?.includes('text/plain')) continue;
-      try {
-        const blob = await item.getType('text/plain');
-        const text = await blob.text();
-        if (/\S/.test(text)) {
-          let html = '';
-          try {
-            if (/\n[^\S\n]*\n/.test(text) && item.types.includes('text/html')) {
-              html = await (await item.getType('text/html')).text();
-            }
-          } catch {
-            // HTML is optional; retain the readable plain-text representation.
-          }
-          return normalizeClipboardListSpacing(prepareText(text), html);
-        }
-      } catch {
-        // One unreadable representation must not prevent the remaining fallbacks.
-      }
-    }
-    try {
-      return prepareText(await clipboardNavigator().clipboard?.readText?.() || '');
-    } catch {
-      // Image-only clipboards may reject text reads; keep image paste available.
-      return '';
-    }
+    return clipboardData.getData?.('text/plain') || clipboardData.getData?.('text') || '';
   }
 
   async function copyTextToClipboard(text
@@ -251,7 +150,7 @@
     const boardfishToken = options?.boardfishToken || '';
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const meta = options;
-    const writeStartedAt = performance.now();
+    const writeStartedAt = clipboardIoNow();
     const stats = textClipboardStats(text);
     ClipDebug.step(dbg, 'web-clipboard-text-write-start', {
       ...meta,
@@ -261,7 +160,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     if (boardfishToken && supportsRichClipboardWrite()) {
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const richStartedAt = performance.now();
+      const richStartedAt = clipboardIoNow();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       try {
         await writeClipboardItem({
@@ -294,9 +193,9 @@
       }
     }
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const plainStartedAt = performance.now();
+    const plainStartedAt = clipboardIoNow();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    await clipboardNavigator().clipboard.writeText(text);
+    await navigator.clipboard.writeText(text);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     ClipDebug.step(dbg, 'web-clipboard-plain-text-write-end', {
       ...meta,
@@ -353,11 +252,11 @@
     dbg = null
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
   ) {
-    if (!clipboardNavigator().clipboard?.read) return { checked: false, token: '', items: null };
+    if (!navigator.clipboard?.read) return { checked: false, token: '', items: null };
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     ClipDebug.step(dbg, 'browser-clipboard-token-read:start');
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    const items = await clipboardNavigator().clipboard.read();
+    const items = await navigator.clipboard.read();
     for (const item of items) {
       if (!item.types?.includes?.('text/html')) continue;
       const blob = await item.getType('text/html');
@@ -454,7 +353,6 @@
     readBoardfishClipboardTokenFromBrowser,
     readBoardfishClipboardTokenFromEvent,
     readClipboardImageFileFromEvent,
-    readClipboardTextFromBrowser,
     readClipboardTextFromEvent,
   };
   /* BOARDFISH_DEV_DIAGNOSTICS_START */

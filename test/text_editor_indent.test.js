@@ -3,10 +3,9 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 
 const { loadLiveTextEditResizeHarness, createUnitTextContext } = require('../test-support/text_editor.js');
-const { listNames, namesListFixture } = require('../test-support/clipboard.js');
 const TEST_LINE_H = 24;
 const TEST_TEXT_PAD = 16;
 const TEST_NEW_TEXT_EDIT_MIN_LINES = 1;
@@ -15,7 +14,7 @@ const DEFAULT_TEXT_BOX_HEIGHT = TEST_NEW_TEXT_EDIT_MIN_LINES * TEST_LINE_H + TES
 const DEFAULT_TEXT_BOX_WIDTH = DEFAULT_TEXT_BOX_HEIGHT * 6;
 
 function loadTextEditorHelpers() {
-  const context = {};
+  const context = { console };
   vm.createContext(context);
   vm.runInContext(
     readSource('src/js/text_editor.js') +
@@ -30,10 +29,26 @@ function loadTextEditorHelpers() {
 function loadTextEditorIntegrationHelpers() {
   const context = {
     performance,
+    console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     document: {
       createElement() { return { getContext: createUnitTextContext }; },
     },
+    objects: [],
+    dirty: [],
+    histories: [],
+    renders: [],
+    animations: [],
+    _caretVisible: false,
+    BoardfishMotion: {
+      applyCopyFeedback(payload) { context.animations.push(payload); },
+    },
+    shouldCommitTextEditInputImmediately() { return false; },
+    flushEditHistoryCheckpoint() { context.flushedHistory = true; return false; },
+    invalidateOffscreen() {},
+    markDirty(obj) { context.dirty.push(obj.id); },
+    pushHistory(reason) { context.histories.push(reason); },
+    scheduleRender(board, overlay, reason) { context.renders.push({ board, overlay, reason }); },
   };
   vm.createContext(context);
   vm.runInContext(
@@ -118,18 +133,23 @@ function loadExitEditHarness() {
   };
   const context = {
     performance,
+    console,
+    BoardfishWebLimits: { canReplaceText() { return true; } },
+    objects: [obj],
     obj,
     objectsMap: new Map([[obj.id, obj]]),
     editingId: obj.id,
-    _editEl: { value: '', remove() {} },
+    _editEl: { value: '', remove() { context.removedProxy = true; } },
     _caretBlinkInterval: 7,
     _selChangeListener: null,
     _editHistoryTimer: null,
     _editHistoryLastContent: 'Hi',
     _editHistoryActionStartState: null,
+    _textInputSelectionHistorySuppress: null,
     dirty: [],
     histories: [],
     editHistoryPushes: [],
+    animations: [],
     renders: [],
     clearedIntervals: [],
     clearedTimeouts: [],
@@ -151,11 +171,18 @@ function loadExitEditHarness() {
           },
         };
       },
+      removeEventListener() {},
     },
     window: {
       getSelection() {
-        return { removeAllRanges() {} };
+        return { removeAllRanges() { context.removedRanges = true; } };
       },
+    },
+    BoardfishMotion: {
+      applyCopyFeedback(payload) { context.animations.push(payload); },
+    },
+    BoardfishEditorState: {
+      removeObjectsById() {},
     },
     clearInterval(id) { context.clearedIntervals.push(id); },
     clearTimeout(id) { context.clearedTimeouts.push(id); },
@@ -163,6 +190,7 @@ function loadExitEditHarness() {
     pushEditHistoryIfChanged(id) { context.editHistoryPushes.push(id); return false; },
     pushHistory(reason) { context.histories.push(reason); },
     scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
+    invalidateOffscreen() { context.invalidated = true; },
   };
   vm.createContext(context);
   vm.runInContext(
@@ -634,29 +662,6 @@ test('external edit paste trims whitespace-only edge lines before insertion', ()
   assert.equal(context.proxy.value, obj.data.content);
   assert.equal(context.proxy.selectionStart, 'existing line 1\nexisting line 2\nline 1\n\nline 2'.length);
 });
-
-for (const selected of [false, true]) {
-  test(`copied list paste ${selected ? 'replaces a selection' : 'at a caret'} with compact lines`, () => {
-    const context = loadLiveTextEditResizeHarness();
-    const fixture = namesListFixture();
-    const createElement = context.document.createElement;
-    context.document.createElement = (tag) => tag === 'template' ? fixture.createTemplate() : createElement(tag);
-    vm.runInContext(readSource('src/js/clipboard_io.js'), context);
-    context.BoardfishClipboardIO = context.window.BoardfishClipboardIO;
-    context.obj.data = { content: selected ? 'prefix old suffix' : 'prefix  suffix' };
-    context.enterEdit(context.obj.id, { history: false });
-    context.proxy.setSelectionRange(7, selected ? 10 : 7, 'none');
-    const paste = makePasteEvent();
-    paste.clipboardData = fixture.clipboardData(listNames.join('\n\n\n\n'));
-
-    context.proxy.dispatchEvent(paste);
-
-    assert.equal(paste.defaultPrevented, true, 'native textarea insertion would reintroduce the raw blank lines');
-    assert.equal(context.obj.data.content, `prefix ${listNames.join('\n')} suffix`);
-    assert.equal(context.proxy.value, context.obj.data.content);
-    assert.equal(context.proxy.selectionStart, 7 + listNames.join('\n').length);
-  });
-}
 
 test('tab indents the current text edit line', () => {
   const { applyTextEditLineIndent } = loadTextEditorHelpers();

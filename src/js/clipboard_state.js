@@ -2,7 +2,7 @@
 
 // Clipboard state for in-app object copy/paste plus browser clipboard tokens.
 var jsClipboard = null;
-var _jsClipboardSetAt;
+var _jsClipboardSetAt = 0;
 var _jsClipboardToken = 0;
 var _jsClipboardWebToken = '';
 var _jsClipboardWebTokenWritten = false;
@@ -90,11 +90,11 @@ function jsClipboardStillCurrent(
 }
 
 if (typeof window !== 'undefined') {
-  BoardfishView.addWindowListener('blur', markJsClipboardMaybeStaleFromWebBlur);
+  window.addEventListener('blur', markJsClipboardMaybeStaleFromWebBlur);
 }
 if (typeof document !== 'undefined') {
-  BoardfishView.addDocumentListener('visibilitychange', () => {
-    if (boardDocument().visibilityState !== 'visible') markJsClipboardMaybeStaleFromWebBlur();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') markJsClipboardMaybeStaleFromWebBlur();
   });
 }
 Object.assign(globalThis, {

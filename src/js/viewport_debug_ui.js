@@ -92,7 +92,8 @@ var PillDebug = (() => {
         width: e.offsetWidth,
         styleWidth: e.styleWidth,
         color: e.color,
-        ...debugPick(e, 'reason longTaskMs'),
+        reason: e.reason ?? '',
+        longTaskMs: e.longTaskMs ?? '',
       });
     }
     console.table(rows);

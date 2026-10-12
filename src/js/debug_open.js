@@ -4,10 +4,14 @@ var OpenDebug = (() => {
   const MAX_EVENTS = 5000;
   let initialRenderDebugDepth = 0;
 
+  function sanitize(value) {
+    return sanitizeDebugMeta(value, { redactPattern: /dataUrl|src|base64|imageStore/i, roundNumbers: true });
+  }
+
   const core = createDebugRecorder({
     maxEvents: MAX_EVENTS,
     label: '[Boardfish open]',
-    sanitize: sanitizeImageDebugMeta,
+    sanitize,
     invokeResult: (result) => result?.debug || result || null,
   });
   const events = core._events;
@@ -100,7 +104,8 @@ var OpenDebug = (() => {
       rustImageReadMaxKey: e.meta?.rust?.image_read_max_key ?? '',
       rustLazyImageRefs: e.meta?.rust?.lazy_image_refs ?? '',
       rustImageCrcMs: e.meta?.rust?.image_crc_ms ?? '',
-      ...debugMetaFields(e, 'ms skipped'),
+      ms: e.meta?.ms ?? '',
+      skipped: e.meta?.skipped ?? '',
     }));
     console.table(rows);
     return rows;
@@ -113,7 +118,8 @@ var OpenDebug = (() => {
       op: last?.op || '',
       totalMs: last?.total ?? '',
       imageCount: last?.meta?.imageCount ?? last?.meta?.imageObjectCount ?? '',
-      ...debugPick(last?.meta, 'objectCount hydrated'),
+      objectCount: last?.meta?.objectCount ?? '',
+      hydrated: last?.meta?.hydrated ?? '',
       error: last?.meta?.error || '',
       hydrationMode: 'all-before-interaction',
       hydrationConcurrency: getOpenHydrationConcurrency(),
@@ -255,8 +261,10 @@ var OpenDebug = (() => {
   }
 
   function latestOpenEvents() {
-    const lastStart = debugLast(events, e => e.step === 'start' && /^open/.test(e.op || ''));
-    return !lastStart ? [] : events.filter(e => e.id === lastStart.id);
+    const starts = events.filter(e => e.step === 'start' && /^open/.test(e.op || ''));
+    const lastStart = starts[starts.length - 1];
+    if (!lastStart) return [];
+    return events.filter(e => e.id === lastStart.id);
   }
 
   function numberValue(value) {
@@ -404,7 +412,8 @@ var OpenDebug = (() => {
         total: e.total,
         dt: e.dt,
         ms: e.meta?.ms ?? e.meta?.queueWaitMs ?? '',
-        ...debugMetaFields(e, 'count hydrated'),
+        count: e.meta?.count ?? '',
+        hydrated: e.meta?.hydrated ?? '',
         pending: e.meta?.pendingImages ?? '',
         ...debugMetaFields(e, 'selected skipped missingImages'),
         imgKey: e.meta?.imgKey || e.meta?.key || '',

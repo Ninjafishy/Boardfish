@@ -3,9 +3,9 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 
-function loadImageVariants(overrides = {}) {
+function loadImageVariants() {
   const context = {
     zoom: 1,
     console,
@@ -15,7 +15,6 @@ function loadImageVariants(overrides = {}) {
     setTimeout() { return 0; },
     performance: { now: () => 0 },
     mapWithConcurrency(items, _limit, worker) { return Promise.all(items.map(worker)); },
-    ...overrides,
   };
 
   vm.createContext(context);
@@ -30,8 +29,17 @@ function loadImageVariants(overrides = {}) {
 
 function loadImageVariantsWithBitmap(supportsCreateImageBitmap = true) {
   const context = {
+    zoom: 1,
+    console,
+    Map,
+    Math,
+    clearTimeout() {},
+    setTimeout() { return 0; },
+    performance: { now: () => 0 },
+    mapWithConcurrency(items, _limit, worker) { return Promise.all(items.map(worker)); },
     _boardOpening: false,
     _imageStoreGeneration: 0,
+    imageBitmapCache: {},
     objects: [],
     viewportWorldRect() { return null; },
     invalidateOffscreen() {},
@@ -42,7 +50,14 @@ function loadImageVariantsWithBitmap(supportsCreateImageBitmap = true) {
     context.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
   }
 
-  return loadImageVariants(context);
+  vm.createContext(context);
+  vm.runInContext('globalThis.window = globalThis; window.devicePixelRatio = 1;', context);
+  vm.runInContext(
+    readSource('src/js/image_variants.js'),
+    context,
+    { filename: 'image_variants.js' },
+  );
+  return context;
 }
 
 function installManualTimers(context) {

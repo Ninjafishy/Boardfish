@@ -59,7 +59,8 @@ var StartupDebug = DEBUG_TOOLS_ENABLED ? (() => {
   function rgbDistance(a, b) {
     const pa = parseRgb(a);
     const pb = parseRgb(b);
-    return !pa || !pb ? Infinity : Math.max(Math.abs(pa.r - pb.r), Math.abs(pa.g - pb.g), Math.abs(pa.b - pb.b));
+    if (!pa || !pb) return Infinity;
+    return Math.max(Math.abs(pa.r - pb.r), Math.abs(pa.g - pb.g), Math.abs(pa.b - pb.b));
   }
 
   function canvasPixelAt(clientX, clientY) {
@@ -543,7 +544,8 @@ const BoardfishDebugConsole = (() => {
     const proxy = new Proxy(value, {
       get(target, prop, receiver) {
         const raw = Reflect.get(target, prop, receiver);
-        return typeof prop === 'symbol' ? raw : guardValue(raw, `${path}.${String(prop)}`);
+        if (typeof prop === 'symbol') return raw;
+        return guardValue(raw, `${path}.${String(prop)}`);
       },
       set(target, prop, nextValue, receiver) {
         if (!isAllowedCaller()) throw new Error(guardMessage(`${path}.${String(prop)}`));

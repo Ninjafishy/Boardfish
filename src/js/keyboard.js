@@ -35,7 +35,7 @@ const enterSelectedTextEditFromKeyboard = (e) => {
     e.isComposing ||
     isBoardInputBlocked() ||
     isEditableTextShortcutTarget(e.target) ||
-    (typeof document !== 'undefined' && isEditableTextShortcutTarget(boardDocument().activeElement))
+    (typeof document !== 'undefined' && isEditableTextShortcutTarget(document.activeElement))
   ) {
     return false;
   }
@@ -68,7 +68,7 @@ function pasteAtViewportCenterFromShortcut() {
   pasteAtPos(point.x, point.y);
 }
 
-BoardfishView.addDocumentListener('keydown', (e) => {
+document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     if (e.cancelBubble) return;
     const blocked = isBoardInputBlocked() || _rubberBandDragActive;

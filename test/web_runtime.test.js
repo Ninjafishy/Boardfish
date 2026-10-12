@@ -3,15 +3,9 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 const WebContainer = require('../src/js/web_board_container.js');
 const { singleImageBoard } = require('../test-support/image_output.js');
-
-function failedImageStream() {
-  return new ReadableStream({
-    start(controller) { controller.error(new TypeError('Failed to fetch')); },
-  });
-}
 
 function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
   const source = readSource('src/js/web_runtime.js');
@@ -74,6 +68,10 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
         },
       },
     },
+    URL: {
+      createObjectURL() { return 'blob:board'; },
+      revokeObjectURL() {},
+    },
   };
   vm.createContext(context);
   vm.runInContext(source, context, { filename: 'web_runtime.js' });
@@ -92,28 +90,8 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
   };
 }
 
-test('open and save dialogs use the visible PiP window while the session stays in the opener', async () => {
-  const { context } = loadWebRuntimeHarness();
-  const openHandle = { name: 'opened.bf' }, saveHandle = { name: 'saved.bf' };
-  const requests = [];
-  const pip = {
-    document: {},
-    async showOpenFilePicker(options) { requests.push(['open', options.multiple]); return [openHandle]; },
-    async showSaveFilePicker(options) { requests.push(['save', options.suggestedName]); return saveHandle; },
-  };
-  context.showOpenFilePicker = () => { throw new Error('The hidden opener must not open the picker'); };
-  context.showSaveFilePicker = context.showOpenFilePicker;
-  context.BoardfishView.setWindow(pip);
-  const opened = await context.BoardfishRuntime.openFileDialog();
-  const saved = await context.BoardfishRuntime.saveFileDialog('pinned.bf');
-  assert.equal(opened.handle, openHandle);
-  assert.equal(saved.handle, saveHandle);
-  assert.deepEqual(requests, [['open', false], ['save', 'pinned.bf']]);
-});
-
 test('fallback file picker does not retain focus listener after selected file settles', async () => {
   const harness = loadWebRuntimeHarness();
-  const viewFocusListener = harness.rootListeners.get('focus');
 
   const result = await harness.context.BoardfishRuntime.openFileDialog();
   assert.equal(result.kind, 'web-file');
@@ -122,7 +100,7 @@ test('fallback file picker does not retain focus listener after selected file se
   assert.equal(harness.calls.removed, 1);
 
   harness.runTimers();
-  assert.equal(harness.rootListeners.get('focus'), viewFocusListener);
+  assert.equal(harness.rootListeners.has('focus'), false);
 });
 
 test('web board open defers image byte extraction during container read', async () => {
@@ -365,7 +343,11 @@ test('distinct-target save rebuilds once from a fresh source after write-time Bl
       if (attempt === 1) {
         Object.defineProperty(staleBlob, 'stream', {
           configurable: true,
-          value: failedImageStream,
+          value() {
+            return new ReadableStream({
+              start(controller) { controller.error(new TypeError('Failed to fetch')); },
+            });
+          },
         });
       }
       return {
@@ -418,7 +400,11 @@ test('same-target save recovers a stale source before container preparation', as
   const staleBlob = rawImageStore['img-1'].__blob;
   Object.defineProperty(staleBlob, 'stream', {
     configurable: true,
-    value: failedImageStream,
+    value() {
+      return new ReadableStream({
+        start(controller) { controller.error(new TypeError('Failed to fetch')); },
+      });
+    },
   });
   harness.context.BoardfishWebLimits = { validateBoardPayload() {} };
   harness.context.BoardfishWebBoardContainer = WebContainer;
@@ -474,7 +460,11 @@ test('stale-source recovery rejects a fresh file whose image identity changed', 
   const rawImageStore = opened.board.imageStore;
   Object.defineProperty(rawImageStore['img-1'].__blob, 'stream', {
     configurable: true,
-    value: failedImageStream,
+    value() {
+      return new ReadableStream({
+        start(controller) { controller.error(new TypeError('Failed to fetch')); },
+      });
+    },
   });
   harness.context.BoardfishWebLimits = { validateBoardPayload() {} };
   harness.context.BoardfishWebBoardContainer = WebContainer;
@@ -709,40 +699,6 @@ test('a stalled write times out, aborts, and retires the uncertain target', asyn
   assert.equal(aborts, 1);
   assert.equal(ref.unusable, true);
   assert.equal(harness.context.BoardfishRuntime.canSaveToExistingTarget(ref), false);
-});
-
-test('a writer opened after its save times out is aborted without writing or committing', async () => {
-  const harness = loadWebRuntimeHarness();
-  harness.context.BoardfishWebLimits = { validateBoardPayload() {} };
-  harness.context.BoardfishWebBoardContainer = {
-    async createBoardContainerBlob() { return { blob: new Blob(['board']) }; },
-  };
-  let finishOpening, aborts = 0, writes = 0, closes = 0;
-  const opening = new Promise(resolve => { finishOpening = resolve; });
-  const handle = { createWritable() { return opening; } };
-  const ref = { kind: 'web-file-handle', handle, name: 'delayed-board.bf' };
-  const save = harness.context.BoardfishRuntime.saveBoard(ref, { objects: [] });
-  await new Promise(setImmediate);
-  harness.runTimers();
-  await assert.rejects(save, /Save Timed Out: Opening File/);
-  assert.equal(ref.unusable, true);
-  let locked = true;
-  finishOpening({
-    async write() { writes++; },
-    async close() { closes++; },
-    async abort() { aborts++; locked = false; },
-  });
-  await new Promise(setImmediate);
-  assert.equal(aborts, 1);
-  assert.equal(writes, 0);
-  assert.equal(closes, 0);
-  handle.createWritable = async () => {
-    assert.equal(locked, false, 'the abandoned writer must release the file for retry');
-    return { async write() { writes++; }, async close() { closes++; } };
-  };
-  await harness.context.BoardfishRuntime.saveBoard({ kind: 'web-file-handle', handle }, { objects: [] });
-  assert.equal(writes, 1);
-  assert.equal(closes, 1);
 });
 
 test('download refs are not reusable save targets', () => {

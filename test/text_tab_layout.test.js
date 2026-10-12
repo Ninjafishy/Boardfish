@@ -3,7 +3,7 @@
 const { readSource } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('../test-support/browser_vm.js');
+const vm = require('node:vm');
 const { createUnitTextContext } = require('../test-support/text_editor.js');
 
 function loadTextLayout() {
@@ -19,7 +19,10 @@ function loadTextLayout() {
         return { getContext: () => canvasContext };
       },
     },
+    objects: [],
+    editingId: null,
     TextSelDebug: { _logHit() {} },
+    scheduleRender() {},
   };
   vm.createContext(context);
   vm.runInContext(

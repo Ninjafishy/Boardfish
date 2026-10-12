@@ -6,7 +6,8 @@ var TEXT_PAD  = 16;
 const regular_text = 400;
 const TEXT_FONT_STYLE = 'normal';
 const TEXT_FONT_FAMILY = "'Geist Sans', system-ui";
-var FONT = `${TEXT_FONT_STYLE} ${regular_text} ${FONT_SIZE}px ${TEXT_FONT_FAMILY}`;
+const textFontForSize = (size) => `${TEXT_FONT_STYLE} ${regular_text} ${size}px ${TEXT_FONT_FAMILY}`;
+var FONT      = textFontForSize(FONT_SIZE);
 const TEXT_CANVAS_FONT_KERNING = 'none';
 const TEXT_GLYPH_MIN_GAP = 0.5;
 const TEXT_GLYPH_MIN_INK_WIDTH = 0.01;
@@ -248,6 +249,8 @@ var _prefixCache = new Map();
 const trimMapCache = (map, maxEntries) => {
   while (map.size > maxEntries) map.delete(map.keys().next().value);
 };
+
+const textLayoutDebugNow = () => performance.now();
 
 const textLayoutDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -576,7 +579,7 @@ function textWrappedLineIndexEntryForVisual(cache, visualLineIndex) {
 }
 
 function prewarmTextObjectLayoutRuntimeCaches(obj) {
-  const startedAt = performance.now();
+  const startedAt = textLayoutDebugNow();
   const content = obj.data?.content || '';
   const beforePrefixEntries = obj._textParagraphPrefixCache?.size || 0;
   const lineIndexCache = ensureCachedTextWrappedLineIndex(obj, content);
@@ -594,7 +597,7 @@ function prewarmTextObjectLayoutRuntimeCaches(obj) {
       processedLogicalLines: 0,
       prefixCacheEntriesAdded: 0,
       skipped: 'warm',
-      totalMs: textLayoutDebugRound(performance.now() - startedAt),
+      totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
     };
   }
   let processedLogicalLines = 0;
@@ -610,7 +613,7 @@ function prewarmTextObjectLayoutRuntimeCaches(obj) {
     logicalLineEntries: entries.length,
     processedLogicalLines,
     prefixCacheEntriesAdded: Math.max(0, afterPrefixEntries - beforePrefixEntries),
-    totalMs: textLayoutDebugRound(performance.now() - startedAt),
+    totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
   };
 }
 
@@ -1208,7 +1211,8 @@ function getTextLayoutForViewport(obj, viewportRect) {
   const baseY = obj.y + TEXT_PAD;
   const first = Math.max(0, Math.ceil((viewportRect.y1 - baseY - LINE_H) / LINE_H));
   const last = Math.floor((viewportRect.y2 - baseY) / LINE_H);
-  return last < first ? [] : getTextLayoutForLineRange(obj, first, last);
+  if (last < first) return [];
+  return getTextLayoutForLineRange(obj, first, last);
 }
 
 function lineBaseX(obj) {
