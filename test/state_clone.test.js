@@ -9,9 +9,6 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 
 function loadStateCloneHarness() {
   const context = {
-    HistoryDebug: {
-      count() {},
-    },
     cloneTextObjectRuntimeCaches(source, target) {
       target._runtimeCopiedFrom = source.id;
       return target;

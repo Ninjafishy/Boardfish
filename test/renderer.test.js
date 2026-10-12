@@ -9,18 +9,14 @@ function loadRenderer(overrides = {}) {
   const context = { performance, ...overrides };
   vm.createContext(context);
   let source = readSource('src/js/renderer.js');
-  if (overrides.BOARDFISH_PRODUCTION) source = source.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '');
+
   vm.runInContext(
     source,
     context,
     { filename: 'renderer.js' },
   );
   const api = context.BoardfishRenderer;
-  const helpers = api.createBoardRenderer({});
-  return {
-    createBoardRenderer: api.createBoardRenderer,
-    createDrawCounters: helpers.createDrawCounters,
-  };
+  return api;
 }
 
 function createImageRenderer(BoardfishRenderer, obj, source, overrides = {}) {
@@ -35,7 +31,7 @@ function createImageRenderer(BoardfishRenderer, obj, source, overrides = {}) {
       objects: () => [obj],
       panX: () => 0,
       panY: () => 0,
-      selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
+      selectImageSourceForDraw: () => (source),
       viewportCullingEnabled: () => true,
       zoom: () => 1,
     ...overrides,
@@ -107,7 +103,7 @@ test('text renderer uses the viewport-aware layout path', () => {
     lineHeight: 24,
   });
 
-  renderer.drawSingleObj({}, obj, null, viewportRect);
+  renderer.drawSingleObj({}, obj, viewportRect);
 
   assert.deepEqual(drawnLines, ['one', 'two']);
 });
@@ -120,7 +116,7 @@ test('image renderer crops untransformed images to the visible viewport', () => 
       drawImageCalls.push(args);
     },
   };
-  const counters = BoardfishRenderer.createDrawCounters();
+
   const source = {
     complete: true,
     naturalWidth: 200,
@@ -140,24 +136,15 @@ test('image renderer crops untransformed images to the visible viewport', () => 
     objects: () => [obj],
     panX: () => 0,
     panY: () => 0,
-    selectImageSourceForDraw: () => ({ source, scale: 1, targetScale: 1 }),
+    selectImageSourceForDraw: () => (source),
     viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  renderer.drawVisibleObjects(context, null, { x1: 0, y1: 25, x2: 60, y2: 45 });
+  renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
   drawImageCalls.length = 0;
-  const result = renderer.drawVisibleObjects(context, counters, { x1: 0, y1: 25, x2: 60, y2: 45 });
+  const result = renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
 
-  assert.equal(result.drawnImages, 1);
-  assert.equal(result.drawnText, 0);
-  assert.equal(counters.croppedImages, 1);
-  assert.equal(counters.imageSourceDraws, 1);
-  assert.equal(counters.imageSourceFirstDraws, 1);
-  assert.equal(counters.imageSourceWarmDraws, 0);
-  assert.equal(counters.imageContextFirstDraws, 1);
-  assert.equal(counters.imageContextWarmDraws, 0);
-  assert.equal(counters.fullScaleImageContextFirstDraws, 1);
   assert.deepEqual(drawImageCalls, [[
     source,
     11 * (200 / 102),
@@ -171,24 +158,12 @@ test('image renderer crops untransformed images to the visible viewport', () => 
   ]]);
 
   drawImageCalls.length = 0;
-  const warmCounters = BoardfishRenderer.createDrawCounters();
-  renderer.drawVisibleObjects(context, warmCounters, { x1: 0, y1: 25, x2: 60, y2: 45 });
 
-  assert.equal(warmCounters.imageSourceFirstDraws, 0);
-  assert.equal(warmCounters.imageSourceWarmDraws, 1);
-  assert.equal(warmCounters.imageContextFirstDraws, 0);
-  assert.equal(warmCounters.imageContextWarmDraws, 1);
+  renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
 
-  const nextContextCounters = BoardfishRenderer.createDrawCounters();
   renderer.drawVisibleObjects({
     drawImage() {},
-  }, nextContextCounters, { x1: 0, y1: 25, x2: 60, y2: 45 });
-
-  assert.equal(nextContextCounters.imageSourceFirstDraws, 0);
-  assert.equal(nextContextCounters.imageSourceWarmDraws, 1);
-  assert.equal(nextContextCounters.imageContextFirstDraws, 1);
-  assert.equal(nextContextCounters.imageContextWarmDraws, 0);
-  assert.equal(nextContextCounters.fullScaleImageContextFirstDraws, 1);
+  }, { x1: 0, y1: 25, x2: 60, y2: 45 });
 });
 
 test('image renderer overdraws image edges by one device pixel at the current view scale', () => {
@@ -209,16 +184,14 @@ test('image renderer overdraws image edges by one device pixel at the current vi
   const obj = { type: 'image', x: 10, y: 20, w: 40, h: 30, data: { imgKey: 'img-1' } };
   const renderer = createImageRenderer(BoardfishRenderer, obj, source);
 
-  renderer.drawVisibleObjects(context, BoardfishRenderer.createDrawCounters(),
-    { x1: 0, y1: 0, x2: 100, y2: 100 }, undefined, undefined, undefined,
-    { zoom: 2, dpr: 2, panX: 0, panY: 0 });
+  renderer.drawVisibleObjects(context, { x1: 0, y1: 0, x2: 100, y2: 100 }, undefined, undefined, undefined, { zoom: 2, dpr: 2, panX: 0, panY: 0 });
 
   assert.deepEqual(drawImageCalls, [[source, 9.75, 19.75, 40.5, 30.5]]);
 });
 
-test('development and production image draws never toggle smoothing for motion or fallback', () => {
-  for (const production of [false, true]) for (const mode of ['idle', 'motion', 'fallback']) {
-    const api = loadRenderer(production ? { BOARDFISH_PRODUCTION: true } : {});
+test('image draws never toggle smoothing for motion or fallback', () => {
+  for (const mode of ['idle', 'motion', 'fallback']) {
+    const api = loadRenderer({});
     const source = { width: 200, height: 100 };
     const obj = { type: 'image', x: 0, y: 0, w: 100, h: 50, data: { imgKey: 'img' } };
     const writes = [], draws = [];
@@ -230,13 +203,12 @@ test('development and production image draws never toggle smoothing for motion o
     };
     const renderer = api.createBoardRenderer({
       imageBitmapCache: () => ({ img: source }),
-      selectImageSourceForDraw: () => production ? source : { source, activeInputFullFallback: mode === 'fallback' },
+      selectImageSourceForDraw: () => source,
     });
     const view = { zoom: 1, dpr: 1 };
     const motion = mode === 'motion' ? { translateX: 1 } : null;
-    if (production) renderer.drawSingleObj(context, obj, null, view, motion);
-    else renderer.drawSingleObj(context, obj, null, null, view, motion);
-    assert.deepEqual(draws, [true], `${production ? 'production' : 'development'} ${mode}`);
+    renderer.drawSingleObj(context, obj, null, view, motion);
+    assert.deepEqual(draws, [true], mode);
     assert.deepEqual(writes, []);
   }
 });
@@ -261,7 +233,7 @@ test('image renderer keeps smoothing enabled for active full fallback', () => {
     height: 4000,
   };
   const obj = { type: 'image', x: 10, y: 20, w: 500, h: 500, data: { imgKey: 'img-1' } };
-  const counters = BoardfishRenderer.createDrawCounters();
+
   const renderer = BoardfishRenderer.createBoardRenderer({
     canvasTextColor: () => '#fff',
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 1000, y2: 1000 }),
@@ -273,25 +245,17 @@ test('image renderer keeps smoothing enabled for active full fallback', () => {
     objects: () => [obj],
     panX: () => 0,
     panY: () => 0,
-    selectImageSourceForDraw: () => ({
-      source,
-      scale: 1,
-      targetScale: 0.25,
-      activeInputFullFallback: true,
-    }),
+    selectImageSourceForDraw: () => (source),
     viewportCullingEnabled: () => true,
     zoom: () => 0.1,
   });
 
-  const result = renderer.drawVisibleObjects(context, counters);
+  const result = renderer.drawVisibleObjects(context);
 
-  assert.equal(result.drawnImages, 1);
   assert.deepEqual(drawSmoothingEnabled, [true]);
   assert.equal(context.imageSmoothingEnabled, true);
   assert.deepEqual(drawQualities, ['high']);
   assert.equal(context.imageSmoothingQuality, 'high');
-  assert.equal(counters.scaledFallbackFull, 1);
-  assert.equal(counters.activeInputFullFallbackImages, 1);
 });
 
 test('viewport navigation keeps culling and uses the canonical image draw path', () => {
@@ -343,22 +307,18 @@ test('viewport navigation keeps culling and uses the canonical image draw path',
     panY: () => 0,
     selectImageSourceForDraw(key, selectedObj, fullSource, view, activeInput) {
       selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
-      return { source, scale: 1, targetScale: 1 };
+      return source;
     },
     viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  const counters = BoardfishRenderer.createDrawCounters();
-  const result = renderer.drawVisibleObjects(context, counters);
+  const result = renderer.drawVisibleObjects(context);
 
-  assert.equal(result.drawnImages, 1);
   assert.deepEqual(plain(selectCalls.map((call) => call.activeInput)), [false]);
   assert.equal(selectCalls[0].view.activeInput, undefined);
   assert.deepEqual(drawSmoothingEnabled, [true]);
   assert.equal(context.imageSmoothingEnabled, true);
-  assert.equal(counters.motionImages, 0);
-  assert.equal(counters.culledImages, 1);
 });
 
 test('animated image motion keeps smoothing and prioritizes variant selection', () => {
@@ -401,25 +361,19 @@ test('animated image motion keeps smoothing and prioritizes variant selection', 
     panY: () => 0,
     selectImageSourceForDraw(key, selectedObj, fullSource, view, activeInput) {
       selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
-      return { source, scale: 1, targetScale: 1 };
+      return source;
     },
     viewportCullingEnabled: () => true,
     zoom: () => 1,
   });
 
-  const counters = BoardfishRenderer.createDrawCounters();
-  const result = renderer.drawVisibleObjects(context, counters);
+  const result = renderer.drawVisibleObjects(context);
 
-  assert.equal(result.drawnImages, 1);
   assert.deepEqual(plain(selectCalls.map((call) => call.activeInput)), [true]);
   assert.deepEqual(drawSmoothingEnabled, [true]);
   assert.equal(context.imageSmoothingEnabled, true);
   assert.deepEqual(drawQualities, ['high']);
   assert.equal(context.imageSmoothingQuality, 'high');
-  assert.equal(counters.motionObjects, 1);
-  assert.equal(counters.motionImages, 1);
-  assert.equal(counters.motionTranslatedObjects, 1);
-  assert.equal(counters.motionFullScaleImages, 1);
 });
 
 test('animated image motion draws an image that jiggles into the viewport', () => {
@@ -456,12 +410,9 @@ test('animated image motion draws an image that jiggles into the viewport', () =
     objectMotionForDraw: () => ({ translateY: 10 }),
   });
 
-  const counters = BoardfishRenderer.createDrawCounters();
-  const result = renderer.drawVisibleObjects(context, counters);
+  const result = renderer.drawVisibleObjects(context);
 
-  assert.equal(result.drawnImages, 1);
   assert.equal(drawImageCalls.length, 1);
-  assert.equal(counters.motionImages, 1);
 });
 
 test('animated image cropping inverse-maps translation and non-uniform scale', () => {
@@ -505,9 +456,7 @@ test('animated image cropping inverse-maps translation and non-uniform scale', (
   });
 
   renderer.drawVisibleObjects(
-    context,
-    BoardfishRenderer.createDrawCounters(),
-    { x1: 0, y1: 0, x2: 100, y2: 100 },
+    context, { x1: 0, y1: 0, x2: 100, y2: 100 },
   );
 
   assert.equal(drawImageCalls.length, 1);
@@ -519,27 +468,24 @@ test('animated image cropping inverse-maps translation and non-uniform scale', (
 });
 
 test('renderer filters visible objects by type', () => {
-  for (const production of [false, true]) {
-    const calls = [], source = { width: 20, height: 20 };
-    const context = { drawImage() { calls.push('image'); } };
-    const objects = ['image', 'text'].map(type => ({
-      id: type, type, x: 0, y: 0, w: 20, h: 20, data: { imgKey: type },
-    }));
-    const renderer = loadRenderer(production ? { BOARDFISH_PRODUCTION: true } : {}).createBoardRenderer({
-      currentViewportWorldRect: () => ({ x1: -10, y1: -10, x2: 30, y2: 30 }),
-      dpr: () => 1, zoom: () => 1, viewportCullingEnabled: () => true,
-      objects: () => objects, objectIntersectsRect: () => true,
-      imageBitmapCache: () => ({ image: source }),
-      selectImageSourceForDraw: () => production ? source : { source },
-      getTextLayout: () => [{ text: 'drawn' }],
-      drawTextLineRange() { calls.push('text'); },
-    });
-    for (const type of ['image', 'text', null]) {
-      calls.length = 0;
-      if (production) renderer.drawVisibleObjects(context, undefined, undefined, null, type);
-      else renderer.drawVisibleObjects(context, null, undefined, undefined, null, type);
-      assert.deepEqual(calls, type ? [type] : ['image', 'text']);
-    }
+  const calls = [], source = { width: 20, height: 20 };
+  const context = { drawImage() { calls.push('image'); } };
+  const objects = ['image', 'text'].map(type => ({
+    id: type, type, x: 0, y: 0, w: 20, h: 20, data: { imgKey: type },
+  }));
+  const renderer = loadRenderer({}).createBoardRenderer({
+    currentViewportWorldRect: () => ({ x1: -10, y1: -10, x2: 30, y2: 30 }),
+    dpr: () => 1, zoom: () => 1, viewportCullingEnabled: () => true,
+    objects: () => objects, objectIntersectsRect: () => true,
+    imageBitmapCache: () => ({ image: source }),
+    selectImageSourceForDraw: () => source,
+    getTextLayout: () => [{ text: 'drawn' }],
+    drawTextLineRange() { calls.push('text'); },
+  });
+  for (const type of ['image', 'text', null]) {
+    calls.length = 0;
+    renderer.drawVisibleObjects(context, undefined, undefined, null, type);
+    assert.deepEqual(calls, type ? [type] : ['image', 'text']);
   }
 });
 
@@ -566,10 +512,9 @@ test('renderer can skip arbitrary object ids while drawing visible objects', () 
   });
 
   const result = renderer.drawVisibleObjects(
-    {}, BoardfishRenderer.createDrawCounters(), undefined, new Set(['text-a']),
+    {}, undefined, new Set(['text-a']),
   );
 
-  assert.equal(result.drawnText, 1);
   assert.deepEqual(drawnText, ['draw']);
 });
 
@@ -581,7 +526,7 @@ test('text renderer draws the exact viewport-aware layout range', () => {
     textBaseline: '',
   };
   const text = { id: 'text-1', type: 'text', x: 0, y: 0, w: 200, h: 96 };
-  const counters = BoardfishRenderer.createDrawCounters();
+
   const renderer = BoardfishRenderer.createBoardRenderer({
     canvasTextColor: () => '#fff',
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 200, y2: 47 }),
@@ -604,40 +549,9 @@ test('text renderer draws the exact viewport-aware layout range', () => {
     zoom: () => 1,
   });
 
-  const result = renderer.drawVisibleObjects(context, counters);
+  const result = renderer.drawVisibleObjects(context);
 
-  assert.equal(result.drawnText, 1);
   assert.deepEqual(drawnLines, ['visible']);
-  assert.equal(counters.textLines, 3);
-  assert.equal(counters.drawnTextLines, 1);
-  assert.equal(counters.culledTextLines, 2);
-});
-
-test('production text drawing skips debug stats allocation', () => {
-  const BoardfishRenderer = loadRenderer();
-  const collectStatsOptions = [];
-  const text = { id: 'text-1', type: 'text', x: 0, y: 0, w: 200, h: 24, data: { content: 'plain' } };
-  const renderer = BoardfishRenderer.createBoardRenderer({
-    canvasTextColor: () => '#fff',
-    currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 200, y2: 40 }),
-    dpr: () => 1,
-    drawTextLineRange(_context, _line, _obj, _start, _end, options) {
-      collectStatsOptions.push(options.collectStats);
-      return null;
-    },
-    getTextLayout: () => [{ text: 'plain', y: 0 }],
-    lineHeight: 24,
-    objectIntersectsRect: () => true,
-    objects: () => [text],
-    panX: () => 0,
-    panY: () => 0,
-    viewportCullingEnabled: () => true,
-    zoom: () => 1,
-  });
-
-  renderer.drawVisibleObjects({ fillStyle: '', textBaseline: '' }, null);
-
-  assert.deepEqual(collectStatsOptions, [false]);
 });
 
 test('text context configuration persists until canvas state resets', () => {
@@ -706,7 +620,7 @@ test('text renderer keeps measured text drawing at low zoom instead of switching
     },
   };
   const text = { id: 'text-1', type: 'text', x: 10, y: 20, w: 200, h: 32 };
-  const counters = BoardfishRenderer.createDrawCounters();
+
   const renderer = BoardfishRenderer.createBoardRenderer({
     canvasTextColor: () => '#fff',
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 300, y2: 100 }),
@@ -736,20 +650,11 @@ test('text renderer keeps measured text drawing at low zoom instead of switching
     zoom: () => 0.2,
   });
 
-  renderer.drawVisibleObjects(context, counters);
+  renderer.drawVisibleObjects(context);
 
   assert.deepEqual(drawnText, ['tiny']);
   assert.equal(rects.length, 0);
   assert.equal(layoutCalls, 1);
-  assert.equal(counters.textLines, 1);
-  assert.equal(counters.drawnTextLines, 1);
-  assert.equal(counters.culledTextLines, 0);
-  assert.equal(counters.textChars, 4);
-  assert.equal(counters.textDrawUnits, 4);
-  assert.equal(counters.textDrawCalls, 2);
-  assert.equal(counters.textRuns, 1);
-  assert.equal(counters.maxTextDrawUnitsPerLine, 4);
-  assert.equal(counters.maxTextDrawCallsPerLine, 2);
 });
 
 test('text renderer keeps direct text rendering', () => {
@@ -764,7 +669,7 @@ test('text renderer keeps direct text rendering', () => {
     },
   };
   const text = { id: 'text-1', type: 'text', x: 10, y: 20, w: 200, h: 80, data: { content: 'cached' } };
-  const counters = BoardfishRenderer.createDrawCounters();
+
   const renderer = BoardfishRenderer.createBoardRenderer({
     canvasTextColor: () => '#fff',
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 300, y2: 160 }),
@@ -793,15 +698,10 @@ test('text renderer keeps direct text rendering', () => {
     zoom: () => 1,
   });
 
-  renderer.drawVisibleObjects(context, counters,
-    { x1: 0, y1: 0, x2: 300, y2: 160 }, undefined, undefined, undefined,
-    { zoom: 1, panX: 0, panY: 0, dpr: 2 });
+  renderer.drawVisibleObjects(context, { x1: 0, y1: 0, x2: 300, y2: 160 }, undefined, undefined, undefined, { zoom: 1, panX: 0, panY: 0, dpr: 2 });
 
   assert.deepEqual(drawnLines, ['cached one', 'cached two']);
   assert.deepEqual(drawImageCalls, []);
-  assert.equal(counters.textLines, 2);
-  assert.equal(counters.drawnTextLines, 2);
-  assert.equal(counters.textDirectDraws, 1);
 });
 
 test('animated text keeps direct text rendering', () => {
@@ -817,7 +717,7 @@ test('animated text keeps direct text rendering', () => {
     scale() {},
   };
   const text = { id: 'text-1', type: 'text', x: 10, y: 20, w: 200, h: 80, data: { content: 'moving' } };
-  const counters = BoardfishRenderer.createDrawCounters();
+
   const renderer = BoardfishRenderer.createBoardRenderer({
     canvasTextColor: () => '#fff',
     currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 300, y2: 160 }),
@@ -844,10 +744,9 @@ test('animated text keeps direct text rendering', () => {
     zoom: () => 1,
   });
 
-  renderer.drawVisibleObjects(context, counters);
+  renderer.drawVisibleObjects(context);
 
   assert.deepEqual(drawnLines, ['moving text']);
-  assert.equal(counters.textDirectDraws, 1);
 });
 
 test('animated text draws source lines that jiggle down into the viewport', () => {
@@ -896,74 +795,10 @@ test('animated text draws source lines that jiggle down into the viewport', () =
   });
 
   const result = renderer.drawVisibleObjects(
-    context,
-    BoardfishRenderer.createDrawCounters(),
-    viewportRect,
+    context, viewportRect,
   );
 
-  assert.equal(result.drawnText, 1);
   assert.deepEqual(drawnLines, ['above', 'visible']);
-});
-
-test('text renderer records slow text line timing rows for debug captures', () => {
-  let now = 0;
-  const BoardfishRenderer = loadRenderer({
-    performance: {
-      now() {
-        now += 1;
-        return now;
-      },
-    },
-  });
-  const text = { id: 'text-1', type: 'text', x: 10, y: 20, w: 200, h: 80, data: { content: 'first line\nsecond line' } };
-  const counters = BoardfishRenderer.createDrawCounters();
-  const renderer = BoardfishRenderer.createBoardRenderer({
-    canvasTextColor: () => '#fff',
-    currentViewportWorldRect: () => ({ x1: 0, y1: 0, x2: 300, y2: 160 }),
-    dpr: () => 2,
-    drawTextLineRange(_context, line) {
-      return {
-        chars: line.text.length,
-        drawnChars: line.text.length,
-        drawUnits: line.text.length,
-        runs: 1,
-        skippedTabs: 0,
-        skippedSpaces: 1,
-        planCacheHits: 1,
-        planCacheMisses: 0,
-      };
-    },
-    getTextLayout() {
-      return [
-        { text: 'first line', y: 20, textY: 36, startIndex: 0, endIndex: 10, logicalLineIndex: 0 },
-        { text: 'second line', y: 44, textY: 60, startIndex: 11, endIndex: 22, logicalLineIndex: 1 },
-      ];
-    },
-    lineHeight: 24,
-    objectIntersectsRect: () => true,
-    objects: () => [text],
-    panX: () => 0,
-    panY: () => 0,
-    viewportCullingEnabled: () => true,
-    zoom: () => 0.1,
-  });
-
-  renderer.drawVisibleObjects({ fillStyle: '', textBaseline: '' }, counters);
-
-  assert.equal(counters.textLineDrawMs, 2);
-  assert.equal(counters.maxTextLineDrawMs, 1);
-  assert.equal(counters.slowTextLineDrawCount, 2);
-  assert.equal(counters.slowTextLineDraws.length, 2);
-  const lineRows = counters.slowTextLineDraws.slice().sort((a, b) => a.lineIndex - b.lineIndex);
-  assert.equal(lineRows[0].objectId, 'text-1');
-  assert.equal(lineRows[0].logicalLineIndex, 0);
-  assert.equal(lineRows[0].sample, 'first line');
-  assert.equal(lineRows[0].drawUnits, 10);
-  assert.equal(lineRows[1].logicalLineIndex, 1);
-  assert.equal(lineRows[1].sample, 'second line');
-  assert.equal(counters.slowDrawObjects[0].textLineDrawMs, 2);
-  assert.equal(counters.slowDrawObjects[0].slowTextLineDrawCount, 2);
-  assert.equal(counters.slowDrawObjects[0].slowTextLineRows.length, 2);
 });
 
 test('renderer applies object motion translation and non-uniform scaling around object center', () => {
@@ -988,7 +823,7 @@ test('renderer applies object motion translation and non-uniform scaling around 
     objectMotionForDraw: () => ({ translateY: -3, scaleX: 1.08, scaleY: 0.94 }),
   });
 
-  renderer.drawVisibleObjects(context, BoardfishRenderer.createDrawCounters());
+  renderer.drawVisibleObjects(context);
 
   const originX = obj.x + obj.w / 2;
   const originY = obj.y + obj.h / 2;
@@ -1027,7 +862,7 @@ test('renderer applies motion scaling around the requested fractional object ori
     }),
   });
 
-  renderer.drawVisibleObjects(context, BoardfishRenderer.createDrawCounters());
+  renderer.drawVisibleObjects(context);
 
   const originX = obj.x + obj.w * 0.5;
   const originY = obj.y + obj.h * 0.12;
@@ -1039,8 +874,8 @@ test('renderer applies motion scaling around the requested fractional object ori
 });
 
 test('editing preserves image jiggles and layer order while caching static images', () => {
-  for (const production of [false, true]) for (const type of ['image', 'text']) {
-    const overrides = production ? { BOARDFISH_PRODUCTION: true } : {};
+  for (const type of ['image', 'text']) {
+    const overrides = {};
     const { context, setTime } = loadMotion(overrides);
     const objects = ['text', 'image', 'editor'].map(id => ({
       id, type: id === 'image' ? 'image' : 'text', x: 0, y: 0, w: 100, h: 100, data: { imgKey: id },
@@ -1056,8 +891,7 @@ test('editing preserves image jiggles and layer order while caching static image
       objects, editingId: null, zoom: 1, _boardOpening: false, window: { devicePixelRatio: 1 },
       ctx: canvas, _offscreen: offscreen, _offCtx: { ...canvas, drawImage() { cacheBuilds++; } },
       _offscreenDirty: true, boardCanvas: { width: 800, height: 600 }, viewportCullingEnabled: true,
-      ViewportDebug: { isEnabled: () => false, start() {}, end() {} },
-      OpenDebug: { isInitialRenderDebugActive: () => false },
+
       viewportWorldRect: () => ({ x1: -1000, y1: -1000, x2: 1000, y2: 1000 }),
       objectIntersectsRect: () => true, syncBoardCanvasBackingStore() {},
       fillBoardBackground() {}, drawTextSelectionJelloOverlays() {},
@@ -1070,13 +904,13 @@ test('editing preserves image jiggles and layer order while caching static image
       hasObjectMotionsForDraw: context.BoardfishMotion.hasObjectMotionsForDraw,
       objectMotionForDraw: context.BoardfishMotion.objectMotionForDraw,
       imageBitmapCache: () => ({ image: bitmap }),
-      selectImageSourceForDraw: () => production ? bitmap : { source: bitmap },
+      selectImageSourceForDraw: () => bitmap,
       getTextLayoutForViewport: () => [{ text: 'overlapping text' }],
       drawTextLineRange(_ctx, _line, obj) { calls.push(obj.id); },
     }));
     let source = readSource('src/js/viewport.js')
       .match(/function (?:_rebuildOffscreen|drawBoard)\([\s\S]*?\n\}/g).join('\n');
-    if (production) source = source.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '');
+    source = source.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '');
     vm.runInContext(source, context);
     const draw = (time, bypass = false) => { calls.length = 0; setTime(time); context.drawBoard(bypass); };
     context.BoardfishMotion.applyCopyFeedback({ objects: [objects.find(obj => obj.id === type)] });
@@ -1181,9 +1015,9 @@ test('motion cleanup preserves the last rendered transform until the next object
   assert.strictEqual(motion.getLastDrawnObjectMotion(image), lastRendered);
 
   setTime(700, false);
-  motion.afterViewportRenderFrame({ source: 'late-board-frame' });
+  motion.afterViewportRenderFrame();
   assert.strictEqual(motion.getLastDrawnObjectMotion(image), lastRendered);
-  context._boardOpening = false; motion.afterViewportRenderFrame({ source: 'post-open-frame' });
+  context._boardOpening = false; motion.afterViewportRenderFrame();
   assert.equal(renderCalls.length, 2);
 
   motion.beginDraw();
@@ -1488,15 +1322,15 @@ test('copy jiggle drives frames through the viewport scheduler', () => {
 
   setTime(0);
   assert.equal(motion.applyCopyFeedback({ objects: [obj] }), true);
-  assert.deepEqual(renderCalls, [{ board: true, overlay: true, source: 'motion' }]);
+  assert.deepEqual(renderCalls, [{ board: true, overlay: true, source: undefined }]);
 
   setTime(16);
   const frame = motion.objectMotionForDraw(obj, 1);
   assert.ok(frame);
-  motion.afterViewportRenderFrame({ source: 'motion' });
+  motion.afterViewportRenderFrame();
 
   assert.equal(renderCalls.length, 2);
-  assert.deepEqual(renderCalls[1], { board: true, overlay: true, source: 'motion' });
+  assert.deepEqual(renderCalls[1], { board: true, overlay: true, source: undefined });
 });
 
 test('empty motion state bypasses reduced-motion media queries', () => {
@@ -1617,7 +1451,7 @@ function loadCopyDeselectFrame({ emptySelection = false } = {}) {
   });
   const rect = { x1: 0, y1: 0, x2: 300, y2: 100 };
   return { context, obj, draws, setTime, renderCalls, drawNormal(specs) {
-    renderer.drawVisibleObjects({}, null, rect, specs);
+    renderer.drawVisibleObjects({}, rect, specs);
   }, drawOverlay(specs) {
     context.drawCopiedOverlay({}, 1, specs);
   } };

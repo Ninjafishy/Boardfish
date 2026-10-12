@@ -21,7 +21,7 @@ function loadTextLayout() {
     },
     objects: [],
     editingId: null,
-    TextSelDebug: { _logHit() {} },
+
     scheduleRender() {},
   };
   vm.createContext(context);

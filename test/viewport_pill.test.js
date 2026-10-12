@@ -5,7 +5,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-
 function createElement(id = 'el') {
   const attrs = new Map();
   const classes = new Set();
@@ -55,9 +54,6 @@ function loadViewportPillHarness() {
     clearTimeout() {},
     setTimeout() {
       return 1;
-    },
-    PillDebug: {
-      log() {},
     },
   };
 
@@ -269,11 +265,11 @@ test('zoom pill sync skips unchanged text writes', () => {
   assert.equal(context.island.title, 'Reset Zoom');
 
   const writesAfterInit = context.islZoom.textContentWriteCount();
-  context.syncIslandZoomDisplay('same-zoom');
+  context.syncIslandZoomDisplay();
   assert.equal(context.islZoom.textContentWriteCount(), writesAfterInit);
 
   context.zoom = 2;
-  context.syncIslandZoomDisplay('zoom-changed');
+  context.syncIslandZoomDisplay();
   assert.equal(context.islZoom.textContent, '200%');
   assert.equal(context.islZoom.textContentWriteCount(), writesAfterInit + 1);
 });
@@ -284,19 +280,19 @@ test('automatic board refreshes sync active overlays while explicit false opts o
     { selected: false, overlayVisible: true },
   ]) {
     const context = loadViewportRenderSchedulerHarness(options);
-    context.scheduleRender(true, null, 'image-scale-variant-batch-1');
+    context.scheduleRender(true, null);
     assert.equal(context.renderFlags().board, true);
     assert.equal(context.renderFlags().overlay, true);
-    assert.deepEqual(context.scheduled, ['image-scale-variant-batch-1']);
+    assert.equal(context.scheduled.length, 1);
   }
 
   const idle = loadViewportRenderSchedulerHarness();
-  idle.scheduleRender(true, null, 'background-refresh');
+  idle.scheduleRender(true, null);
   assert.equal(idle.renderFlags().board, true);
   assert.equal(idle.renderFlags().overlay, false);
 
   const optedOut = loadViewportRenderSchedulerHarness({ selected: true });
-  optedOut.scheduleRender(true, false, 'text-only-refresh');
+  optedOut.scheduleRender(true, false);
   assert.equal(optedOut.renderFlags().overlay, false);
 });
 

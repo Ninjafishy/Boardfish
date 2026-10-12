@@ -5,7 +5,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-
 function loadDirtyStateHarness() {
   const source = readSource('src/js/io_close.js');
   const end = source.indexOf('// ─── Unsaved changes dialog');

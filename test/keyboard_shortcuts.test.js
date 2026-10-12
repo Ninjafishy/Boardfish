@@ -44,7 +44,7 @@ function loadKeyboard(overrides = {}) {
     isBoardInputBlocked: () => false,
     hasOpenContextMenu: () => false,
     runVisibleMenuCommandForShortcut: () => false,
-    closeOpenMenusExcept: (activeMenuId, reason) => calls.push(['close', activeMenuId, reason]),
+    closeOpenMenusExcept: (activeMenuId) => calls.push(['close', activeMenuId]),
     newBoard: () => calls.push(['newBoard']),
     copySelected: () => calls.push(['copySelected']),
     saveBoard: () => calls.push(['saveBoard']),
@@ -199,7 +199,7 @@ test('shortcuts close open menus before running fallback commands', () => {
   assert.equal(event.propagationStopped, true);
   assert.deepEqual(calls, [
     ['visibleMenuCommand', 'save'],
-    ['close', '', 'shortcut:save'],
+    ['close', ''],
     ['saveBoard'],
   ]);
 });
@@ -232,7 +232,7 @@ test('paste shortcut fallback uses the current cursor point', () => {
   assert.equal(event.propagationStopped, true);
   assert.deepEqual(calls, [
     ['visibleMenuCommand', 'paste'],
-    ['close', '', 'shortcut:paste'],
+    ['close', ''],
     ['pasteAtPos', 41, 42],
   ]);
 });

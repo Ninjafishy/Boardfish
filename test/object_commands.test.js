@@ -5,7 +5,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-
 function loadDuplicateHarness({ realLimits = false } = {}) {
   const source = readSource('src/js/object_commands.js');
   const sourceObjects = [

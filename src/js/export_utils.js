@@ -46,61 +46,18 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const yieldToEventLoop = async (dbg, phase, meta = {}) => {
-    const t0 = performance.now();
-    await delay(0);
-    const ms = performance.now() - t0;
-    ExportDebug.step(dbg, 'ui:event-loop-yield', { phase, ms, ...meta });
-    ExportDebug.recordEventLoopYield?.({ phase, ms, ...meta });
-    return ms;
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-
   function createProgressUpdater(totalCount, busyPill) {
     let currentProgressText = progressText(totalCount, 0);
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      ExportDebug.recordProgressUi({
-        phase: 'resolve-start',
-        text: currentProgressText,
-        finishedCount: 0,
-        preparedCount: 0,
-        totalCount,
-      });
-    }
 
-    return (
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      phase,
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      preparedCount
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      , extra = {}
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    ) => {
+    return (preparedCount) => {
       const text = progressText(totalCount, preparedCount);
       if (text === currentProgressText) return;
       currentProgressText = text;
       if (busyPill) busyPill.update(text);
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        ExportDebug.recordProgressUi({
-          phase,
-          text,
-          finishedCount: Number(text.split('/')[0]) || 0,
-          preparedCount,
-          totalCount,
-          ...extra,
-        });
-      }
     };
   }
 
-  async function imageObjectDownloadEntry(obj
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    , dbg
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    , name
-  ) {
+  async function imageObjectDownloadEntry(obj, name) {
     const source = BoardfishImageStore.getSource(obj?.data?.imgKey);
     const needsRendering = imageNeedsRendering(obj);
     if (!needsRendering) {
@@ -112,35 +69,13 @@
     if (!canvas) return null;
     const data = await canvasToPngBlob(canvas);
     if (!data) return null;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const width = canvas.width;
-    const height = canvas.height;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      ExportDebug.step(dbg, 'web-export:rendered-blob', {
-        imgKey: obj?.data?.imgKey,
-        bytes: data.size ?? data.length,
-        width,
-        height,
-        format: 'lossless-png',
-      });
-    }
+
     const entry = {
       name: withImageExtension(name, 'png'),
       data,
       mime: 'image/png',
     };
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      entry.debug = {
-        phase: 'web-rendered',
-        rendered: true,
-        fallbackRender: true,
-        sourceKind: imageSourceKind(source),
-        bytes: data.size ?? data.length,
-        width,
-        height,
-      };
-    }
+
     return entry;
   }
 
@@ -151,130 +86,46 @@
       const data = await readableImageSourceBlob(source);
       const ext = guessImageExtForSource(source);
       const entry = { name: withImageExtension(name, ext), data, mime: webRef ? source.mime || mimeForImageExt(ext) : dataUrlMime(source) };
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        entry.debug = {
-          phase: 'web-original',
-          rendered: false,
-          sourceKind: webRef ? 'web-ref' : 'data-url',
-          bytes: data.size ?? data.length,
-        };
-      }
+
       return entry;
     } catch {
       return null;
     }
   }
 
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const imageSourceKind = (source) => {
-    if (isWebImageRef(source)) return 'web-ref';
-    if (typeof source === 'string') return source.startsWith('data:') ? 'data-url' : 'string';
-    if (!source) return 'missing';
-    return typeof source;
-  };
-  const recordWebResolveEntry = (obj, index, entry, ms, extra = {}) => {
-    ExportDebug.recordResolve?.({
-      index,
-      objectId: obj?.id || '',
-      imgKey: obj?.data?.imgKey || '',
-      key: entry?.name || '',
-      rendered: !!entry?.debug?.rendered,
-      fallbackRender: !!entry?.debug?.fallbackRender,
-      phase: entry?.debug?.phase || extra.phase || '',
-      sourceKind: entry?.debug?.sourceKind || imageSourceKind(BoardfishImageStore.getSource(obj?.data?.imgKey)),
-      bytesMB: entry?.debug?.bytes ? Math.round(entry.debug.bytes / 1024 / 1024 * 100) / 100 : '',
-      ms,
-      skipped: !entry,
-      error: extra.error || '',
-    });
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-  async function downloadImageObjects(imageObjs
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    , dbg
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    , options = {}
-  ) {
+  async function downloadImageObjects(imageObjs, options = {}) {
     const progress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const target = await pickWebExportTarget(imageObjs, options);
     if (target?.cancelled) return { downloadedCount: 0, skippedCount: 0, method: 'picker', cancelled: true };
     if (typeof options.onStart === 'function') options.onStart({ totalCount: imageObjs.length, target });
 
     if (target?.directoryHandle) {
-      return saveImageObjectsToDirectory(imageObjs, target.directoryHandle
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        , dbg
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        , options
+      return saveImageObjectsToDirectory(imageObjs, target.directoryHandle, options
       );
     }
 
     const downloads = [];
     const usedNames = new Set();
     let skippedCount = 0;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    let renderedCount;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      renderedCount = 0;
-      ExportDebug.recordResolveStart?.({
-        imageCount: imageObjs.length,
-        method: target?.handle ? 'file-picker' : (imageObjs.length > 1 ? 'zip' : 'download'),
-        targetMode: options.targetMode || 'auto',
-      });
-    }
+
     for (let i = 0; i < imageObjs.length; i++) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      let itemStart;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') itemStart = performance.now();
-      const entry = await imageObjectDownloadEntry(imageObjs[i]
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        , dbg
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        , (imageObjs.length === 1 && options.filename) || uniqueImageExportName(imageObjs[i], usedNames),
+      const entry = await imageObjectDownloadEntry(imageObjs[i], (imageObjs.length === 1 && options.filename) || uniqueImageExportName(imageObjs[i], usedNames),
       );
       if (!entry) {
         skippedCount++;
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          recordWebResolveEntry(imageObjs[i], i, null, performance.now() - itemStart, { phase: 'web-skipped' });
-        }
+
         continue;
       }
       downloads.push(entry);
-      if (typeof BOARDFISH_PRODUCTION === 'undefined' && entry.debug?.rendered) renderedCount++;
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        recordWebResolveEntry(imageObjs[i], i, entry, performance.now() - itemStart);
-        ExportDebug.recordResolveProgress?.({
-          processed: i + 1,
-          imageCount: imageObjs.length,
-          keyCount: downloads.length,
-          renderedCount,
-          skippedCount,
-        });
-      }
+
       progress?.({
         phase: 'prepare-progress',
         preparedCount: downloads.length,
         totalCount: imageObjs.length,
       });
       if (i % 2 === 1 || i === imageObjs.length - 1) {
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          await yieldToEventLoop(dbg, 'web-prepare', { processed: i + 1, imageCount: imageObjs.length });
-        } else {
-          await delay(0);
-        }
+        await delay(0);
       }
-    }
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      ExportDebug.recordResolveDone?.({
-        processed: imageObjs.length,
-        imageCount: imageObjs.length,
-        keyCount: downloads.length,
-        renderedCount,
-        skippedCount,
-      });
     }
 
     if (!downloads.length) return { downloadedCount: 0, skippedCount, method: 'none' };
@@ -282,73 +133,26 @@
     const single = downloads.length === 1;
     let data, filename, mime, byteLength;
     const method = target?.handle ? (single ? 'file-picker' : 'zip-file-picker') : (single ? 'download' : 'zip');
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      ExportDebug.recordSaveStart?.({ keyCount: downloads.length, batchSize: downloads.length, batchCount: single ? 1 : 2, method });
-    }
+
     if (single) {
       const item = downloads[0];
       data = item.data;
       filename = item.name;
       mime = item.mime || 'image/png';
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      byteLength = data.size ?? data.length;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
     } else {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        await yieldToEventLoop(dbg, 'web-before-zip', { entryCount: downloads.length });
-      } else {
-        await delay(0);
-      }
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      let zipStart;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        zipStart = performance.now();
-        ExportDebug.step(dbg, 'web-export:zip-start', { entryCount: downloads.length });
-      }
+      await delay(0);
+
       const zip = await root.BoardfishWebBoardContainer.createZipBlob(downloads);
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        const zipMs = performance.now() - zipStart;
-        ExportDebug.step(dbg, 'web-export:zip-done', { entryCount: downloads.length, bytes: zip.byteLength, ms: zipMs });
-        ExportDebug.recordSaveBatch?.({
-          batchIndex: 1,
-          batchCount: 2,
-          batchSize: downloads.length,
-          keyCount: downloads.length,
-          savedCount: 0,
-          failedCount: 0,
-          missingCount: 0,
-          ms: zipMs,
-          method: 'zip-build',
-        });
-      }
+
       data = zip.blob;
       filename = target?.filename || `images_${randomHex()}.zip`;
       mime = 'application/zip';
       byteLength = zip.byteLength;
     }
     progress?.({ phase: 'save-start', preparedCount: downloads.length, totalCount: imageObjs.length });
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    let saveStart;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') saveStart = performance.now();
+
     await saveExportData(data, target, filename, mime);
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      const bytesMB = Math.round(byteLength / 1024 / 1024 * 100) / 100;
-      ExportDebug.recordSaveBatch?.({
-        batchIndex: single ? 1 : 2,
-        batchCount: single ? 1 : 2,
-        batchSize: 1,
-        keyCount: downloads.length,
-        savedCount: downloads.length,
-        failedCount: 0,
-        missingCount: 0,
-        bytesMB,
-        ms: performance.now() - saveStart,
-        method: single || target?.handle ? method : 'zip-download',
-      });
-      ExportDebug.recordSaveDone?.({ savedCount: downloads.length, failedCount: 0, missingCount: skippedCount, bytesMB });
-    }
+
     progress?.({ phase: 'save-progress', preparedCount: downloads.length, finishedCount: downloads.length, totalCount: imageObjs.length });
     const result = { downloadedCount: downloads.length, skippedCount, method };
     if (!single) {
@@ -383,7 +187,7 @@
       return handle ? { handle, filename } : { cancelled: true };
     } catch (err) {
       if (err?.name === 'AbortError') return { cancelled: true };
-      console.warn('File Picker Failed; Using Browser Download', err);
+
       return null;
     }
   }
@@ -395,7 +199,7 @@
       return handle ? { directoryHandle: handle, filename: '', method: 'directory-picker' } : { cancelled: true };
     } catch (err) {
       if (err?.name === 'AbortError') return { cancelled: true };
-      console.warn('Folder Picker Failed; Using Browser Download', err);
+
       return null;
     }
   }
@@ -414,44 +218,24 @@
     return entry.data?.size || entry.data?.length || 0;
   }
 
-  async function saveImageObjectsToDirectory(imageObjs, directoryHandle
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    , dbg
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    , options = {}
-  ) {
+  async function saveImageObjectsToDirectory(imageObjs, directoryHandle, options = {}) {
     const progress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const usedNames = new Set();
     let savedCount = 0;
     let failedCount = 0;
     let skippedCount = 0;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    let renderedCount;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     let bytes = 0;
     const errors = [];
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      renderedCount = 0;
-      ExportDebug.recordResolveStart?.({ imageCount: imageObjs.length, method: 'directory-picker', targetMode: options.targetMode || 'folder' });
-      ExportDebug.recordSaveStart({ keyCount: imageObjs.length, batchSize: 1, batchCount: imageObjs.length, method: 'directory-picker' });
-    }
+
     for (let i = 0; i < imageObjs.length; i++) {
       const name = uniqueImageExportName(imageObjs[i], usedNames);
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      let itemStart;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') itemStart = performance.now();
-      const entry = await imageObjectDownloadEntry(imageObjs[i]
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        , dbg
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        , name
+
+      const entry = await imageObjectDownloadEntry(imageObjs[i], name
       );
       if (!entry) {
         skippedCount++;
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          recordWebResolveEntry(imageObjs[i], i, null, performance.now() - itemStart, { phase: 'web-skipped' });
-        }
+
         progress?.({
           phase: 'prepare-progress',
           preparedCount: savedCount + failedCount + skippedCount,
@@ -459,67 +243,24 @@
         });
         continue;
       }
-      if (typeof BOARDFISH_PRODUCTION === 'undefined' && entry.debug?.rendered) renderedCount++;
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        recordWebResolveEntry(imageObjs[i], i, entry, performance.now() - itemStart);
-        ExportDebug.recordResolveProgress?.({
-          processed: i + 1,
-          imageCount: imageObjs.length,
-          keyCount: savedCount + failedCount + 1,
-          renderedCount,
-          skippedCount,
-        });
-      }
+
       progress?.({
         phase: 'prepare-progress',
         preparedCount: savedCount + failedCount + skippedCount + 1,
         totalCount: imageObjs.length,
       });
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      let writeStart;
-      let batchSaved;
-      let batchFailed;
-      let writtenBytes;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        writeStart = performance.now();
-        batchSaved = 0;
-        batchFailed = 0;
-        writtenBytes = 0;
-      }
+
       try {
         const written = await writeEntryToDirectory(directoryHandle, entry);
         savedCount++;
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          batchSaved = 1;
-          writtenBytes = written;
-        }
+
         bytes += written;
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          ExportDebug.step(dbg, 'web-export:folder-write', { name: entry.name, bytes: written });
-        }
       } catch (err) {
         failedCount++;
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') batchFailed = 1;
+
         if (errors.length < 10) errors.push(`${entry.name}: ${err?.message || err}`);
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          ExportDebug.step(dbg, 'web-export:folder-write-error', { name: entry.name, error: String(err) });
-        }
       }
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        ExportDebug.recordSaveBatch({
-          batchIndex: i + 1,
-          batchCount: imageObjs.length,
-          batchSize: 1,
-          keyCount: 1,
-          savedCount: batchSaved,
-          failedCount: batchFailed,
-          missingCount: 0,
-          bytesMB: Math.round(writtenBytes / 1024 / 1024 * 100) / 100,
-          ms: performance.now() - writeStart,
-          error: errors[errors.length - 1] || '',
-        });
-      }
+
       progress?.({
         phase: 'save-progress',
         preparedCount: savedCount + failedCount + skippedCount,
@@ -527,29 +268,10 @@
         totalCount: imageObjs.length,
       });
       if (i % 2 === 1 || i === imageObjs.length - 1) {
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          await yieldToEventLoop(dbg, 'web-directory-save', { processed: i + 1, imageCount: imageObjs.length });
-        } else {
-          await delay(0);
-        }
+        await delay(0);
       }
     }
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      ExportDebug.recordResolveDone?.({
-        processed: imageObjs.length,
-        imageCount: imageObjs.length,
-        keyCount: savedCount + failedCount,
-        renderedCount,
-        skippedCount,
-      });
-      ExportDebug.recordSaveDone({
-        savedCount,
-        failedCount,
-        missingCount: skippedCount,
-        bytesMB: Math.round(bytes / 1024 / 1024 * 100) / 100,
-        method: 'directory-picker',
-      });
-    }
+
     return {
       downloadedCount: savedCount,
       savedCount,

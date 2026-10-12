@@ -51,9 +51,7 @@ function loadTextLayout({
     },
     navigator: { userAgent },
     objects: [],
-    TextSelDebug: {
-      _logHit() {},
-    },
+
     scheduleRender() {},
   };
   if (trackSegmenter) {
@@ -89,7 +87,7 @@ function loadTextLayout({
       getTextAutoHeight,
       getTextRenderedContentWidth,
       syncTextAutoHeight,
-      prewarmTextObjectLayoutRuntimeCaches,
+
       patchTextObjectLayoutAfterInput,
       clearTextLayoutCaches,
       clearTextObjectLayoutRuntime,
@@ -427,15 +425,6 @@ test('text drawing places each glyph at measured prefix positions', () => {
     calls.map((call) => call.x),
     [0, 1, 2, 3, 5, 6, 7, 8].map((offset) => obj.x + context.TEXT_PAD + line.prefixWidths[offset]),
   );
-  assert.equal(stats.chars, 9);
-  assert.equal(stats.drawnChars, 8);
-  assert.equal(stats.drawUnits, 8);
-  assert.equal(stats.drawCalls, 8);
-  assert.equal(stats.runs, 1);
-  assert.equal(stats.skippedTabs, 0);
-  assert.equal(stats.skippedSpaces, 1);
-  assert.equal(stats.planCacheHits, 0);
-  assert.equal(stats.planCacheMisses, 1);
 
   calls.length = 0;
   const cachedStats = textLayout.drawTextLineRange({
@@ -446,11 +435,6 @@ test('text drawing places each glyph at measured prefix positions', () => {
   }, line, obj);
 
   assert.deepEqual(calls.map((call) => call.text), ['a', '-', '>', 'b', 'c', '<', '-', 'd']);
-  assert.equal(cachedStats.drawUnits, 8);
-  assert.equal(cachedStats.drawCalls, 8);
-  assert.equal(cachedStats.skippedSpaces, 1);
-  assert.equal(cachedStats.planCacheHits, 1);
-  assert.equal(cachedStats.planCacheMisses, 0);
 });
 
 test('opening hydration can prepare every text draw plan before the first canvas draw', () => {
@@ -472,8 +456,6 @@ test('opening hydration can prepare every text draw plan before the first canvas
 
   for (const line of layout) {
     const stats = textLayout.drawTextLineRange({ fillText() {} }, line, obj);
-    assert.equal(stats.planCacheHits, 1);
-    assert.equal(stats.planCacheMisses, 0);
   }
 });
 
@@ -504,8 +486,6 @@ test('text drawing batches pixel-equivalent plain ASCII spans only', () => {
     calls.map((call) => call.x),
     [0, 2, 4, 5, 6, 8, 10, 12, 14, 16, 17].map((offset) => obj.x + context.TEXT_PAD + line.prefixWidths[offset]),
   );
-  assert.equal(stats.drawUnits, 16);
-  assert.equal(stats.drawCalls, 11);
 });
 
 test('text drawing splits the Geist contextual tt pair', () => {
@@ -531,8 +511,6 @@ test('text drawing splits the Geist contextual tt pair', () => {
   }, line, obj);
 
   assert.deepEqual(calls, ['le', 't', 'te', 'r']);
-  assert.equal(stats.drawUnits, 6);
-  assert.equal(stats.drawCalls, 4);
 });
 
 test('text drawing keeps the exact per-grapheme path for fallback fonts and unverified engines', () => {
@@ -561,7 +539,6 @@ test('text drawing keeps the exact per-grapheme path for fallback fonts and unve
     }, line, obj);
 
     assert.deepEqual(calls, ['B', 'o', 'a', 'r', 'd']);
-    assert.equal(stats.drawCalls, 5);
   }
 });
 
@@ -1481,41 +1458,6 @@ test('auto-height reuses exact wrapped line index when resize revisits a width',
   assert.equal(textLayout.hasObjectLayoutCache(obj), false);
 });
 
-test('runtime prewarm fills paragraph prefixes without full layout cache', () => {
-  const { context, measured } = loadTextLayout({
-    measureWidth(text) {
-      return String(text).length;
-    },
-  });
-  const textLayout = context.__testTextLayout;
-  const content = Array.from({ length: 90 }, (_, index) => `line ${index} alpha beta gamma`).join('\n');
-  const obj = {
-    id: 'runtime-prefix-prewarm',
-    type: 'text',
-    x: 0,
-    y: -900,
-    w: 34 + context.TEXT_PAD * 2,
-    h: 90 * context.LINE_H + context.TEXT_PAD * 2,
-    data: { content },
-  };
-
-  const prewarm = textLayout.prewarmTextObjectLayoutRuntimeCaches(obj);
-  const secondPrewarm = textLayout.prewarmTextObjectLayoutRuntimeCaches(obj);
-  const measuredAfterPrewarm = measured.length;
-  const visible = textLayout.getTextLayoutForViewport(obj, { y1: 0, y2: 120 });
-
-  assert.equal(prewarm.available, true);
-  assert.equal(prewarm.logicalLineEntries, 90);
-  assert.equal(secondPrewarm.skipped, 'warm');
-  assert.equal(secondPrewarm.processedLogicalLines, 0);
-  assert.equal(textLayout.paragraphPrefixCacheSize(obj), 90);
-  assert.equal(textLayout.wrappedLineIndexCacheSize(obj), 90);
-  assert.equal(textLayout.hasObjectLayoutCache(obj), false);
-  assert.equal(visible.totalLines, 90);
-  assert.ok(visible.length > 0);
-  assert.equal(measured.length, measuredAfterPrewarm);
-});
-
 test('viewport line range layout is cached for repeated panning draws', () => {
   const { context } = loadTextLayout({
     measureWidth(text) {
@@ -1593,7 +1535,6 @@ test('viewport line cache keeps blank lines during full range prewarm', () => {
     data: { content },
   };
 
-  textLayout.prewarmTextObjectLayoutRuntimeCaches(obj);
   const full = textLayout.getTextLayoutForLineRange(obj, 0, 119);
 
   assert.equal(full.totalLines, 120);

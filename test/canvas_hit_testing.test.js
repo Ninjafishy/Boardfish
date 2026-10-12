@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 const { readSource } = require('../test-support/source.js');
 const vm = require('node:vm');
 
-
 function cssBlocksForPrelude(source, prelude) {
   const blocks = [];
   let searchFrom = 0;
@@ -60,13 +59,7 @@ function loadCanvasWheelHarness() {
     zoomCalls: [],
     transforms: [],
     isEventInsideViewportWheelSurface: (e) => e.insideViewportWheelSurface === true,
-    ViewportDebug: {
-      isEnabled: () => false,
-      start: () => ({}),
-      count() {},
-      end() {},
-      timing() {},
-    },
+
     BoardfishViewportState: {
       zoomAroundClient(clientX, clientY, nextZoom) {
         context.zoom = nextZoom;
@@ -106,7 +99,7 @@ function loadResetZoomHarness({ objects = [], panX = 0, panY = 0, zoom = 1, sele
     editingId,
     transforms: [],
     deselectCalls: 0,
-    debugEnd: null,
+
     window: { innerWidth: 1000, innerHeight: 800 },
     toWorld(sx, sy) {
       return {
@@ -114,10 +107,7 @@ function loadResetZoomHarness({ objects = [], panX = 0, panY = 0, zoom = 1, sele
         y: (sy - context.panY) / context.zoom,
       };
     },
-    ViewportDebug: {
-      start() { return {}; },
-      end(_dbg, meta = {}) { context.debugEnd = meta; },
-    },
+
     BoardfishViewportState: {
       setZoomPan(nextZoom, nextPanX, nextPanY) {
         context.zoom = nextZoom;
@@ -148,7 +138,7 @@ function loadMenuCommandHarness() {
   const context = {
     calls: [],
     console,
-    MenuDebug: { log() {} },
+
     MENU_COMMANDS: {
       'btn-open': (event) => context.calls.push(event),
     },
@@ -198,7 +188,6 @@ function loadTextEditMenuHarness() {
     openExclusiveMenuAt(...args) {
       calls.opens.push(args);
     },
-    MenuDebug: { log() {} },
   };
 
   vm.createContext(context);
@@ -248,7 +237,6 @@ function loadTextEditPasteHarness() {
     replaceTextEditSelection(text, options) {
       calls.replacements.push({ text, options });
     },
-    MenuDebug: { log() {} },
   };
 
   vm.createContext(context);
@@ -272,7 +260,7 @@ test('background context menu clears object selection before opening', () => {
   const contextMenuSource = readSource('src/js/context_menu.js');
   const styles = readSource('src/styles.css');
 
-  assert.match(contextMenuSource, /if \(obj\) \{[\s\S]*obj-ctx-menu:open[\s\S]*return;[\s\S]*\}\s*if \(selectedIds\.size\) deselectAll\(\);\s*openCtxMenuAt\(clientX, clientY\);/);
+  assert.match(contextMenuSource, /if \(obj\) \{[\s\S]*openExclusiveMenuAt\(objCtxMenu[\s\S]*return;[\s\S]*\}\s*if \(selectedIds\.size\) deselectAll\(\);\s*openCtxMenuAt\(clientX, clientY\);/);
   assert.doesNotMatch(contextMenuSource, /addTextBtn\.disabled|addImageBtn\.disabled|updateCtxMenuActions|button\??\.disabled|reason: 'disabled'/);
   assert.doesNotMatch(styles, /\.ctx-item:disabled|aria-disabled/);
 });
@@ -341,7 +329,7 @@ test('opening the text editing context menu keeps Paste visible without reading 
   assert.equal(context.textDeleteBtn.style.display, 'none');
   assert.equal(context.calls.opens.length, 1);
   assert.equal(context.calls.opens[0][0], context.textCtxMenu);
-  assert.deepEqual(context.calls.opens[0].slice(1), ['text-ctx-menu', 24, 48, 'show-text-menu:edit']);
+  assert.deepEqual(context.calls.opens[0].slice(1), ['text-ctx-menu', 24, 48]);
 });
 
 test('external text Paste starts its clipboard read before user activation expires', async () => {
@@ -390,7 +378,7 @@ test('wheel zoom over visible floating UI uses the viewport wheel handler', () =
   assert.match(inputSource, /window\.addEventListener\('wheel', handleViewportWheel, \{ capture: true, passive: false \}\);/);
   assert.doesNotMatch(inputSource, /canvas\.addEventListener\('wheel'/);
   assert.doesNotMatch(inputSource, /viewportWheelSurfaces/);
-  assert.match(inputSource.replace(/\/\* BOARDFISH_DEV_DIAGNOSTICS_(?:START|END) \*\//g, ''), /const requestedZoom = zoom \* factor;\s*scheduleTransform\(BoardfishViewportState\.zoomAroundClient\(e\.clientX, e\.clientY, requestedZoom\)\s*, 'wheel-zoom', e\s*\);/);
+  assert.match(inputSource, /const requestedZoom = zoom \* factor;\s*scheduleTransform\(BoardfishViewportState\.zoomAroundClient\(e\.clientX, e\.clientY, requestedZoom\)\s*\);/);
   assert.match(viewportSource, /lastViewportInputAt = now;\s*if \(changed === false && !editingId\) return;/);
   assert.doesNotMatch(inputSource, /const newZoom = Math\.min\(ZOOM_MAX/);
   assert.match(selectionSource, /document\.elementFromPoint\(x, y\)/);
@@ -459,7 +447,7 @@ test('menu rows clear explicit pressed state on release, cancellation, and close
   assert.match(source, /function onMenuPointerUp\(e\) \{[\s\S]*clearMenuCommandPressState\(\);[\s\S]*e\.pointerType === 'touch'[\s\S]*started\.blur\?\.\(\);/);
   assert.match(source, /const MENU_COMMAND_CANCEL_EVENTS = HAS_POINTER_EVENTS[\s\S]*'pointercancel'[\s\S]*'pointerleave'[\s\S]*'lostpointercapture'[\s\S]*'mouseleave'/);
   assert.match(source, /menu\.addEventListener\(MENU_COMMAND_DOWN_EVENT, onMenuPointerDown\);[\s\S]*menu\.addEventListener\(MENU_COMMAND_UP_EVENT, onMenuPointerUp\);[\s\S]*MENU_COMMAND_CANCEL_EVENTS/);
-  assert.match(source, /function closeObjCtxMenu\(reason\) \{[\s\S]*clearMenuCommandPressState\(\);[\s\S]*closeFloatingSurface\(objCtxMenu\);/);
+  assert.match(source, /function closeObjCtxMenu\(\) \{[\s\S]*clearMenuCommandPressState\(\);[\s\S]*closeFloatingSurface\(objCtxMenu\);/);
   const coarseStyles = [
     ...cssBlocksForPrelude(styles, '@media (hover: none)'),
     ...cssBlocksForPrelude(styles, '@media (pointer: coarse)'),
@@ -635,8 +623,6 @@ test('text edit overlay draws only visible layout lines', () => {
 
   assert.match(overlaySource, /const layout = getTextLayoutForViewport\(obj, viewportRect\);/);
   assert.doesNotMatch(overlaySource, /visibleTextLayoutLines/);
-  assert.match(overlaySource, /editVisibleLines/);
-  assert.match(overlaySource, /editCulledLines/);
   assert.match(overlaySource, /drawTextLayoutStatic\([\s\S]*?context,\s*obj,\s*layout,/);
 });
 
@@ -688,7 +674,6 @@ test('overlapping text selection highlight runs share one path fill', () => {
   };
   const drawCalls = [];
   const context = {
-    TextSelDebug: { _logDraw() {} },
     applyTextSelectionMotionTransform() {},
   };
   vm.createContext(context);
@@ -707,7 +692,7 @@ test('overlapping text selection highlight runs share one path fill', () => {
     fillRect(...args) { drawCalls.push(['fillRect', ...args]); },
   };
 
-  context.drawTextSelectionHighlight(canvasContext, {}, 0, 10, selection, null);
+  context.drawTextSelectionHighlight(canvasContext, selection, null);
   assert.deepEqual(drawCalls, [
     ['save'],
     ['beginPath'],
@@ -765,7 +750,7 @@ test('global capture wheel zoom over the zoom pill is handled once by the board'
 
   assert.equal(event.defaultPrevented, true);
   assert.equal(context.zoomCalls.length, 1);
-  assert.deepEqual(context.transforms.map((entry) => entry.source), ['wheel-zoom']);
+  assert.equal(context.transforms.length, 1);
   assert.ok(context.zoomCalls[0].nextZoom > 1);
 });
 
@@ -777,10 +762,9 @@ test('reset zoom on an empty board zooms to 100 percent around the current cente
   assert.equal(context.zoom, 1);
   assert.equal(context.panX, 350);
   assert.equal(context.panY, 250);
-  assert.deepEqual(context.transforms, ['reset-zoom']);
+  assert.equal(context.transforms.length, 1);
   assert.equal(context.toWorld(500, 400).x, 150);
   assert.equal(context.toWorld(500, 400).y, 150);
-  assert.equal(context.debugEnd.mode, 'empty-board-center');
 });
 
 test('reset zoom clears selected and edited objects before zooming', () => {
@@ -801,9 +785,7 @@ test('reset zoom clears selected and edited objects before zooming', () => {
   assert.equal(context.selectedIds.size, 0);
   assert.equal(context.editingId, null);
   assert.equal(context.zoom, 1);
-  assert.deepEqual(context.transforms, ['reset-zoom']);
-  assert.equal(context.debugEnd.objectId, image.id);
-  assert.equal(context.debugEnd.objectType, 'image');
+  assert.equal(context.transforms.length, 1);
 });
 
 test('context-menu paste does not use an external fallback after a character-limit rejection', async () => {

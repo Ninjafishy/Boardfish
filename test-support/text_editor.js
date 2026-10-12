@@ -89,7 +89,7 @@ function loadLiveTextEditResizeHarness() {
     renders: [],
     animations: [],
     flushes: 0,
-    TextSelDebug: { _logSelection() {}, _logHit() {} },
+
     document: {
       activeElement: null,
       body: { appendChild(node) { context.document.activeElement = node; } },

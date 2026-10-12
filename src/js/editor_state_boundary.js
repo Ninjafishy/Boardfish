@@ -7,15 +7,8 @@
   }
 
   function setSelectionState(ids = [], { primaryId = null } = {}) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const startedAt = root.performance?.now?.() ?? Date.now();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const nextIds = ids || [];
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const previousCount = selectedIds.size;
-    const previousPrimaryId = selectedId || '';
-    const previousEditingId = editingId || '';
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     selectedIds.clear();
     let lastExistingId = null;
     for (const id of nextIds) {
@@ -25,15 +18,6 @@
     }
     selectedId = primaryId && selectedIds.has(primaryId) ? primaryId : lastExistingId;
     if (editingId && !selectedIds.has(editingId)) exitEdit();
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      root.TextSelDebug?._logObjectSelection?.('set-selection', nextIds, {
-        ms: Math.round(((root.performance?.now?.() ?? Date.now()) - startedAt) * 100) / 100,
-        previousCount,
-        previousPrimaryId,
-        previousEditingId,
-        requestedPrimaryId: primaryId || '',
-      });
-    }
   }
 
   function addObject(obj) {
@@ -108,7 +92,7 @@
     const result = mutate();
     if (!result) return result;
     if (options.invalidate) invalidateOffscreen();
-    scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , reason || 'mutation' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+    scheduleRender(true, true);
     pushHistory(reason);
     return result;
   }

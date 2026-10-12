@@ -1,4 +1,4 @@
-export const WEB_DEV_SCRIPTS = Object.freeze([
+export const WEB_SCRIPTS = Object.freeze([
   'web_env.js',
   'board_types.js',
   'web_board_container.js',
@@ -7,27 +7,17 @@ export const WEB_DEV_SCRIPTS = Object.freeze([
   'runtime_utils.js',
   'object_geometry.js',
   'interaction_utils.js',
-  'debug_core.js',
   'renderer.js',
   'board_schema.js',
   'board_document.js',
-  'startup_debug.js',
   '../app.js',
   'geometry.js',
   'clipboard_state.js',
-  'debug.js',
-  'debug_save.js',
-  'debug_open.js',
-  'debug_export.js',
-  'debug_manual_perf.js',
-  'debug_insert.js',
-  'debug_text_selection.js',
   'clipboard_io.js',
   'export_utils.js',
   'text_layout.js',
   'motion.js',
   'image_variants.js',
-  'viewport_debug_ui.js',
   'viewport.js',
   'viewport_state.js',
   'state.js',
@@ -48,20 +38,3 @@ export const WEB_DEV_SCRIPTS = Object.freeze([
   'keyboard.js',
   'app_bootstrap.js',
 ]);
-
-const DEV_ONLY_SCRIPTS = new Set([
-  'debug_core.js',
-  'startup_debug.js',
-  'debug.js',
-  'debug_save.js',
-  'debug_open.js',
-  'debug_export.js',
-  'debug_manual_perf.js',
-  'debug_insert.js',
-  'debug_text_selection.js',
-  'viewport_debug_ui.js',
-]);
-
-export const WEB_PREVIEW_SCRIPTS = Object.freeze(
-  WEB_DEV_SCRIPTS.filter((script) => !DEV_ONLY_SCRIPTS.has(script)),
-);

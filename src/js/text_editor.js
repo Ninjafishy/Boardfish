@@ -1,214 +1,8 @@
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-const textEditorDebugNow = () => performance.now();
 
-const textEditorDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
-
-const textEditorEventTimestampMs = (event = null) => {
-  const timestamp = Number(event?.timeStamp);
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return textEditorDebugNow();
-  return typeof performance !== 'undefined' && Number.isFinite(performance.timeOrigin) && timestamp > performance.timeOrigin
-    ? timestamp - performance.timeOrigin
-    : timestamp;
-};
-
-const textEditorEventDebugStats = (event = null) => {
-  const now = textEditorDebugNow();
-  const eventAt = textEditorEventTimestampMs(event);
-  return {
-    eventType: event?.type || '',
-    eventAt: textEditorDebugRound(eventAt),
-    eventAgeMs: textEditorDebugRound(Math.max(0, now - eventAt)),
-    inputDataLength: typeof event?.data === 'string' ? event.data.length : '',
-    isComposing: !!event?.isComposing,
-    isTrusted: !!event?.isTrusted,
-    cancelable: !!event?.cancelable,
-    defaultPrevented: !!event?.defaultPrevented,
-  };
-};
-
-const textEditorDebugLog = (label, obj, meta = {}) => {
-  if (typeof TextSelDebug !== 'undefined') TextSelDebug._logEditLifecycle?.(label, obj, meta);
-};
-
-const textEditorClipDebugApi = () => (
-  typeof ClipDebug !== 'undefined' ? ClipDebug : null
-);
-
-const textEditorClipStep = (dbg, step, meta = {}) => {
-  const api = textEditorClipDebugApi();
-  if (api && dbg) api.step(dbg, step, meta);
-};
-
-const textEditorClipboardLog = (label, obj, meta = {}) => {
-  if (typeof TextSelDebug !== 'undefined') TextSelDebug._logClipboard?.(label, obj, meta);
-};
-
-const textEditorTextStats = (value) => {
-  const text = String(value ?? '');
-  const lines = text ? text.split('\n') : [];
-  let largestLineChars = 0;
-  for (const line of lines) largestLineChars = Math.max(largestLineChars, line.length);
-  const textBytes = typeof BoardfishWebLimits !== 'undefined' && typeof BoardfishWebLimits.textByteLength === 'function'
-    ? BoardfishWebLimits.textByteLength(text)
-    : (typeof TextEncoder === 'function' ? new TextEncoder().encode(text).length : text.length);
-  return {
-    textLen: text.length,
-    textLineCount: lines.length,
-    largestLineChars,
-    textBytes,
-  };
-};
-const textEditorSelectionDebugStats = (selection = {}, value = '') => {
-  const text = String(value ?? '');
-  const start = Math.max(0, Math.min(selection.start ?? 0, text.length));
-  const end = Math.max(start, Math.min(selection.end ?? start, text.length));
-  return {
-    selectionStart: start,
-    selectionEnd: end,
-    selectedChars: end - start,
-    selectionDirection: selection.direction || 'none',
-    hasSelection: start !== end,
-  };
-};
-
-const textEditorCaretLineDebugStats = (obj, index, prefix = 'caret') => {
-  const lines = Array.isArray(obj?._layoutCache) ? obj._layoutCache : [];
-  const pos = Math.max(0, Math.trunc(Number(index)) || 0);
-  let lineIndex = -1;
-  let line = null;
-  for (let i = 0; i < lines.length; i++) {
-    const candidate = lines[i];
-    const start = Math.max(0, Math.trunc(Number(candidate?.startIndex)) || 0);
-    const end = Math.max(start, Math.trunc(Number(candidate?.caretEndIndex ?? candidate?.endIndex ?? start)) || start);
-    if (pos >= start && pos <= end) {
-      lineIndex = i;
-      line = candidate;
-      break;
-    }
-  }
-  const text = String(line?.text ?? '');
-  return {
-    [`${prefix}LineIndex`]: lineIndex,
-    [`${prefix}LineStart`]: line?.startIndex ?? '',
-    [`${prefix}LineEnd`]: line?.endIndex ?? '',
-    [`${prefix}LineCaretEnd`]: line?.caretEndIndex ?? '',
-    [`${prefix}LineNextStart`]: line?.nextStartIndex ?? '',
-    [`${prefix}LineLogicalIndex`]: line?.logicalLineIndex ?? '',
-    [`${prefix}LineChars`]: text.length,
-    [`${prefix}LineBlank`]: line ? !/\S/.test(text) : '',
-    [`${prefix}LineTextSample`]: text.slice(0, 80),
-  };
-};
-
-const textEditorObjectDebugStats = (obj) => ({
-  objectWidth: obj?.w ?? '',
-  objectHeight: obj?.h ?? '',
-  editStartChars: typeof obj?._editStartContent === 'string' ? obj._editStartContent.length : '',
-  editMinLines: obj?._editMinLines ?? '',
-  preservedMinLines: obj?._textEditPreservedMinLines ?? '',
-  layoutCachePresent: !!obj?._layoutCache,
-  layoutCacheLines: Array.isArray(obj?._layoutCache) ? obj._layoutCache.length : '',
-});
-
-const textEditorCap = (prefix, name) => `${prefix}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
-
-const textEditorSizeDebugStats = (obj, content, prefix) => {
-  const key = (name) => textEditorCap(prefix, name);
-  const text = normalizeTextContent(content);
-  const lineH = Number(LINE_H) || 24;
-  const pad = Number(TEXT_PAD) || 16;
-  const minLines = obj.id === editingId ? (Math.max(1, Math.trunc(Number(obj._editMinLines)) || 1)) : 1;
-  const logicalLines = Math.max(1, textNewlineCount(text) + 1);
-  const layoutCacheValid = Array.isArray(obj._layoutCache) &&
-    obj._layoutCacheContent === text &&
-    obj._layoutCacheW === obj.w;
-  const wrappedCountValid = obj._textWrappedLineCountCacheContent === text &&
-    obj._textWrappedLineCountCacheW === obj.w &&
-    Number.isFinite(obj._textWrappedLineCountCacheValue);
-  const wrappedIndex = obj._textWrappedLineIndexCache;
-  const wrappedIndexValid = wrappedIndex &&
-    Array.isArray(wrappedIndex.entries) &&
-    obj._textWrappedLineIndexCacheContent === text &&
-    obj._textWrappedLineIndexCacheW === obj.w &&
-    Number.isFinite(wrappedIndex.lineCount);
-  const widthCache = obj._textWrappedLineIndexWidthCache;
-  const widthCached = widthCache &&
-    obj._textWrappedLineIndexWidthCacheContent === text &&
-    typeof widthCache.get === 'function'
-    ? widthCache.get(String(obj.w))
-    : null;
-  const widthCacheValid = widthCached &&
-    Array.isArray(widthCached.entries) &&
-    Number.isFinite(widthCached.lineCount);
-  let cachedLines = '';
-  let cachedSource = '';
-  if (layoutCacheValid) {
-    cachedLines = Math.max(1, obj._layoutCache.length);
-    cachedSource = 'layout-cache';
-  } else if (wrappedIndexValid) {
-    cachedLines = Math.max(1, Math.trunc(Number(wrappedIndex.lineCount)) || 1);
-    cachedSource = 'wrapped-index-cache';
-  } else if (wrappedCountValid) {
-    cachedLines = Math.max(1, Math.trunc(Number(obj._textWrappedLineCountCacheValue)) || 1);
-    cachedSource = 'wrapped-count-cache';
-  } else if (widthCacheValid) {
-    cachedLines = Math.max(1, Math.trunc(Number(widthCached.lineCount)) || 1);
-    cachedSource = 'wrapped-width-cache';
-  }
-  const heightLines = exactTextEditLineCountForHeight(obj.h);
-  const expectedLogicalHeight = Math.max(minLines, logicalLines) * lineH + pad * 2;
-  const expectedCachedHeight = cachedLines === ''
-    ? ''
-    : Math.max(minLines, cachedLines) * lineH + pad * 2;
-  return {
-    [key('objectWidth')]: obj.w,
-    [key('objectHeight')]: obj.h,
-    [key('heightLines')]: heightLines || '',
-    [key('editMinLines')]: minLines,
-    [key('logicalLines')]: logicalLines,
-    [key('cachedLines')]: cachedLines,
-    [key('cachedLineSource')]: cachedSource,
-    [key('expectedLogicalHeight')]: expectedLogicalHeight,
-    [key('expectedCachedHeight')]: expectedCachedHeight,
-    [key('heightDeltaFromLogical')]: Number(obj.h) - expectedLogicalHeight,
-    [key('heightDeltaFromCached')]: expectedCachedHeight === '' ? '' : Number(obj.h) - expectedCachedHeight,
-    [key('layoutCacheValid')]: !!layoutCacheValid,
-    [key('wrappedCountCacheValid')]: !!wrappedCountValid,
-    [key('wrappedIndexCacheValid')]: !!wrappedIndexValid,
-    [key('wrappedWidthCacheValid')]: !!widthCacheValid,
-    [key('lineHeight')]: lineH,
-    [key('textPad')]: pad,
-  };
-};
-
-const textEditorProxySizeDebugStats = (proxy) => {
-  return {
-    proxyScrollHeight: proxy.scrollHeight ?? '',
-    proxyClientHeight: proxy.clientHeight ?? '',
-    proxyOffsetHeight: proxy.offsetHeight ?? '',
-    proxyStyleHeight: proxy.style?.height || '',
-  };
-};
-
-const textEditorPerfDebugApi = () => (
-  typeof ManualPerfDebug !== 'undefined' ? ManualPerfDebug : null
-);
-
-const shouldTraceTextEditorInput = (inputType = '') => (
-  !!textEditorPerfDebugApi()?.isTextEditInputTraceActive?.(inputType)
-);
-
-const recordTextEditorInputPerfStep = (step, meta = {}) => {
-  textEditorPerfDebugApi()?.recordTextEditInputStep?.(step, meta);
-};
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
 
 // This selects the textarea mutation backend, not text layout or sizing behavior.
 const TEXT_EDIT_DOM_REPLACE_CHARS = 20000;
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-let textEditInputDebugSeq = 0;
-const nextTextEditInputDebugSeq = () => ++textEditInputDebugSeq;
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
+
 const textEditNavigationKeys = new Set([
   'ArrowLeft',
   'ArrowRight',
@@ -256,10 +50,7 @@ function setTextEditProxyLogicalValue(proxy, value = '', domSynced = true) {
 
 function syncTextEditProxyDomValue(proxy, value = '', selection = null) {
   if (!proxy._boardfishDomValueStale) {
-    if (typeof BOARDFISH_PRODUCTION !== 'undefined') return false;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    return { synced: false, reason: 'dom-current' };
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+    return false;
   }
   const text = String(value ?? '');
   proxy.value = text;
@@ -270,10 +61,7 @@ function syncTextEditProxyDomValue(proxy, value = '', selection = null) {
     const end = Math.max(start, Math.min(Math.trunc(Number(selection.end ?? start)) || start, max));
     proxy.setSelectionRange(start, end, selection.direction || 'none');
   }
-  if (typeof BOARDFISH_PRODUCTION !== 'undefined') return true;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  return { synced: true, reason: 'stale-dom' };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+  return true;
 }
 
 function setTextEditProxySelectionRange(proxy, start, end = start, direction = 'none', value) {
@@ -622,80 +410,27 @@ const copyTextEditSelectionFromProxy = async (
 ) => {
   if (!selection?.hasSelection) return false;
   const sourceValue = textEditProxyValue(proxy);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbgApi = textEditorClipDebugApi();
-  const dbg = dbgApi?.start?.('copyTextEditSelection', {
-    objectId: id,
-    proxyChars: sourceValue.length,
-    ...textEditorSelectionDebugStats(selection, sourceValue),
-  }) || null;
-  let stepStartedAt = textEditorDebugNow();
-  const copyStartedAt = stepStartedAt;
-  const logStep = (step, meta = {}) => {
-    const now = textEditorDebugNow();
-    const payload = {
-      ms: Math.round((now - stepStartedAt) * 100) / 100,
-      totalMs: Math.round((now - copyStartedAt) * 100) / 100,
-      objectId: id,
-      ...meta,
-    };
-    dbgApi?.step?.(dbg, step, payload);
-    textEditorClipboardLog(step, objectsMap.get(id), payload);
-    stepStartedAt = now;
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStep('copy:text-selection-payload-start', {
-    sourceFound: objectsMap.has(id),
-    ...textEditorSelectionDebugStats(selection, sourceValue),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const clipboardText = createTextSelectionClipboardPayload(sourceValue, selection).text;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const textStats = textEditorTextStats(clipboardText);
-  logStep('copy:text-selection-payload-ready', {
-    sourceTextLen: sourceValue.length,
-    ...textStats,
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (clipboardText) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    logStep('copy:text-selection-set-jsClipboard-start', textStats);
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     setJsClipboard({
       type: 'text-selection',
       text: clipboardText,
     });
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    logStep('copy:text-selection-set-jsClipboard-end', textStats);
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   } else {
     clearJsClipboard();
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    logStep('copy:text-selection-clear-jsClipboard', textStats);
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
   const shouldAnimateCopy = options.animateCopy !== false && editingId === id && _editEl === proxy;
   const meta = {};
   const webToken = getJsClipboardWebToken();
   if (webToken) meta.boardfishToken = webToken;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const writeStartedAt = textEditorDebugNow();
-  logStep('copy:web-text-clipboard-write-start', {
-    boardfishToken: !!meta.boardfishToken,
-    ...textStats,
-  });
-  Object.assign(meta, textStats);
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const writePromise = BoardfishClipboardIO.copyTextToClipboard(clipboardText, /* BOARDFISH_DEV_DIAGNOSTICS_START */ dbg, /* BOARDFISH_DEV_DIAGNOSTICS_END */ meta);
+
+  const writePromise = BoardfishClipboardIO.copyTextToClipboard(clipboardText, meta);
   writePromise
     .then((result) => {
       if (result?.boardfishTokenWritten && meta.boardfishToken) {
-        markJsClipboardWebTokenWritten(meta.boardfishToken
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          , dbg
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        );
+        markJsClipboardWebTokenWritten(meta.boardfishToken);
       }
       // A large text write can occupy the main thread; start jiggle only once it settles.
       if (shouldAnimateCopy && editingId === id && _editEl === proxy) {
@@ -705,110 +440,44 @@ const copyTextEditSelectionFromProxy = async (
             ...selection,
           },
         });
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        logStep('copy:text-selection-feedback-done', textStats);
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
       }
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      logStep('copy:web-text-clipboard-write-end', {
-        clipboardWriteMs: Math.round((textEditorDebugNow() - writeStartedAt) * 100) / 100,
-        boardfishTokenWritten: !!result?.boardfishTokenWritten,
-        ...textStats,
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
     })
-    .catch((err) => {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      logStep('copy:web-text-clipboard-write-error', {
-        clipboardWriteMs: Math.round((textEditorDebugNow() - writeStartedAt) * 100) / 100,
-        error: String(err),
-        ...textStats,
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      console.error('Clipboard Write Failed:', err);
-    });
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  writePromise.finally(() => {
-    dbgApi?.end?.(dbg, {
-      path: 'text-edit-selection-web',
-      objectId: id,
-      textObjectCount: 1,
-      textCharCount: textStats.textLen,
-      largestTextChars: textStats.textLen,
-      ...textStats,
-    });
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+    .catch(() => {});
+
   return true;
 };
 
-const boardfishTextClipboardStillCurrent = async (event = null
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  , dbg = null
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-) => {
+const boardfishTextClipboardStillCurrent = async (event = null) => {
   let webClipboardTokenChecked = false;
   let webClipboardToken = '';
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const tokenReadStartedAt = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (
     event?.clipboardData
   ) {
     webClipboardTokenChecked = true;
     webClipboardToken = BoardfishClipboardIO.readBoardfishClipboardTokenFromEvent(event.clipboardData);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    textEditorClipStep(dbg, 'paste:text-selection-event-token-read', {
-      tokenFound: !!webClipboardToken,
-      ms: Math.round((textEditorDebugNow() - tokenReadStartedAt) * 100) / 100,
-    });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   } else if (_jsClipboardWebMaybeStale) {
     try {
-      const result = await BoardfishClipboardIO.readBoardfishClipboardTokenFromBrowser(/* BOARDFISH_DEV_DIAGNOSTICS_START */ dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */);
+      const result = await BoardfishClipboardIO.readBoardfishClipboardTokenFromBrowser();
       webClipboardTokenChecked = result?.checked === true;
       webClipboardToken = result?.token || '';
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      textEditorClipStep(dbg, 'paste:text-selection-browser-token-read', {
-        checked: webClipboardTokenChecked,
-        tokenFound: !!webClipboardToken,
-        ms: Math.round((textEditorDebugNow() - tokenReadStartedAt) * 100) / 100,
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
     } catch {}
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const currentStartedAt = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const currentOptions = { webClipboardTokenChecked, webClipboardToken };
-  const current = jsClipboardStillCurrent(/* BOARDFISH_DEV_DIAGNOSTICS_START */ dbg, /* BOARDFISH_DEV_DIAGNOSTICS_END */ currentOptions);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  textEditorClipStep(dbg, 'paste:text-selection-current-check-done', {
-    current,
-    webClipboardTokenChecked,
-    webClipboardTokenFound: !!webClipboardToken,
-    ms: Math.round((textEditorDebugNow() - currentStartedAt) * 100) / 100,
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+  const current = jsClipboardStillCurrent(currentOptions);
+
   return current;
 };
 
-const readBoardfishTextClipboardPayloadForPaste = async (event = null
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  , dbg = null
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-) => {
+const readBoardfishTextClipboardPayloadForPaste = async (event = null) => {
   const payload = currentBoardfishTextSelectionClipboardPayload();
   if (!payload) return null;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  textEditorClipStep(dbg, 'paste:text-selection-js-payload-candidate', textEditorTextStats(payload.text));
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const current = await boardfishTextClipboardStillCurrent(event /* BOARDFISH_DEV_DIAGNOSTICS_START */ , dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+
+  const current = await boardfishTextClipboardStillCurrent(event);
   if (!current) {
     clearJsClipboard();
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    textEditorClipStep(dbg, 'paste:text-selection-js-payload-stale');
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     return null;
   }
   return currentBoardfishTextSelectionClipboardPayload();
@@ -823,63 +492,21 @@ const replaceTextEditProxyRange = (proxy, text, start, end, selectionMode = 'end
   const largeValue = value.length + inserted.length > TEXT_EDIT_DOM_REPLACE_CHARS;
   deferDomValue = deferDomValue && nextLength > TEXT_EDIT_DOM_REPLACE_CHARS;
   if (largeValue) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const buildStartedAt = textEditorDebugNow();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const nextValue = `${value.slice(0, from)}${inserted}${value.slice(to)}`;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const valueBuildMs = textEditorDebugRound(textEditorDebugNow() - buildStartedAt);
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     const caret = selectionMode === 'start' ? from : from + inserted.length;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const stateStartedAt = textEditorDebugNow();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     if (!deferDomValue) proxy.value = nextValue;
     setTextEditProxyLogicalValue(proxy, nextValue, !deferDomValue);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const stateSetMs = textEditorDebugRound(textEditorDebugNow() - stateStartedAt);
-    const selectionStartedAt = textEditorDebugNow();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     proxy.setSelectionRange(caret, caret, 'none');
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const selectionSetMs = textEditorDebugRound(textEditorDebugNow() - selectionStartedAt);
-    const ms = textEditorDebugRound(valueBuildMs + stateSetMs + selectionSetMs);
-    return {
-      method: deferDomValue ? 'logical' : 'value',
-      textareaMutationMs: ms,
-      setRangeTextMs: '',
-      valueAssignMs: deferDomValue ? '' : ms,
-      valueBuildMs,
-      valueSetMs: deferDomValue ? '' : stateSetMs,
-      logicalSetMs: deferDomValue ? stateSetMs : '',
-      selectionSetMs,
-    };
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     return;
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const rangeTextStartedAt = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  var domSyncResult =
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     syncTextEditProxyDomValue(proxy, value);
   proxy.setRangeText(inserted, from, to, selectionMode);
   setTextEditProxyLogicalValue(proxy, proxy.value);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const ms = textEditorDebugRound(textEditorDebugNow() - rangeTextStartedAt);
-  return {
-    method: 'setRangeText',
-    textareaMutationMs: ms,
-    domSyncedBeforeMutation: domSyncResult.synced,
-    setRangeTextMs: ms,
-    valueAssignMs: '',
-    valueBuildMs: '',
-    valueSetMs: '',
-    logicalSetMs: '',
-    selectionSetMs: '',
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 };
 
 const canApplyTextEditReplacement = (obj, value, start, end, text) => {
@@ -924,17 +551,7 @@ const tryNativeTextEditPaste = (id, proxy, readText, options = {}) => {
     },
     nativePasteHandled: true,
   };
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-    inputState.debug = options.debug || null;
-    inputState.nativePasteEndMeta = {
-      path: options.path,
-      pasted: true,
-      textObjectCount: 1,
-      textCharCount: text.length,
-      largestTextChars: text.length,
-      ...textEditorTextStats(text),
-    };
-  }
+
   beginTextEditHistoryAction(id, inputState);
   proxy?._boardfishSetPendingInputState?.(inputState);
   return {
@@ -961,50 +578,16 @@ const tryNativeExternalTextPaste = (id, proxy, text, options = {}) =>
 
 const replaceTextEditSelectionWithPayload = (id, proxy, payload, options = {}) => {
   if (!proxy) return false;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = options.debug || null;
-  let stepStartedAt = textEditorDebugNow();
-  const replaceStartedAt = stepStartedAt;
-  const objForStart = objectsMap.get(id);
-  const logStep = (step, meta = {}) => {
-    const now = textEditorDebugNow();
-    const debugPayload = {
-      ms: Math.round((now - stepStartedAt) * 100) / 100,
-      totalMs: Math.round((now - replaceStartedAt) * 100) / 100,
-      objectId: id,
-      ...meta,
-    };
-    textEditorClipStep(dbg, step, debugPayload);
-    textEditorClipboardLog(step, objForStart, debugPayload);
-    stepStartedAt = now;
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const currentProxyValue = textEditProxyValue(proxy);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStep('paste:text-edit-replace-start', {
-    source: options.source || '',
-    proxyChars: currentProxyValue.length,
-    domProxyChars: proxy.value.length,
-    domValueStale: !!proxy._boardfishDomValueStale,
-    ...textEditorObjectDebugStats(objForStart),
-    ...textEditorTextStats(payload.text),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const text = textForTextObjectPaste(payload.text || '');
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStep('paste:text-edit-editable-payload-done', textEditorTextStats(text));
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (!text) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    logStep('paste:text-edit-replace-empty');
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return false;
   }
   const obj = objectsMap.get(id);
   if (!obj) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    logStep('paste:text-edit-replace-missing-object');
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return false;
   }
   let selection = options.selection || textEditSelectionState(proxy);
@@ -1016,16 +599,7 @@ const replaceTextEditSelectionWithPayload = (id, proxy, payload, options = {}) =
     return false;
   }
   const inputType = 'insertFromPaste';
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStep('paste:text-edit-replacement-range-ready', {
-    inputType,
-    replacementStart: replacementRange.start,
-    replacementEnd: replacementRange.end,
-    replacementChars: Math.max(0, replacementRange.end - replacementRange.start),
-    ...textEditorSelectionDebugStats(selection, currentProxyValue),
-    ...textEditorTextStats(text),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const inputState = {
     ...selection,
     value: currentProxyValue,
@@ -1036,73 +610,31 @@ const replaceTextEditSelectionWithPayload = (id, proxy, payload, options = {}) =
       insertedText: text,
     },
   };
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  inputState.debug = dbg;
-  const historyStartedAt = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   beginTextEditHistoryAction(id, inputState);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStep('paste:text-edit-history-action-ready', {
-    historyActionMs: Math.round((textEditorDebugNow() - historyStartedAt) * 100) / 100,
-    inputType,
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   proxy?._boardfishSetPendingInputState?.(inputState);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const mutationResult =
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     replaceTextEditProxyRange(proxy, text, replacementRange.start, replacementRange.end, 'end');
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStep('paste:text-edit-range-text-set', {
-    setRangeTextMs: mutationResult.setRangeTextMs,
-    valueAssignMs: mutationResult.valueAssignMs,
-    valueBuildMs: mutationResult.valueBuildMs,
-    valueSetMs: mutationResult.valueSetMs,
-    selectionSetMs: mutationResult.selectionSetMs,
-    textareaMutationMs: mutationResult.textareaMutationMs,
-    textareaMutationMethod: mutationResult.method,
-    ...textEditorTextStats(text),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   _caretVisible = true;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dispatchStartedAt = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   dispatchTextEditInputEvent(proxy, inputType);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStep('paste:text-edit-input-dispatched', {
-    dispatchMs: Math.round((textEditorDebugNow() - dispatchStartedAt) * 100) / 100,
-    inputType,
-  });
-  logStep('paste:text-edit-replace-end', {
-    inputType,
-    proxyChars: textEditProxyValue(proxy).length,
-    domProxyChars: proxy.value.length,
-    domValueStale: !!proxy._boardfishDomValueStale,
-    ...textEditorTextStats(text),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   return true;
 };
 
 const pasteBoardfishTextSelectionIntoEditSelection = async (options = {}) => {
   const proxy = options.proxy || _editEl;
   const id = options.id || editingId;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = options.debug || null;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  const payload = await readBoardfishTextClipboardPayloadForPaste(options.event || null /* BOARDFISH_DEV_DIAGNOSTICS_START */ , dbg /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+
+  const payload = await readBoardfishTextClipboardPayloadForPaste(options.event || null);
   if (!payload) return false;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  textEditorClipStep(dbg, 'paste:text-selection-js-payload-ready', textEditorTextStats(payload.text));
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const pasteOptions = {
     selection: options.selection,
   };
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  pasteOptions.debug = dbg;
-  pasteOptions.source = 'jsClipboard-text-selection';
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const pasted = replaceTextEditSelectionWithPayload(id, proxy, payload, pasteOptions);
   options.limitRejected = pasteOptions.limitRejected === true;
   return pasted;
@@ -1113,10 +645,6 @@ function enterEdit(id, {
   preserveSize = false,
   placeInitialCaret = true,
 } = {}) {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const enterStart = textEditorDebugNow();
-  const previousEditingId = editingId || '';
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
   if (editingId === id) return;
   if (editingId) exitEdit();
 
@@ -1124,41 +652,13 @@ function enterEdit(id, {
   if (!obj) return;
   editingId = id;
   invalidateOffscreen();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let stepStart = textEditorDebugNow();
-  const logStep = (label, meta = {}) => {
-    const t = textEditorDebugNow();
-    textEditorDebugLog(label, obj, {
-      phase: 'enter',
-      history,
-      preserveSize,
-      placeInitialCaret,
-      previousEditingId,
-      ms: Math.round((t - stepStart) * 100) / 100,
-      totalMs: Math.round((t - enterStart) * 100) / 100,
-      ...meta,
-    });
-    stepStart = t;
-  };
-  textEditorDebugLog('enter-start', obj, {
-    phase: 'enter',
-    history,
-    preserveSize,
-    placeInitialCaret,
-    previousEditingId,
-    ms: 0,
-    totalMs: Math.round((stepStart - enterStart) * 100) / 100,
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   obj._editStartContent = obj.data.content;
   setTextEditMinLinesForSession(obj, preserveSize);
   _editHistoryLastContent = obj.data.content;
   clearTimeout(_editHistoryTimer);
   _editHistoryTimer = null;
   _editHistoryActionStartState = null;
-  logStep('enter-state-ready', {
-    editMinLines: obj._editMinLines,
-  });
 
   const proxy = document.createElement('textarea');
   proxy.wrap = 'off';
@@ -1173,49 +673,10 @@ function enterEdit(id, {
   setTextEditProxyLogicalValue(proxy, obj.data.content);
   document.body.appendChild(proxy);
   _editEl = proxy;
-  logStep('enter-proxy-ready', {
-    proxyChars: proxy.value.length,
-    proxyWrap: proxy.wrap || proxy.getAttribute('wrap') || '',
-    proxySpellcheck: proxy.spellcheck,
-    proxyAutocomplete: proxy.getAttribute('autocomplete'),
-    proxyAutocorrect: proxy.getAttribute('autocorrect'),
-    proxyAutocapitalize: proxy.getAttribute('autocapitalize'),
-    proxyAriaHidden: proxy.getAttribute('aria-hidden'),
-    proxyAriaLabel: proxy.getAttribute('aria-label'),
-    proxyContain: proxy.style.contain || '',
-    proxyWhiteSpace: proxy.style.whiteSpace || '',
-    proxyOverflow: proxy.style.overflow || '',
-  });
 
   let pendingInputState = null;
   proxy._boardfishSetPendingInputState = (state) => { pendingInputState = state; };
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const recordInputSetupStep = (step, event, state = {}, extra = {}) => {
-    const inputType = event?.inputType || state.inputType || '';
-    if (!shouldTraceTextEditorInput(inputType)) return;
-    const sourceValue = normalizeTextContent(state.value ?? textEditProxyValue(proxy));
-    const replacement = state.replacement || null;
-    recordTextEditorInputPerfStep(step, {
-      seq: state._debugSeq ?? '',
-      inputType,
-      objectId: id,
-      proxyChars: textEditProxyValue(proxy).length,
-      domProxyChars: proxy.value.length,
-      domValueStale: !!proxy._boardfishDomValueStale,
-      ...textEditorEventDebugStats(event),
-      ...textEditorObjectDebugStats(obj),
-      ...textEditorSizeDebugStats(obj, sourceValue, 'inputState'),
-      ...textEditorProxySizeDebugStats(proxy),
-      ...textEditorSelectionDebugStats(state, sourceValue),
-      oldChars: sourceValue.length,
-      insertedChars: String(replacement?.insertedText ?? '').length,
-      removedChars: replacement ? Math.max(0, (replacement.end ?? 0) - (replacement.start ?? 0)) : 0,
-      replacementStart: replacement?.start ?? '',
-      replacementEnd: replacement?.end ?? '',
-      ...extra,
-    });
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   proxy.addEventListener('beforeinput', (event) => {
     resetTextEditNavigation(obj);
     if (pendingInputState?.nativePasteHandled && event?.inputType === 'insertFromPaste') {
@@ -1236,66 +697,14 @@ function enterEdit(id, {
       inputType: event?.inputType || '',
     };
     if (nativeReplacement) pendingInputState.replacement = nativeReplacement;
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      pendingInputState._debugSeq = nextTextEditInputDebugSeq();
-    }
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const domSyncBeforeNativeInput =
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
       syncTextEditProxyDomValue(proxy, currentProxyValue, selection);
     beginTextEditHistoryAction(id, pendingInputState);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    recordInputSetupStep('beforeinput-state-ready', event, pendingInputState, {
-      nativeReplacement: !!nativeReplacement,
-      domSyncedBeforeNativeInput: domSyncBeforeNativeInput.synced,
-      splitPending: shouldCommitTextEditInputImmediately(pendingInputState.inputType, pendingInputState.hasSelection),
-    });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   });
 	  proxy.addEventListener('input', (event) => {
 	    const inputState = pendingInputState || textEditSelectionState(proxy);
 	    const inputType = event?.inputType || inputState.inputType || '';
-	    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-	    const dbg = inputState.debug || null;
-	    const perfTraceInput = shouldTraceTextEditorInput(inputType);
-	    const shouldLogInput = perfTraceInput || !!dbg ||
-	      (typeof TextSelDebug !== 'undefined' && TextSelDebug.enabled === true);
-	    const inputDebugSeq = inputState._debugSeq || nextTextEditInputDebugSeq();
-	    inputState._debugSeq = inputDebugSeq;
-	    let inputStepStartedAt = shouldLogInput ? textEditorDebugNow() : 0;
-    const inputStartedAt = inputStepStartedAt;
-    const logInputStep = (step, meta = {}) => {
-      if (!shouldLogInput) return;
-      const details = typeof meta === 'function' ? meta() : meta;
-      const now = textEditorDebugNow();
-      const payload = {
-        seq: inputDebugSeq,
-        inputType,
-        ms: textEditorDebugRound(now - inputStepStartedAt),
-        totalMs: textEditorDebugRound(now - inputStartedAt),
-        objectId: id,
-        ...details,
-      };
-      textEditorClipStep(dbg, `text-edit-input:${step}`, payload);
-      textEditorDebugLog(`input-${step}`, obj, payload);
-      if (perfTraceInput) recordTextEditorInputPerfStep(step, payload);
-      inputStepStartedAt = now;
-	    };
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-	    logInputStep('start', () => ({
-	      proxyChars: textEditProxyValue(proxy).length,
-	      domProxyChars: proxy.value.length,
-	      domValueStale: !!proxy._boardfishDomValueStale,
-	      pendingInputState: !!pendingInputState,
-	      textEditCaretIndex: obj._textEditCaretIndex ?? '',
-	      textEditCaretLineStartIndex: obj._textEditCaretLineStartIndex ?? '',
-	      ...textEditorCaretLineDebugStats(obj, inputState.start ?? proxy.selectionStart, 'inputStartCaret'),
-	      ...textEditorEventDebugStats(event),
-	      ...textEditorObjectDebugStats(obj),
-	      ...textEditorSizeDebugStats(obj, inputState.value ?? obj.data.content ?? '', 'inputStart'),
-	      ...textEditorProxySizeDebugStats(proxy),
-	      ...textEditorSelectionDebugStats(inputState, inputState.value ?? obj.data.content ?? ''),
-	    }));
+
     pendingInputState = null;
 	    const oldValue = inputState.value ?? obj.data.content ?? '';
 	    let replacement = inputState.replacement || null;
@@ -1317,20 +726,7 @@ function enterEdit(id, {
 	      nextRawValue = proxy.value;
 	      replacement = replacement || textEditInputReplacement(oldValue, nextRawValue, inputState, inputType);
 	    }
-	    logInputStep('replacement-ready', () => ({
-	      oldChars: oldValue.length,
-	      nextChars: nextRawValue.length,
-      insertedChars: String(replacement.insertedText || '').length,
-      removedChars: Math.max(0, (replacement.end ?? 0) - (replacement.start ?? 0)),
-      replacementStart: replacement.start,
-      replacementEnd: replacement.end,
-      deletedTextSample: oldValue.slice(replacement.start ?? 0, replacement.end ?? replacement.start ?? 0).slice(0, 120),
-      textEditCaretIndex: obj._textEditCaretIndex ?? '',
-      textEditCaretLineStartIndex: obj._textEditCaretLineStartIndex ?? '',
-      ...textEditorCaretLineDebugStats(obj, replacement.start ?? inputState.start ?? 0, 'replacementCaret'),
-      ...textEditorSizeDebugStats(obj, oldValue, 'replacementOld'),
-      ...textEditorTextStats(replacement.insertedText),
-    }));
+
     if (!BoardfishWebLimits.canReplaceText(obj, nextRawValue)) {
       proxy.value = oldValue;
       setTextEditProxyLogicalValue(proxy, oldValue);
@@ -1340,7 +736,7 @@ function enterEdit(id, {
     }
 	    obj.data.content = nextRawValue;
 	    markDirty(obj);
-	    logInputStep('motion-dirty-done');
+
 	    if (proxy._boardfishDomValueStale) {
 	      if (synthesizedStaleReplacement) {
 	        const caret = Math.max(0, Math.min(
@@ -1358,26 +754,11 @@ function enterEdit(id, {
 	    } else {
 	      setTextEditProxyLogicalValue(proxy, obj.data.content);
 	    }
-	    logInputStep('content-normalized', {
-	      proxyChars: textEditProxyValue(proxy).length,
-	      domProxyChars: proxy.value.length,
-	      domValueStale: !!proxy._boardfishDomValueStale,
-	      synthesizedStaleReplacement,
-	      contentChars: obj.data.content.length,
-	    });
+
     const selectionStart = proxy.selectionStart;
     const selectionEnd = proxy.selectionEnd;
     if (selectionStart === selectionEnd) setTextEditCaretIndex(obj, selectionStart, null, true);
     else clearTextEditCaretIndex(obj);
-    logInputStep('caret-updated', () => ({
-      selectionStart,
-      selectionEnd,
-      textEditCaretIndex: obj._textEditCaretIndex ?? '',
-      textEditCaretLineStartIndex: obj._textEditCaretLineStartIndex ?? '',
-      ...textEditorCaretLineDebugStats(obj, selectionStart, 'updatedCaret'),
-      ...textEditorSizeDebugStats(obj, obj.data.content, 'updated'),
-      ...textEditorProxySizeDebugStats(proxy),
-    }));
 
     const layoutPatched = patchTextObjectLayoutAfterInput(obj, {
       oldContent: oldValue,
@@ -1387,142 +768,26 @@ function enterEdit(id, {
       insertedText: replacement.insertedText,
     });
     if (!layoutPatched) clearTextObjectLayoutRuntime(obj);
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      const layoutPatchDebug = obj._lastTextLayoutPatchDebug || {};
-      logInputStep(layoutPatched ? 'layout-patched' : 'layout-invalidated', {
-        layoutPatched,
-        layoutCacheLines: Array.isArray(obj._layoutCache) ? obj._layoutCache.length : '',
-        layoutPatchOldLines: layoutPatchDebug.oldLayoutLines ?? '',
-        layoutPatchNewLines: layoutPatchDebug.newLayoutLines ?? '',
-        layoutPatchRemovedLines: layoutPatchDebug.removedLayoutLines ?? '',
-        layoutPatchInsertedLines: layoutPatchDebug.insertedLayoutLines ?? '',
-        layoutPatchLineDelta: layoutPatchDebug.layoutLineDelta ?? '',
-        layoutPatchLogicalLineDelta: layoutPatchDebug.logicalLineDelta ?? '',
-        layoutPatchReason: layoutPatchDebug.reason || '',
-      });
-    }
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const restoredMinLinesReset =
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
       resetTextEditPreservedMinLines(obj);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const replacementStart = Math.max(0, Math.min(replacement.start ?? 0, oldValue.length));
-    const replacementEnd = Math.max(replacementStart, Math.min(replacement.end ?? replacementStart, oldValue.length));
-    const insertedText = String(replacement.insertedText || '');
-    const removedChars = replacementEnd - replacementStart;
-    const insertedChars = insertedText.length;
-    const autoHeightDebugBefore = shouldLogInput
-      ? {
-          size: textEditorSizeDebugStats(obj, obj.data.content, 'beforeAutoHeight'),
-          proxy: textEditorProxySizeDebugStats(proxy),
-        }
-      : null;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     // The exact line count reuses the patched layout or builds the wrapped-row
     // index that rendering needs, keeping bounds current for every edit.
     const heightChanged = syncTextAutoHeight(obj, getTextMinLines(obj));
-    logInputStep('auto-height-done', () => ({
-      heightChanged,
-      restoredMinLinesReset: !!restoredMinLinesReset,
-      width: obj.w,
-      height: obj.h,
-      ...autoHeightDebugBefore?.size,
-      ...textEditorSizeDebugStats(obj, obj.data.content, 'afterAutoHeight'),
-      ...autoHeightDebugBefore?.proxy,
-      removedChars,
-      insertedChars,
-      removedNewlines: textNewlineCount(oldValue, replacementStart, replacementEnd),
-      insertedNewlines: textNewlineCount(insertedText),
-      ...textEditorTextStats(obj.data.content),
-    }));
+
     _textInputSelectionHistorySuppress = textEditSelectionState(proxy);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const historyPushed =
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
       recordTextEditInputHistory(id, inputType, !!inputState.hasSelection);
-    logInputStep('history-recorded', {
-      historyPushed,
-      hadSelection: !!inputState.hasSelection,
-    });
+
     scheduleRender(true, heightChanged);
-    logInputStep('render-scheduled', {
-      renderBoard: true,
-      renderOverlay: heightChanged,
-      renderSource: 'render',
-    });
-	    logInputStep('end', () => ({
-	      heightChanged,
-	      proxyChars: textEditProxyValue(proxy).length,
-	      domProxyChars: proxy.value.length,
-	      domValueStale: !!proxy._boardfishDomValueStale,
-	      ...textEditorObjectDebugStats(obj),
-	      ...textEditorSizeDebugStats(obj, obj.data.content, 'inputEnd'),
-	      ...textEditorProxySizeDebugStats(proxy),
-	      ...textEditorSelectionDebugStats(_textInputSelectionHistorySuppress, textEditProxyValue(proxy)),
-	    }));
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    if (inputState.nativePasteEndMeta && dbg) {
-      textEditorClipDebugApi()?.end?.(dbg, {
-        ...inputState.nativePasteEndMeta,
-        objectId: id,
-        proxyChars: textEditProxyValue(proxy).length,
-        domProxyChars: proxy.value.length,
-        domValueStale: !!proxy._boardfishDomValueStale,
-        ...textEditorObjectDebugStats(obj),
-      });
-    }
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   });
   proxy.addEventListener('paste', (event) => {
     const eventSelection = textEditSelectionState(proxy);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const dbgApi = textEditorClipDebugApi();
-    const dbg = dbgApi?.start?.('pasteTextEditSelection', {
-      objectId: id,
-      proxyChars: proxy.value.length,
-      clipboardData: BoardfishClipboardIO.describeClipboardData?.(event.clipboardData),
-      ...textEditorEventDebugStats(event),
-      ...textEditorObjectDebugStats(obj),
-      ...textEditorSelectionDebugStats(eventSelection, proxy.value),
-    }) || null;
-    let pasteStepStartedAt = textEditorDebugNow();
-    const pasteStartedAt = pasteStepStartedAt;
-    const logPasteStep = (step, meta = {}) => {
-      const now = textEditorDebugNow();
-      const payload = {
-        ms: Math.round((now - pasteStepStartedAt) * 100) / 100,
-        totalMs: Math.round((now - pasteStartedAt) * 100) / 100,
-        objectId: id,
-        ...meta,
-      };
-      dbgApi?.step?.(dbg, step, payload);
-      textEditorClipboardLog(step, obj, payload);
-      pasteStepStartedAt = now;
-    };
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     const candidate = currentBoardfishTextSelectionClipboardPayload();
     const fallbackText = BoardfishClipboardIO.readClipboardTextFromEvent(event.clipboardData) || '';
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    logPasteStep('paste:text-edit-event-read-done', {
-      ...textEditorEventDebugStats(event),
-      hasBoardfishCandidate: !!candidate,
-      fallbackTextChars: fallbackText.length,
-      proxyChars: proxy.value.length,
-      ...textEditorObjectDebugStats(obj),
-      ...textEditorTextStats(fallbackText),
-      candidateTextLen: candidate?.text?.length ?? '',
-    });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     if (!candidate && !fallbackText) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      dbgApi?.end?.(dbg, {
-        path: 'empty',
-        skipped: 'no-text-payload',
-        objectId: id,
-        proxyChars: proxy.value.length,
-        ...textEditorObjectDebugStats(obj),
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
       return;
     }
     const selection = eventSelection;
@@ -1532,87 +797,35 @@ function enterEdit(id, {
         selection,
         fallbackText,
       };
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') nativePasteOptions.debug = dbg;
+
       const nativePaste = tryNativeBoardfishTextSelectionPaste(id, proxy, candidate, nativePasteOptions);
       if (nativePaste) {
         if (nativePaste.rejected) return;
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        logPasteStep('paste:text-edit-native-textarea-allowed', {
-          source: 'jsClipboard-text-selection',
-          textLen: nativePaste.text.length,
-          ...textEditorTextStats(nativePaste.text),
-          ...textEditorSelectionDebugStats(selection, proxy.value),
-        });
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         return;
       }
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      logPasteStep('paste:text-edit-native-textarea-skipped', {
-        source: 'jsClipboard-text-selection',
-        hasToken: !!synchronousBoardfishClipboardTokenFromPasteEvent(event),
-        tokenMatches: boardfishPasteEventMatchesCurrentTextSelectionClipboard(event),
-        selectedChars: selection.end - selection.start,
-        fallbackTextChars: fallbackText.length,
-        candidateTextLen: candidate?.text?.length ?? '',
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
     if (fallbackText) {
       const nativeExternalOptions = {
         event,
         selection,
       };
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        nativeExternalOptions.debug = dbg;
-        nativeExternalOptions.path = candidate ? 'fallback-event-text-native' : 'event-text-native';
-      }
+
       const nativeExternalPaste = tryNativeExternalTextPaste(id, proxy, fallbackText, nativeExternalOptions);
       if (nativeExternalPaste) {
         if (nativeExternalPaste.rejected) return;
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        logPasteStep('paste:text-edit-native-event-text-allowed', {
-          source: candidate ? 'fallback-event-text' : 'event-text',
-          textLen: nativeExternalPaste.text.length,
-          ...textEditorTextStats(nativeExternalPaste.text),
-          ...textEditorSelectionDebugStats(selection, proxy.value),
-        });
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         return;
       }
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      logPasteStep('paste:text-edit-native-event-text-skipped', {
-        source: candidate ? 'fallback-event-text' : 'event-text',
-        fallbackTextChars: fallbackText.length,
-        selectedChars: selection.end - selection.start,
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
     event.preventDefault();
-    const pasteEventText = (path, error) => {
+    const pasteEventText = () => {
       const replaceOptions = { selection };
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        replaceOptions.debug = dbg;
-        replaceOptions.source = path;
-      }
-      const pasted = replaceTextEditSelectionWithPayload(id, proxy, { text: fallbackText }, replaceOptions);
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const counted = pasted || path === 'event-text';
-      dbgApi?.end?.(dbg, {
-        path,
-        ...(path === 'error-fallback-event-text' ? { error: String(error) } : {}),
-        pasted,
-        objectId: id,
-        proxyChars: proxy.value.length,
-        textObjectCount: counted ? 1 : 0,
-        textCharCount: counted ? fallbackText.length : 0,
-        largestTextChars: counted ? fallbackText.length : 0,
-        ...textEditorObjectDebugStats(obj),
-        ...textEditorTextStats(fallbackText),
-      });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
+      replaceTextEditSelectionWithPayload(id, proxy, { text: fallbackText }, replaceOptions);
     };
     if (!candidate) {
-      pasteEventText('event-text');
+      pasteEventText();
       return;
     }
     const pasteOptions = {
@@ -1621,46 +834,18 @@ function enterEdit(id, {
       event,
       selection,
     };
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') pasteOptions.debug = dbg;
+
     pasteBoardfishTextSelectionIntoEditSelection(pasteOptions).then((pasted) => {
       if (pasted || pasteOptions.limitRejected || !fallbackText) {
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        dbgApi?.end?.(dbg, {
-          path: pasted ? 'jsClipboard-text-selection' : 'jsClipboard-empty',
-          pasted,
-          objectId: id,
-          proxyChars: proxy.value.length,
-          textObjectCount: pasted ? 1 : 0,
-          textCharCount: pasted ? (candidate?.text?.length || 0) : 0,
-          largestTextChars: pasted ? (candidate?.text?.length || 0) : 0,
-          ...textEditorObjectDebugStats(obj),
-          ...textEditorTextStats(candidate?.text || ''),
-        });
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
         return;
       }
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      logPasteStep('paste:text-edit-js-payload-fallback-event-text', textEditorTextStats(fallbackText));
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      pasteEventText('fallback-event-text');
-    }).catch((err) => {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      logPasteStep('paste:text-edit-js-payload-error', { error: String(err) });
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      console.error('Paste Failed:', err);
+
+      pasteEventText();
+    }).catch(() => {
       if (!fallbackText) {
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        dbgApi?.end?.(dbg, {
-          path: 'error',
-          error: String(err),
-          objectId: id,
-          proxyChars: proxy.value.length,
-          ...textEditorObjectDebugStats(obj),
-        });
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
         return;
       }
-      pasteEventText('error-fallback-event-text', err);
+      pasteEventText();
     });
   });
   proxy.addEventListener('blur', flushEditHistoryCheckpoint);
@@ -1728,7 +913,7 @@ function enterEdit(id, {
       flushEditHistoryCheckpoint();
       const currentProxyValue = textEditProxyValue(proxy);
       setTextEditProxySelectionRange(proxy, 0, currentProxyValue.length, 'none', currentProxyValue);
-      TextSelDebug._logSelection('select-all', proxy);
+
       scheduleRender(true, false);
       return;
     }
@@ -1757,140 +942,37 @@ function enterEdit(id, {
     }
 
     if ((e.key === 'Backspace' || e.key === 'Delete') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const deleteKeyStartedAt = textEditorDebugNow();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
       const selection = textEditSelectionState(proxy);
       let deletion;
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      let deleteRangeMs = 0;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      let deleteCaret = selection.start;
+
       if (selection.hasSelection) {
         deletion = { start: selection.start, end: selection.end };
       } else {
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const deleteRangeStartedAt = textEditorDebugNow();
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
         deletion = textEditBlankLineDeleteRange(textEditProxyValue(proxy), selection.start, e.key);
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          deleteRangeMs = textEditorDebugRound(textEditorDebugNow() - deleteRangeStartedAt);
-        }
       }
       if (deletion && deletion.end > deletion.start) {
         e.preventDefault();
         const inputType = e.key === 'Backspace' ? 'deleteContentBackward' : 'deleteContentForward';
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const replacementStartedAt = textEditorDebugNow();
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         const replacement = { start: deletion.start, end: deletion.end, insertedText: '' };
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const replacementBuildMs = textEditorDebugRound(textEditorDebugNow() - replacementStartedAt);
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         pendingInputState = {
           ...selection,
           value: textEditProxyValue(proxy),
           inputType,
           replacement,
         };
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          pendingInputState._debugSeq = nextTextEditInputDebugSeq();
-        }
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const deleteDebugSeq = pendingInputState._debugSeq;
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         beginTextEditHistoryAction(id, pendingInputState);
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const deleteSetupMeta = {
-          key: e.key,
-          deleteCaret,
-          deleteRangeMs,
-          replacementBuildMs,
-          keydownDeleteSetupMs: textEditorDebugRound(textEditorDebugNow() - deleteKeyStartedAt),
-          deletionStart: deletion.start,
-          deletionEnd: deletion.end,
-          structuralReplacementEnd: replacement.end,
-          deletedTextSample: pendingInputState.value.slice(deletion.start, deletion.end).slice(0, 120),
-          textEditCaretIndex: obj._textEditCaretIndex ?? '',
-          textEditCaretLineStartIndex: obj._textEditCaretLineStartIndex ?? '',
-          ...textEditorCaretLineDebugStats(obj, deleteCaret, 'deleteCaret'),
-        };
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        recordInputSetupStep('keydown-delete-replacement-ready', e, pendingInputState, deleteSetupMeta);
-        textEditorDebugLog('keydown-delete-replacement-ready', obj, {
-          seq: deleteDebugSeq,
-          inputType,
-          objectId: id,
-          ...textEditorEventDebugStats(e),
-          ...textEditorSelectionDebugStats(pendingInputState, pendingInputState.value),
-          oldChars: pendingInputState.value.length,
-          removedChars: Math.max(0, replacement.end - replacement.start),
-          replacementStart: replacement.start,
-          replacementEnd: replacement.end,
-          ...deleteSetupMeta,
-        });
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const mutationStartedAt = textEditorDebugNow();
-        const mutationResult =
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
           replaceTextEditProxyRange(
             proxy, replacement.insertedText, replacement.start, replacement.end, 'start', true,
           );
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const textareaMutationMs = textEditorDebugRound(textEditorDebugNow() - mutationStartedAt);
-        const logicalProxyValue = textEditProxyValue(proxy);
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
-        recordTextEditorInputPerfStep('keydown-delete-textarea-mutated', {
-          seq: deleteDebugSeq,
-          inputType,
-          objectId: id,
-          key: e.key,
-          textareaMutationMs,
-          textareaMutationMethod: mutationResult.method,
-          setRangeTextMs: mutationResult.setRangeTextMs,
-          valueAssignMs: mutationResult.valueAssignMs,
-          valueBuildMs: mutationResult.valueBuildMs,
-          valueSetMs: mutationResult.valueSetMs,
-          logicalSetMs: mutationResult.logicalSetMs,
-          selectionSetMs: mutationResult.selectionSetMs,
-          proxyChars: logicalProxyValue.length,
-          domProxyChars: proxy.value.length,
-          domValueStale: !!proxy._boardfishDomValueStale,
-          oldChars: pendingInputState.value.length,
-          nextChars: logicalProxyValue.length,
-          insertedChars: String(replacement.insertedText || '').length,
-          removedChars: Math.max(0, replacement.end - replacement.start),
-          replacementStart: replacement.start,
-          replacementEnd: replacement.end,
-          ...textEditorSelectionDebugStats(pendingInputState, pendingInputState.value),
-        });
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const dispatchStartedAt = textEditorDebugNow();
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         dispatchTextEditInputEvent(proxy, inputType);
-        recordTextEditorInputPerfStep('keydown-delete-input-dispatched', {
-          seq: deleteDebugSeq,
-          inputType,
-          objectId: id,
-          key: e.key,
-          dispatchMs: textEditorDebugRound(textEditorDebugNow() - dispatchStartedAt),
-        });
+
         return;
       }
-      textEditorDebugLog('keydown-delete-no-replacement', obj, {
-        inputType: e.key === 'Backspace' ? 'deleteContentBackward' : 'deleteContentForward',
-        key: e.key,
-        deleteCaret,
-        deleteRangeMs,
-        keydownDeleteSetupMs: textEditorDebugRound(textEditorDebugNow() - deleteKeyStartedAt),
-        deletionStart: deletion?.start ?? '',
-        deletionEnd: deletion?.end ?? '',
-        textEditCaretIndex: obj._textEditCaretIndex ?? '',
-        textEditCaretLineStartIndex: obj._textEditCaretLineStartIndex ?? '',
-        ...textEditorEventDebugStats(e),
-        ...textEditorSelectionDebugStats(selection, textEditProxyValue(proxy)),
-        ...textEditorCaretLineDebugStats(obj, deleteCaret, 'deleteCaret'),
-      });
     }
 
     // The 1px-wide proxy treats all content as a single column, so the browser's
@@ -1941,8 +1023,6 @@ function enterEdit(id, {
     if (wakeCaret) scheduleRender(true, false);
   });
 
-  logStep('enter-listeners-ready');
-
   let _prevSelStart = -1, _prevSelEnd = -1;
   _selChangeListener = () => {
     if (document.activeElement !== proxy) return;
@@ -1958,7 +1038,7 @@ function enterEdit(id, {
     _prevSelStart = s; _prevSelEnd = e;
     _textInputSelectionHistorySuppress = null;
     if (!suppressed || suppressed.start !== s || suppressed.end !== e) flushEditHistoryCheckpoint();
-    TextSelDebug._logSelection('selectionchange', proxy);
+
     _caretVisible = true;
     if (currentObj) {
       const navigation = currentObj._textEditNavigationSelection;
@@ -1971,7 +1051,6 @@ function enterEdit(id, {
     scheduleRender(true, false);
   };
   document.addEventListener('selectionchange', _selChangeListener);
-  logStep('enter-selection-listener-ready');
 
   _caretVisible = true;
   _caretBlinkInterval = setInterval(() => {
@@ -1979,112 +1058,42 @@ function enterEdit(id, {
     const hasSelection = proxy.selectionStart !== proxy.selectionEnd;
     if (hasSelection) { _caretVisible = true; return; }
     _caretVisible = !_caretVisible;
-    scheduleRender(true, false /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'caret-blink' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+    scheduleRender(true, false);
   }, 500);
 
   if (placeInitialCaret) {
     proxy.focus({ preventScroll: true });
     proxy.setSelectionRange(proxy.value.length, proxy.value.length);
     setTextEditCaretIndex(obj, proxy.value.length);
-    logStep('enter-focus-selection', {
-      selectionStart: proxy.selectionStart,
-      selectionEnd: proxy.selectionEnd,
-    });
-  } else {
-    logStep('enter-focus-selection-skipped', {
-      selectionStart: proxy.selectionStart,
-      selectionEnd: proxy.selectionEnd,
-    });
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let historyMs = '';
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (history) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const historyStart = textEditorDebugNow();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     pushHistory('text-edit-enter');
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    historyMs = Math.round((textEditorDebugNow() - historyStart) * 100) / 100;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    logStep('enter-history-pushed', { historyMs });
   }
   scheduleRender(true, true);
-  logStep('enter-end', {
-    historyMs,
-    selectionStart: proxy.selectionStart,
-    selectionEnd: proxy.selectionEnd,
-  });
 }
 
 function exitEdit() {
   if (!editingId) return;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const exitStart = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const id = editingId;
   const proxy = _editEl;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const objAtStart = objectsMap.get(id);
-  let stepStart = exitStart;
-  const logStep = (label, obj = objAtStart, meta = {}) => {
-    const t = textEditorDebugNow();
-    textEditorDebugLog(label, obj, {
-      phase: 'exit',
-      ms: Math.round((t - stepStart) * 100) / 100,
-      totalMs: Math.round((t - exitStart) * 100) / 100,
-      ...meta,
-    });
-    stepStart = t;
-  };
-  textEditorDebugLog('exit-start', objAtStart, {
-    phase: 'exit',
-    ms: 0,
-    totalMs: 0,
-    proxyChars: textEditProxyValue(proxy).length,
-    domProxyChars: typeof proxy?.value === 'string' ? proxy.value.length : '',
-    domValueStale: !!proxy?._boardfishDomValueStale,
-    selectionStart: proxy?.selectionStart ?? '',
-    selectionEnd: proxy?.selectionEnd ?? '',
-    activeElementIsProxy: typeof document !== 'undefined' ? document.activeElement === proxy : '',
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   editingId = null;
   _editEl = null;
 
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const timersStart = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
   clearInterval(_caretBlinkInterval);
   _caretBlinkInterval = null;
   clearTimeout(_editHistoryTimer);
   _editHistoryTimer = null;
   _editHistoryActionStartState = null;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let selectionListenerRemoved = false;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (_selChangeListener) {
     document.removeEventListener('selectionchange', _selChangeListener);
     _selChangeListener = null;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    selectionListenerRemoved = true;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
-  logStep('exit-listeners-cleared', objAtStart, {
-    timersMs: textEditorDebugRound(textEditorDebugNow() - timersStart),
-    selectionListenerRemoved,
-  });
 
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const proxyRemoveStart = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
   if (proxy) proxy.remove();
-  logStep('exit-proxy-removed', objAtStart, {
-    proxyRemoved: !!proxy,
-    proxyRemoveMs: textEditorDebugRound(textEditorDebugNow() - proxyRemoveStart),
-    domProxyChars: typeof proxy?.value === 'string' ? proxy.value.length : '',
-    domValueStale: !!proxy?._boardfishDomValueStale,
-  });
 
   const obj = objectsMap.get(id);
   if (obj) {
@@ -2096,124 +1105,42 @@ function exitEdit() {
       _editHistoryLastContent = null;
       _editHistoryActionStartState = null;
       scheduleRender(true, true);
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const historyStart = textEditorDebugNow();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
       pushHistory('delete-empty-text');
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const historyMs = Math.round((textEditorDebugNow() - historyStart) * 100) / 100;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-      logStep('exit-empty-delete-end', obj, {
-        emptyDeleted: true,
-        historyMs,
-      });
+
       return;
     }
     const contentChanged = obj.data.content !== _editHistoryLastContent;
     const startedEmpty = obj._editStartContent === '';
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const editMinLines = obj._editMinLines || 1;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     const needsExitSizeSync = contentChanged || startedEmpty;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const sizeSyncReason = contentChanged
-      ? 'content-changed'
-      : (startedEmpty ? 'started-empty' : 'unchanged');
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     let widthChanged = false;
     let heightChanged = false;
     if (needsExitSizeSync) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const widthSyncStart = textEditorDebugNow();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
       widthChanged = syncFreshTextEditWidth(obj);
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const widthSyncMs = textEditorDebugRound(textEditorDebugNow() - widthSyncStart);
-      const heightSyncStart = textEditorDebugNow();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
       heightChanged = syncTextAutoHeight(obj);
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const heightSyncMs = textEditorDebugRound(textEditorDebugNow() - heightSyncStart);
-      let markDirtyMs = '';
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
       if (widthChanged || heightChanged) {
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const markDirtyStart = textEditorDebugNow();
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
         markDirty(obj);
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        markDirtyMs = textEditorDebugRound(textEditorDebugNow() - markDirtyStart);
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
       }
-      logStep('exit-size-sync', obj, {
-        widthSyncMs,
-        heightSyncMs,
-        markDirtyMs,
-        widthChanged,
-        heightChanged,
-        contentChanged,
-        needsExitSizeSync,
-        sizeSyncReason,
-        startedEmpty,
-        editMinLines,
-      });
-    } else {
-      logStep('exit-size-sync-skipped', obj, {
-        widthChanged,
-        heightChanged,
-        contentChanged,
-        needsExitSizeSync,
-        sizeSyncReason,
-        startedEmpty,
-        editMinLines,
-      });
     }
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const editHistoryStart = textEditorDebugNow();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     pushEditHistoryIfChanged(id);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const editHistoryMs = Math.round((textEditorDebugNow() - editHistoryStart) * 100) / 100;
-    let heightHistoryMs = '';
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     if ((widthChanged || heightChanged) && !contentChanged) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const heightHistoryStart = textEditorDebugNow();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
       pushHistory('text-height-change');
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      heightHistoryMs = Math.round((textEditorDebugNow() - heightHistoryStart) * 100) / 100;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
     delete obj._editStartContent;
     delete obj._editMinLines;
     clearTextEditCaretIndex(obj);
-    logStep('exit-history-cleanup', obj, {
-      editHistoryMs,
-      heightHistoryMs,
-      contentChanged,
-      widthChanged,
-      heightChanged,
-    });
   }
 
   _editHistoryLastContent = null;
   _editHistoryActionStartState = null;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const renderScheduleStart = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   scheduleRender(true, true);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const renderScheduleMs = textEditorDebugRound(textEditorDebugNow() - renderScheduleStart);
-  const clearSelectionStart = textEditorDebugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   window.getSelection()?.removeAllRanges();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const windowSelectionClearMs = textEditorDebugRound(textEditorDebugNow() - clearSelectionStart);
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  logStep('exit-end', obj, {
-    hadObject: !!obj,
-    renderScheduleMs,
-    windowSelectionClearMs,
-  });
 }

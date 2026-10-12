@@ -5,7 +5,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-
 function createElement(id = 'el') {
   return {
     id,
@@ -595,69 +594,6 @@ test('single text horizontal resize clamps to the measured word minimum width', 
   assert.deepEqual(context.history, ['resize']);
 });
 
-test('single text horizontal resize records passive perf debug phases', () => {
-  const text = {
-    id: 'text-a',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 200,
-    h: 40,
-    data: { content: 'alpha\nbeta gamma' },
-  };
-  const context = loadSelectionInputHarness([text], {
-    syncTextAutoHeight(obj) {
-      obj.h = 72;
-      return true;
-    },
-  });
-  const debugEvents = [];
-  context.ManualPerfDebug = {
-    isTextResizeTraceActive() {
-      return true;
-    },
-    startTextResizeDrag(meta) {
-      debugEvents.push({ step: 'start', meta });
-      return 'drag-1';
-    },
-    recordTextResizeStep(step, meta) {
-      debugEvents.push({ step, meta });
-    },
-    finishTextResizeDrag(dragId, meta) {
-      debugEvents.push({ step: 'end', meta: { dragId, ...meta } });
-    },
-  };
-
-  context.beginSelectionHandleDrag({
-    dataset: { dir: 'e' },
-  }, {
-    type: 'mousedown',
-    button: 0,
-    clientX: 0,
-    clientY: 0,
-    preventDefault() {},
-    stopPropagation() {},
-  });
-  context.drag.move({ type: 'mousemove', clientX: 40, clientY: 0 });
-  context.drag.up();
-
-  const steps = debugEvents.map((event) => event.step);
-  assert.ok(steps.includes('start'));
-  assert.ok(steps.includes('move'));
-  assert.ok(steps.includes('apply-start'));
-  assert.ok(steps.includes('apply-end'));
-  assert.ok(steps.includes('flush'));
-  assert.ok(steps.includes('history-pushed'));
-  assert.equal(steps.at(-1), 'end');
-  assert.equal(debugEvents[0].meta.contentChars, text.data.content.length);
-  assert.equal(debugEvents[0].meta.logicalLines, 2);
-  assert.equal(debugEvents[0].meta.startW, 200);
-  assert.equal(debugEvents.find((event) => event.step === 'move').meta.minTextW, 100);
-  assert.equal(debugEvents.find((event) => event.step === 'move').meta.w, 240);
-  assert.equal(debugEvents.find((event) => event.step === 'apply-end').meta.autoHeightChanged, true);
-  assert.equal(debugEvents.find((event) => event.step === 'history-pushed').meta.historyReason, 'resize');
-});
-
 test('single text horizontal resize reuses measured minimum width during one drag', () => {
   const text = { id: 'text-a', type: 'text', x: 0, y: 0, w: 200, h: 40, data: { content: 'wide' } };
   let minWidthCalls = 0;
@@ -836,61 +772,6 @@ test('large text resize skips board redraw when clamped width is unchanged', () 
   assert.equal(text.h, 120);
   assert.deepEqual(context.syncedTextIds, ['text-a']);
   assert.equal(context.drawBoardCalls, 1);
-});
-
-test('large text resize records live cache-keyed auto-height debug evidence', () => {
-  const text = {
-    id: 'text-a',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 200,
-    h: 40,
-    data: { content: 'word '.repeat(5000) },
-  };
-  const context = loadSelectionInputHarness([text], {
-    syncTextAutoHeight(obj) {
-      obj.h = 120;
-      return true;
-    },
-  });
-  const debugEvents = [];
-  context.ManualPerfDebug = {
-    isTextResizeTraceActive() {
-      return true;
-    },
-    startTextResizeDrag(meta) {
-      debugEvents.push({ step: 'start', meta });
-      return 'drag-large';
-    },
-    recordTextResizeStep(step, meta) {
-      debugEvents.push({ step, meta });
-    },
-    finishTextResizeDrag(dragId, meta) {
-      debugEvents.push({ step: 'end', meta: { dragId, ...meta } });
-    },
-  };
-
-  context.beginSelectionHandleDrag({
-    dataset: { dir: 'e' },
-  }, {
-    type: 'mousedown',
-    button: 0,
-    clientX: 0,
-    clientY: 0,
-    preventDefault() {},
-    stopPropagation() {},
-  });
-  context.drag.move({ type: 'mousemove', clientX: 80, clientY: 0 });
-  context.drag.up();
-
-  const applyEnd = debugEvents.find((event) => event.step === 'apply-end');
-  const flush = debugEvents.find((event) => event.step === 'flush');
-
-  assert.equal(applyEnd.meta.renderBoard, true);
-  assert.equal(applyEnd.meta.autoHeightReason, 'resize');
-  assert.equal(applyEnd.meta.layoutInvalidationMethod, 'cache-keyed');
-  assert.ok(flush);
 });
 
 test('save flushes a pending text edit checkpoint into the saved baseline', () => {

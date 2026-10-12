@@ -20,7 +20,6 @@ function newId() {
 }
 
 function cloneObject(obj, runtimeTextCache = false) {
-  HistoryDebug.count('cloneObjectCalls');
   const data = obj.type === 'image' ? { ...obj.data } : { content: obj.data.content };
   const cloned = {
     id: obj.id,
@@ -39,19 +38,9 @@ function cloneObject(obj, runtimeTextCache = false) {
 }
 
 function cloneObjects(list, runtimeTextCache = false) {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = HistoryDebug.start('cloneObjects', { objectCount: list.length });
-  const t0 = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  HistoryDebug.count('cloneObjectsCalls');
-  HistoryDebug.count('clonedObjects', list.length);
   const clones = new Array(list.length);
   for (let i = 0; i < list.length; i++) clones[i] = cloneObject(list[i], runtimeTextCache);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const ms = performance.now() - t0;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  HistoryDebug.max('maxCloneObjectsMs', ms);
-  HistoryDebug.end(dbg, { objectCount: list.length, ms });
+
   return clones;
 }
 
@@ -80,27 +69,20 @@ function sendSelectedToBack() {
 }
 
 function flipSelectedImages() {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = ClipDebug.start('flipSelectedImages', { selectedCount: selectedIds.size });
-  let imageCount = 0;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const flipped = BoardfishEditorState.commitMutation('flip-image', () => {
     let didFlip = false;
     for (const id of selectedIds) {
       const obj = objectsMap.get(id);
       if (!obj || obj.type !== 'image') continue;
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      imageCount++;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
       obj.data.flipX = !obj.data.flipX;
       markDirty(obj);
       didFlip = true;
     }
     return didFlip;
   }, { invalidate: true });
-  ClipDebug.step(dbg, 'toggle-flags', { imageCount, flipped });
-  if (!flipped) { ClipDebug.end(dbg, { skipped: true }); return; }
-  ClipDebug.end(dbg, { historyIndex });
+
+  if (!flipped) {  return; }
 }
 
 function rotateSelectedImages() {

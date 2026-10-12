@@ -53,7 +53,7 @@ function consumeShortcutEvent(e) {
 
 function closeMenusForShortcut(shortcutName) {
   if (!hasOpenContextMenu()) return;
-  closeOpenMenusExcept('', `shortcut:${shortcutName}`);
+  closeOpenMenusExcept('');
 }
 
 function runShortcutCommand(shortcutName, fallback) {

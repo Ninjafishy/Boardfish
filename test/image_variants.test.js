@@ -112,7 +112,6 @@ test('scaled bitmap cache evicts the oldest fixed-scale variant', () => {
   assert.equal(a.closed, true);
   assert.equal(b.closed, false);
   assert.equal(context.imageScaledBitmapBytes, 8);
-  assert.equal(context.imageScaledVariantEvictionCount, 1);
 });
 
 test('scaled bitmap cache closes replacements and tracks their bytes', () => {
@@ -212,12 +211,11 @@ test('generic bitmap draw warmup samples the full source into a 1px canvas', () 
   const source = { width: 320, height: 180 };
   const result = context.warmDrawableBitmapForDrawNow(source, { key: 'img-1' });
 
-  assert.equal(result.warmed, true);
+  assert.equal(result, true);
   assert.deepEqual(drawCalls[0], [source, 0, 0, 320, 180, 0, 0, 1, 1]);
   assert.deepEqual({ width: warmupCanvas.width, height: warmupCanvas.height }, { width: 1, height: 1 });
   assert.equal(smoothingWrites, 1);
   assert.equal(qualityWrites, 0);
-  assert.equal(context.drawableBitmapWarmupWarmedByKind.other, 1);
 });
 
 test('full image draw warmup uses a bounded real-size sample', () => {
@@ -242,11 +240,9 @@ test('full image draw warmup uses a bounded real-size sample', () => {
   const source = { width: 512, height: 256 };
   const result = context.warmDrawableBitmapForDrawNow(source, { kind: 'full-image', key: 'img-1' });
 
-  assert.equal(result.warmed, true);
-  assert.equal(result.width, 256);
-  assert.equal(result.height, 128);
+  assert.equal(result, true);
+
   assert.deepEqual(drawCalls[0], [source, 0, 0, 512, 256, 0, 0, 256, 128]);
-  assert.equal(context.drawableBitmapWarmupWarmedByKind.fullImage, 1);
 });
 
 test('scaled bitmap draw warmup uses a bounded real-size sample', () => {
@@ -269,11 +265,9 @@ test('scaled bitmap draw warmup uses a bounded real-size sample', () => {
   const source = { width: 1024, height: 768 };
   const result = context.warmDrawableBitmapForDrawNow(source, { kind: 'scaled-variant', key: 'img-1' });
 
-  assert.equal(result.warmed, true);
-  assert.equal(result.width, 512);
-  assert.equal(result.height, 384);
+  assert.equal(result, true);
+
   assert.deepEqual(drawCalls[0], [source, 0, 0, 1024, 768, 0, 0, 512, 384]);
-  assert.equal(context.drawableBitmapWarmupMaxPixels, 512 * 384);
 });
 
 test('source-ready images queue the low zoom scaled variant before first draw', () => {
@@ -282,12 +276,9 @@ test('source-ready images queue the low zoom scaled variant before first draw', 
 
   const result = context.queueScaledImageVariantForReadyImage('img-1', source);
 
-  assert.equal(result.key, 'img-1');
-  assert.equal(result.scale, 0.25);
-  assert.equal(result.queued, true);
+  assert.equal(result, true);
   assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
-  assert.equal(context.imageScaledVariantSourceReadyCandidateCount, 1);
-  assert.equal(context.imageScaledVariantSourceReadyQueuedCount, 1);
+
   assert.equal(context.imageScaledVariantQueue.length, 1);
   assert.equal(context.imageScaledVariantQueue[0].key, 'img-1');
 });
@@ -300,9 +291,8 @@ test('scaled variant priority promotes an already pending scaled replacement', (
 
   const result = context.queueScaledImageVariant('img-1', source, 0.25, true);
 
-  assert.equal(result.queued, false);
-  assert.equal(result.skipped, 'pending');
-  assert.equal(result.priorityBoosted, true);
+  assert.equal(result, false);
+
   assert.equal(context.imageScaledVariantQueue[0].priority, true);
 });
 
@@ -329,10 +319,6 @@ test('open image cache settle drains every scaled task and drawable warmup', asy
   assert.deepEqual(calls.sort(), ['scaled-a', 'scaled-b']);
   assert.equal(context.imageScaledVariantQueue.length, 0);
   assert.equal(context.drawableBitmapWarmupQueue.size, 0);
-  assert.equal(result.scaledTasks, 2);
-  assert.equal(result.drawableWarmups, 1);
-  assert.equal(result.pendingScaledVariants, 0);
-  assert.equal(result.pendingDrawableWarmups, 0);
 });
 
 test('scaled image variants enable resizing when createImageBitmap is available', () => {
@@ -341,7 +327,6 @@ test('scaled image variants enable resizing when createImageBitmap is available'
   assert.equal(context.VIEWPORT_IMAGE_SCALING_SUPPORTED, true);
   assert.equal(context.viewportImageScalingEnabled, true);
   assert.equal(context.isViewportImageScalingActive(), true);
-  assert.equal(context.setViewportPerfMode('1').scalingEnabled, true);
 
   const fullSource = { width: 100, height: 100 };
   const selected = context.selectImageSourceForDraw(
@@ -350,10 +335,7 @@ test('scaled image variants enable resizing when createImageBitmap is available'
     fullSource,
     { zoom: 0.1, dpr: 1 },
   );
-  assert.equal(selected.source, fullSource);
-  assert.equal(selected.scale, 1);
-  assert.equal(selected.targetScale, 0.25);
-  assert.equal(selected.disabled, undefined);
+  assert.equal(selected, fullSource);
 });
 
 test('active low-zoom navigation preserves full-size fallback while scaled variant is pending', () => {
@@ -369,12 +351,9 @@ test('active low-zoom navigation preserves full-size fallback while scaled varia
     { zoom: 0.1, dpr: 1 },
   );
 
-  assert.equal(selected.source, fullSource);
-  assert.equal(selected.scale, 1);
-  assert.equal(selected.targetScale, 0.25);
-  assert.equal(selected.activeInputFullFallback, true);
+  assert.equal(selected, fullSource);
+
   assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
-  assert.equal(context.imageScaledVariantActiveInputFullFallbackCount, 1);
 });
 
 test('explicit active image draw preserves full-size fallback while scaled variant is pending', () => {
@@ -391,12 +370,9 @@ test('explicit active image draw preserves full-size fallback while scaled varia
     true,
   );
 
-  assert.equal(selected.source, fullSource);
-  assert.equal(selected.scale, 1);
-  assert.equal(selected.targetScale, 0.25);
-  assert.equal(selected.activeInputFullFallback, true);
+  assert.equal(selected, fullSource);
+
   assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
-  assert.equal(context.imageScaledVariantActiveInputFullFallbackCount, 1);
 });
 
 test('active low-zoom navigation prioritizes visible pending scaled variants', () => {
@@ -418,7 +394,6 @@ test('active low-zoom navigation prioritizes visible pending scaled variants', (
   );
 
   assert.deepEqual(pendingKeys(), ['img-2', 'img-1']);
-  assert.equal(context.imageScaledVariantPriorityBoostCount, 1);
 });
 
 test('scaled variant queue defers background work until viewport input is idle', () => {
@@ -490,7 +465,7 @@ test('promoting the sole pending scaled variant wakes its delayed queue timer', 
 
   assert.equal(promoted, true);
   assert.equal(task.priority, true);
-  assert.equal(context.imageScaledVariantPriorityBoostCount, 1);
+
   assert.equal(backgroundTimer.cleared, true);
   assert.equal(clock.pending().length, 1);
   assert.equal(clock.pending()[0].ms, 0);
@@ -513,9 +488,8 @@ test('active navigation can keep a nearly large enough 0.25x variant instead of 
     fullSource,
     { zoom: 0.42, dpr: 2 },
   );
-  assert.equal(active.scale, 0.25);
-  assert.equal(active.targetScale, 0.25);
 
+  assert.equal(active, context.imageScaledBitmapCache.get('img-1').bitmap);
   context.performance.now = () => 2000;
   const idle = context.selectImageSourceForDraw(
     'img-1',
@@ -523,8 +497,8 @@ test('active navigation can keep a nearly large enough 0.25x variant instead of 
     fullSource,
     { zoom: 0.42, dpr: 2 },
   );
-  assert.equal(idle.scale, 1);
-  assert.equal(idle.targetScale, 1);
+
+  assert.equal(idle, fullSource);
 });
 
 test('scaled variant queue starts a small concurrent batch per tick', async () => {
@@ -570,7 +544,6 @@ test('scaled variant queue starts a small concurrent batch per tick', async () =
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(context.imageScaledVariantQueueActive, 0);
-  assert.equal(context.imageScaledVariantBuildCount, 5);
 });
 
 test('idle low-zoom drawing preserves full-size fallback until scaled variants are ready', () => {
@@ -586,9 +559,8 @@ test('idle low-zoom drawing preserves full-size fallback until scaled variants a
     { zoom: 0.1, dpr: 1 },
   );
 
-  assert.equal(selected.source, fullSource);
-  assert.equal(selected.scale, 1);
-  assert.equal(selected.targetScale, 0.25);
+  assert.equal(selected, fullSource);
+
   assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
 });
 
@@ -617,7 +589,7 @@ test('visible image idle work shares one timer and waits for the latest input', 
   now = 1280;
   clock.run(clock.pending()[0]);
   assert.deepEqual(hydrations, [1]);
-  assert.equal(context.imageScaledVariantPrewarmRunCount, 1);
+
   context.scheduleVisibleImageWorkAfterIdle();
   context.clearScaledImageVariants();
   assert.equal(clock.pending().length, 0);
@@ -634,7 +606,6 @@ test('visible image idle work hydrates when scaled variants are unavailable', ()
   clock.run(clock.pending()[0]);
 
   assert.deepEqual(hydrations, [1]);
-  assert.equal(context.imageScaledVariantPrewarmRunCount, 0);
 });
 
 test('scaled variant ready render uses input activity at timer fire after input settles', () => {
@@ -653,7 +624,7 @@ test('scaled variant ready render uses input activity at timer fire after input 
   now = 1170;
   clock.run(clock.pending()[0]);
 
-  assert.deepEqual(renders, [[true, null, 'image-scale-variant-batch-1']]);
+  assert.deepEqual(renders, [[true]]);
   assert.equal(clock.pending().length, 0);
 });
 
@@ -678,7 +649,7 @@ test('scaled variant ready render defers when input starts before timer fire', (
 
   now = 1170;
   clock.run(clock.pending()[0]);
-  assert.deepEqual(renders, [[true, null, 'image-scale-variant-batch-1']]);
+  assert.deepEqual(renders, [[true]]);
 });
 
 test('scaled image variants stay disabled when createImageBitmap is unavailable', () => {
@@ -687,7 +658,6 @@ test('scaled image variants stay disabled when createImageBitmap is unavailable'
   assert.equal(context.VIEWPORT_IMAGE_SCALING_SUPPORTED, false);
   assert.equal(context.viewportImageScalingEnabled, false);
   assert.equal(context.isViewportImageScalingActive(), false);
-  assert.equal(context.setViewportPerfMode('1').scalingEnabled, false);
 });
 
 test('stale scaled image variant tasks skip resize work', async () => {
@@ -746,8 +716,8 @@ test('scaled image variant skips do not create empty cache groups', () => {
   const context = loadImageVariantsWithBitmap();
 
   const missing = context.queueScaledImageVariant('img-missing-size', { width: 0, height: 100 }, 0.25);
-  assert.equal(missing.queued, false);
-  assert.equal(missing.skipped, 'missing-size');
+  assert.equal(missing, false);
+
   assert.equal(context.imageScaledBitmapCache.has('img-missing-size'), false);
   assert.equal(context.isScaledImageVariantPending('img-missing-size', 0.25), false);
 
@@ -755,9 +725,8 @@ test('scaled image variant skips do not create empty cache groups', () => {
     'img-too-large',
     { width: 100000, height: 100000 },
   );
-  assert.equal(tooLarge.queued, false);
-  assert.equal(tooLarge.skipped, 'memory-limit');
-  assert.equal(context.imageScaledVariantSourceReadyQueuedCount, 0);
+  assert.equal(tooLarge, false);
+
   assert.equal(context.imageScaledBitmapCache.has('img-too-large'), false);
   assert.equal(context.isScaledImageVariantPending('img-too-large', 0.25), false);
 });
@@ -791,17 +760,4 @@ test('async image cache writes use generation guards', () => {
   assert.match(imageStateSource, /generation === _imageStoreGeneration && imageStore\[key\] === source/);
   assert.match(imageStateSource, /same = isImageDisplayCacheRequestCurrent\(key, src, generation\);/);
   assert.match(imageStateSource, /if \(same\) imageBitmapFailed\.add\(key\);/);
-});
-
-test('low-zoom active navigation records visible full-size fallbacks until scaled variants are ready', () => {
-  const source = readSource('src/js/image_variants.js');
-  const rendererSource = readSource('src/js/renderer.js');
-
-  assert.match(source, /IMAGE_VARIANT_ACTIVE_INPUT_PRIORITY_MS/);
-  assert.match(source, /IMAGE_VARIANT_ACTIVE_OVERSCALE_LIMIT/);
-  assert.match(source, /chooseImageScaleForDraw\(obj, fullSource, view, activeInput\)/);
-  assert.match(source, /if \(targetScale < 1\) \{[\s\S]*queueScaledImageVariant\(key, fullSource, targetScale, activeInput\);/);
-  assert.match(source, /activeInputFullFallback: true/);
-  assert.doesNotMatch(source, /source: null/);
-  assert.match(rendererSource, /activeInputFullFallbackImages/);
 });

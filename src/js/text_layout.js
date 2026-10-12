@@ -250,10 +250,6 @@ const trimMapCache = (map, maxEntries) => {
   while (map.size > maxEntries) map.delete(map.keys().next().value);
 };
 
-const textLayoutDebugNow = () => performance.now();
-
-const textLayoutDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
-
 const clearMeasuredTextWidthCache = () => {
   _textTabStopWidth = undefined;
   _mwCache.clear();
@@ -578,45 +574,6 @@ function textWrappedLineIndexEntryForVisual(cache, visualLineIndex) {
   return entries[lo];
 }
 
-function prewarmTextObjectLayoutRuntimeCaches(obj) {
-  const startedAt = textLayoutDebugNow();
-  const content = obj.data?.content || '';
-  const beforePrefixEntries = obj._textParagraphPrefixCache?.size || 0;
-  const lineIndexCache = ensureCachedTextWrappedLineIndex(obj, content);
-  const entries = lineIndexCache?.entries || [];
-  const prefixCacheWarm = (
-    obj._textParagraphPrefixCacheContent === content &&
-    obj._textParagraphPrefixCache &&
-    typeof obj._textParagraphPrefixCache.get === 'function' &&
-    beforePrefixEntries >= entries.length
-  );
-  if (prefixCacheWarm) {
-    return {
-      available: true,
-      logicalLineEntries: entries.length,
-      processedLogicalLines: 0,
-      prefixCacheEntriesAdded: 0,
-      skipped: 'warm',
-      totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
-    };
-  }
-  let processedLogicalLines = 0;
-  for (const entry of entries) {
-    const start = Math.max(0, Math.min(Math.trunc(Number(entry?.startIndex)) || 0, content.length));
-    const end = Math.max(start, Math.min(Math.trunc(Number(entry?.endIndex)) || start, content.length));
-    getTextObjectParagraphPrefixWidthsForNormalizedContent(obj, content, start, end);
-    processedLogicalLines++;
-  }
-  const afterPrefixEntries = obj._textParagraphPrefixCache?.size || 0;
-  return {
-    available: true,
-    logicalLineEntries: entries.length,
-    processedLogicalLines,
-    prefixCacheEntriesAdded: Math.max(0, afterPrefixEntries - beforePrefixEntries),
-    totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
-  };
-}
-
 function measureTextRangeW(text, start, end) {
   const from = Math.max(0, Math.min(start, text.length));
   const to = Math.max(from, Math.min(end, text.length));
@@ -825,30 +782,18 @@ function textLayoutSpliceRangeForLogicalLines(layout, startLine, endLine) {
 
 function patchTextObjectLayoutAfterInput(obj, options = {}) {
   if (!obj || obj.type !== 'text' || !Array.isArray(obj._layoutCache)) return false;
-  const collectDiagnostics = typeof BOARDFISH_PRODUCTION === 'undefined';
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const debug = {
-    reason: '',
-    oldLayoutLines: obj._layoutCache.length,
-  };
-  const fail = (reason) => {
-    debug.reason = reason;
-    obj._lastTextLayoutPatchDebug = debug;
-    return false;
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
   const oldContent = String(options.oldContent ?? obj._layoutCacheContent ?? '');
   const newContent = String(options.newContent ?? obj.data?.content ?? '');
   if (obj._layoutCacheContent !== oldContent || obj._layoutCacheW !== obj.w) {
-    return collectDiagnostics ? fail('stale-layout-cache') : false;
+    return (false);
   }
   const start = Math.max(0, Math.min(Math.trunc(Number(options.start)) || 0, oldContent.length));
   const end = Math.max(start, Math.min(Math.trunc(Number(options.end)) || start, oldContent.length));
   const insertedText = String(options.insertedText ?? newContent.slice(start, Math.max(start, newContent.length - (oldContent.length - end))));
   const deltaChars = newContent.length - oldContent.length;
   if (deltaChars !== insertedText.length - (end - start)) {
-    return collectDiagnostics ? fail('content-delta-mismatch') : false;
+    return (false);
   }
 
   const layout = obj._layoutCache;
@@ -904,14 +849,6 @@ function patchTextObjectLayoutAfterInput(obj, options = {}) {
   obj._layoutCacheContent = newContent;
   obj._layoutCacheY = obj.y;
 
-  if (collectDiagnostics) {
-    debug.newLayoutLines = layout.length;
-    debug.removedLayoutLines = removedLayoutCount;
-    debug.insertedLayoutLines = insertedLayout.length;
-    debug.layoutLineDelta = layoutLineDelta;
-    debug.logicalLineDelta = logicalLineDelta;
-    obj._lastTextLayoutPatchDebug = debug;
-  }
   return true;
 }
 
@@ -1275,30 +1212,6 @@ function lineCaretXAtOffset(line, obj, offset) {
   return (previousInkRight + nextInkLeft) / 2;
 }
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-function createTextDrawStats() {
-  return {
-    chars: 0,
-    drawnChars: 0,
-    drawUnits: 0,
-    drawCalls: 0,
-    runs: 0,
-    skippedTabs: 0,
-    skippedSpaces: 0,
-    planCacheHits: 0,
-    planCacheMisses: 0,
-  };
-}
-
-function cloneTextDrawStats(stats, cacheHit = false) {
-  return {
-    ...stats,
-    planCacheHits: cacheHit ? 1 : 0,
-    planCacheMisses: cacheHit ? 0 : 1,
-  };
-}
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 function isTextDrawBatchingFontReady(font) {
   if (_textDrawBatchingEngineVerified == null) {
     const userAgent = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
@@ -1319,21 +1232,11 @@ function isTextDrawBatchingFontReady(font) {
 }
 
 function createTextDrawPlan(line, text, start, end) {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let stats = null;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-    stats = createTextDrawStats();
-    stats.chars = end - start;
-  }
   const draws = [];
   let batchingFontReady;
   let i = start;
   while (i < end) {
     if (text[i] === '\t') {
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        stats.skippedTabs++;
-      }
       i++;
       continue;
     }
@@ -1344,20 +1247,12 @@ function createTextDrawPlan(line, text, start, end) {
     }
     const runStart = draws.length;
     batchingFontReady ??= isTextDrawBatchingFontReady(FONT);
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-      stats.runs++;
-    }
+
     forEachTextSpacingUnit(text, (unit, unitStart, unitEnd) => {
       if (unit === ' ' || unit === '\u00a0') {
-        if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-          stats.skippedSpaces += Math.max(0, unitEnd - unitStart);
-        }
         return;
       }
-      if (typeof BOARDFISH_PRODUCTION === 'undefined') {
-        stats.drawUnits++;
-        stats.drawnChars += Math.max(0, unitEnd - unitStart);
-      }
+
       const x = line.prefixWidths[unitStart];
       const batchable = batchingFontReady === true && TEXT_DRAW_BATCHABLE_ASCII_RE.test(unit);
       const previous = draws.length > runStart ? draws[draws.length - 1] : null;
@@ -1376,10 +1271,10 @@ function createTextDrawPlan(line, text, start, end) {
         nextX: batchable ? x + measureRawTextW(unit) : NaN,
       });
     }, i, j);
-    if (typeof BOARDFISH_PRODUCTION === 'undefined') stats.drawCalls += draws.length - runStart;
+
     i = j;
   }
-  if (typeof BOARDFISH_PRODUCTION === 'undefined') draws.stats = stats;
+
   return draws;
 }
 
@@ -1387,25 +1282,16 @@ function prepareTextLineForDraw(line) {
   return line._textDrawPlanCache ||= createTextDrawPlan(line, line.text, 0, line.text.length);
 }
 
-const drawTextLineRange = (context, line, obj, start = 0, end = line.text.length
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  , options = {}
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-) => {
+const drawTextLineRange = (context, line, obj, start = 0, end = line.text.length) => {
   const text = line.text;
   const cacheable = start === 0 && end === text.length;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const cacheHit = cacheable && !!line._textDrawPlanCache;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const plan = cacheable ? prepareTextLineForDraw(line) : createTextDrawPlan(line, text, start, end);
   const baseX = lineBaseX(obj);
   for (const draw of plan) {
     context.fillText(draw.text, baseX + draw.x, line.textY);
   }
-  if (typeof BOARDFISH_PRODUCTION !== 'undefined') return null;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  return options.collectStats === false ? null : cloneTextDrawStats(plan.stats, cacheHit);
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+  return null;
 };
 
 function layoutHitTestCaret(layout, wx, wy, obj) {
@@ -1420,6 +1306,6 @@ function layoutHitTestCaret(layout, wx, wy, obj) {
   const line = layout[lo];
   const offset = lineHitOffsetForX(line, wx, obj);
   const hitIndex = line.startIndex + offset;
-  TextSelDebug._logHit(wx, wy, obj, line, hitIndex, line.prefixWidths);
+
   return { index: hitIndex, lineStartIndex: line.startIndex };
 }

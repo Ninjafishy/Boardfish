@@ -1,58 +1,16 @@
 // ─── Add objects ─────────────────────────────────────────────────────────────
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-const objectCommandDebugNow = () => performance.now();
-
-const objectCommandTextStats = (value) => {
-  const text = String(value ?? '');
-  const lines = text ? text.split('\n') : [];
-  let largestLineChars = 0;
-  for (const line of lines) largestLineChars = Math.max(largestLineChars, line.length);
-  return {
-    textLen: text.length,
-    textLineCount: lines.length,
-    largestLineChars,
-    textBytes: BoardfishWebLimits.textByteLength(text),
-  };
-};
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 function addText(wx, wy, content = '', options = {}) {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = options?.debug || null;
-  let stepStartedAt = dbg && objectCommandDebugNow();
-  const addStartedAt = stepStartedAt;
-  const logStep = (step, meta = {}) => {
-    if (!dbg || typeof ClipDebug === 'undefined') return;
-    const details = typeof meta === 'function' ? meta() : meta;
-    const now = objectCommandDebugNow();
-    ClipDebug.step(dbg, `addText:${step}`, {
-      ms: Math.round((now - stepStartedAt) * 100) / 100,
-      totalMs: Math.round((now - addStartedAt) * 100) / 100,
-      ...details,
-    });
-    stepStartedAt = now;
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-
-  logStep('start', () => ({
-    wx,
-    wy,
-    anchor: options?.anchor || '',
-    ...objectCommandTextStats(content),
-  }));
-
   if (!BoardfishWebLimits.canAddObjects(1)) {
-    logStep('object-limit-denied');
     return;
   }
   if (!options.contentPrepared) content = textForTextObjectPaste(content);
-  logStep('trim-done', () => objectCommandTextStats(content));
+
   if (!BoardfishWebLimits.canAcceptAdditionalTextCharacters(BoardfishWebLimits.textCharacterCount(content))) return;
   const data = { content };
   const textBytes = BoardfishWebLimits.textByteLength(content);
   const accepted = BoardfishWebLimits.canAcceptAdditionalContentBytes(textBytes, 1);
-  logStep('content-limit-done', { textBytes, accepted });
+
   if (!accepted) return;
   const h = LINE_H + TEXT_PAD * 2;
   let w = content ? 120 : h * 6;
@@ -63,42 +21,23 @@ function addText(wx, wy, content = '', options = {}) {
     start = end + 1;
   }
   const obj = { id: newId(), type: 'text', x: wx, y: wy, w, h, z: ++zCounter, data };
-  logStep('size-estimate-done', () => ({ w, h, ...objectCommandTextStats(content) }));
-  const heightChanged = syncTextAutoHeight(obj);
-  logStep('auto-height-done', () => ({
-    objectId: obj.id,
-    heightChanged,
-    w: obj.w,
-    h: obj.h,
-    ...objectCommandTextStats(content),
-  }));
+
+  syncTextAutoHeight(obj);
+
   if (options?.anchor === 'center') {
     obj.x = wx - obj.w / 2;
     obj.y = wy - obj.h / 2;
   }
-  logStep('position-done', { objectId: obj.id, x: obj.x, y: obj.y, w: obj.w, h: obj.h });
+
   BoardfishEditorState.addObject(obj);
-  logStep('add-object-done', { objectId: obj.id, objectCountAfter: objects.length });
+
   selectObject(obj.id);
-  logStep('render-scheduled', { objectId: obj.id });
+
   if (content) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const historyStartedAt = dbg && objectCommandDebugNow();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     pushHistory('add-text');
-    logStep('history-pushed', () => ({
-      objectId: obj.id,
-      historyMs: Math.round((objectCommandDebugNow() - historyStartedAt) * 100) / 100,
-    }));
   } else {
     enterEdit(obj.id);
-    logStep('enter-edit-done', {
-      objectId: obj.id,
-      editAfterCreate: false,
-      enterEditHistory: true,
-    });
   }
-  logStep('end', { objectId: obj.id, objectCountAfter: objects.length });
 }
 var _inputShieldStack = [];
 
@@ -122,7 +61,7 @@ function acquireInputShield(options = {}) {
     if (index !== -1) _inputShieldStack.splice(index, 1);
     updateInputShieldVisual();
     if (!_inputShieldStack.length && !_boardOpening) {
-      scheduleRender(false, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'input-shield-release' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+      scheduleRender(false, true);
     }
   };
 }
@@ -166,35 +105,27 @@ async function newBoard() {
     if (choice === 'cancel') return;
     if (choice === 'save') { const saved = await saveBoard(); if (!saved) return; }
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = OpenDebug.start('newBoard', { objectCount: objects.length });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   BoardfishEditorState.setBoardOpening();
   beginOpeningFreeze();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const openingStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   showIslandMsg('Opening');
   BoardfishEditorState.resetBoardObjectState();
-  OpenDebug.step(dbg, 'exitEdit', {});
+
   clearJsClipboard();
   invalidateOffscreen();
-  OpenDebug.step(dbg, 'clearState', {});
+
   currentFilePath = null;
   currentFileRef = null;
   BoardfishViewportState.reset();
   clearImageStore();
-  OpenDebug.step(dbg, 'clearImageStore', {});
+
   snapshot();
   markSaved();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const elapsed = performance.now() - openingStart;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  OpenDebug.step(dbg, 'workDone', { elapsed });
+
   _boardOpening = false;
   applyTransform();
   finishPillTask({ beforeFinish: endOpeningFreeze });
-  OpenDebug.end(dbg, { totalMs: elapsed });
 }
 
 // ─── Duplicate ────────────────────────────────────────────────────────────────
@@ -244,7 +175,7 @@ function duplicateSelected(anchorPoint = null) {
   BoardfishEditorState.setSelection(duplicatedIds, {
     primaryId: duplicatedIds[duplicatedIds.length - 1],
   });
-  scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'duplicate-selected' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+  scheduleRender(true, true);
   pushHistory('duplicate-selected');
 }
 

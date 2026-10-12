@@ -10,7 +10,6 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
   const chosenRef = { kind: 'web-file-handle', name: 'copy.bf' };
   const calls = { pickers: 0, writes: [], messages: [], shields: 0, releases: 0 };
   const context = {
-    BOARDFISH_PRODUCTION: true,
     objects: [{ type: 'text', data: { content: 'unsaved text' } }],
     boardHistory: [{ revision: 1 }],
     historyIndex: 0,
@@ -42,9 +41,7 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
   };
   vm.createContext(context);
   for (const file of ['object_commands.js', 'io_close.js']) {
-    const source = readSource(`src/js/${file}`).replace(
-      /\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '',
-    );
+    const source = readSource(`src/js/${file}`);
     vm.runInContext(source, context, { filename: file });
   }
   context.currentFileRef = sourceRef;

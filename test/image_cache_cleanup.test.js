@@ -5,16 +5,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-function noopDebugApi() {
-  return {
-    start: () => null,
-    step() {},
-    end() {},
-    count() {},
-    max() {},
-  };
-}
-
 function loadImageState(createImageBitmap) {
   const rafs = [];
   const timers = [];
@@ -60,9 +50,7 @@ function loadImageState(createImageBitmap) {
     _bulkImageInsertDepth: 0,
     _boardOpening: false,
     _imageReadyLastRender: 0,
-    OpenDebug: noopDebugApi(),
-    ViewportDebug: noopDebugApi(),
-    ClipDebug: noopDebugApi(),
+
     clearScaledImageVariants() {},
     dropDrawableBitmapWarmup() {},
     scheduleDrawableBitmapWarmup() {},
@@ -95,7 +83,7 @@ test('image readiness throttles board frames and skips work during board opening
   context.scheduleImageReadyRender();
 
   assert.equal(invalidations, 2);
-  assert.deepEqual(renders, [[true, null, 'image-bitmap-ready']]);
+  assert.deepEqual(renders, [[true]]);
 
   context._boardOpening = true;
   context.scheduleImageReadyRender();
@@ -119,7 +107,7 @@ test('Blob-backed web refs decode directly without a display URL', async () => {
   context.imageStore['img-1'] = source;
 
   assert.equal(await context.bitmapSourceFromImageSource(source), blob);
-  const ready = context.cacheImage('img-1', source, null);
+  const ready = context.cacheImage('img-1', source);
   assert.equal(rafs.length, 1);
   rafs.shift()();
   await ready;
@@ -137,8 +125,8 @@ test('cacheImage shares one in-flight decode promise per image key', async () =>
   const src = 'data:image/png;base64,boardfish';
   context.imageStore['img-1'] = src;
 
-  const firstReady = context.cacheImage('img-1', src, null);
-  const secondReady = context.cacheImage('img-1', src, null);
+  const firstReady = context.cacheImage('img-1', src);
+  const secondReady = context.cacheImage('img-1', src);
 
   assert.equal(secondReady, firstReady);
   assert.equal(rafs.length, 1);
@@ -159,17 +147,19 @@ test('cacheImage retries after a failed shared decode promise', async () => {
   const src = 'data:image/png;base64,boardfish';
   context.imageStore['img-1'] = src;
 
-  const failedReady = context.cacheImage('img-1', src, null);
-  assert.equal(context.cacheImage('img-1', src, null), failedReady);
+  const failedReady = context.cacheImage('img-1', src);
+  assert.equal(context.cacheImage('img-1', src), failedReady);
   rafs.shift()();
-  assert.equal((await failedReady).cacheReadyStage, 'error');
+  await failedReady;
+
   assert.equal(context.imageBitmapFailed.has('img-1'), true);
 
-  const retryReady = context.cacheImage('img-1', src, null);
+  const retryReady = context.cacheImage('img-1', src);
   assert.notEqual(retryReady, failedReady);
   assert.equal(rafs.length, 1);
   rafs.shift()();
-  assert.equal((await retryReady).cacheReadyStage, 'bitmap');
+  await retryReady;
+
   assert.equal(decodes, 2);
   assert.equal(context.imageBitmapFailed.has('img-1'), false);
   assert.equal(context.imageBitmapCache['img-1'], bitmap);
@@ -184,7 +174,7 @@ test('cacheImage keeps an existing current bitmap and closes a racing duplicate'
   }));
   const src = 'data:image/png;base64,boardfish';
   context.imageStore['img-1'] = src;
-  const ready = context.cacheImage('img-1', src, null);
+  const ready = context.cacheImage('img-1', src);
   assert.equal(rafs.length, 1);
 
   rafs.shift()();
@@ -192,8 +182,8 @@ test('cacheImage keeps an existing current bitmap and closes a racing duplicate'
   context.imageBitmapCache['img-1'] = existing;
   resolveBitmap(duplicate);
 
-  const metrics = await ready;
-  assert.equal(metrics.cacheReadyStage, 'bitmap');
+  await ready;
+
   assert.equal(context.imageBitmapCache['img-1'], existing);
   assert.equal(existing.closed, false);
   assert.equal(duplicate.closed, true);
@@ -223,11 +213,12 @@ test('cacheImage retries a stale in-flight web ref against its replacement sourc
   };
   context.imageStore['img-1'] = firstSource;
 
-  const firstReady = context.cacheImage('img-1', firstSource, null);
+  const firstReady = context.cacheImage('img-1', firstSource);
   assert.equal(rafs.length, 1);
   rafs.shift()();
   context.imageStore['img-1'] = secondSource;
-  assert.equal((await firstReady).cacheReadyStage, 'stale');
+  await firstReady;
+
   assert.equal(firstBitmap.closed, true);
   assert.equal(context.imageBitmapCache['img-1'], undefined);
 
@@ -255,7 +246,7 @@ test('cacheImage queues full bitmap draw warmup for active-fallback safety', asy
   };
   context.imageStore['img-1'] = src;
 
-  const ready = context.cacheImage('img-1', src, null);
+  const ready = context.cacheImage('img-1', src);
   assert.equal(rafs.length, 1);
   rafs.shift()();
   await ready;
@@ -264,7 +255,6 @@ test('cacheImage queues full bitmap draw warmup for active-fallback safety', asy
   assert.equal(warmups[0].source, bitmap);
   assert.equal(warmups[0].meta.kind, 'full-image');
   assert.equal(warmups[0].meta.key, 'img-1');
-  assert.equal(warmups[0].meta.source, 'cache-image');
 });
 
 test('removeImageRuntimeCachesForKey clears runtime bitmap state for the removed image only', () => {

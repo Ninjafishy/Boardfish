@@ -34,7 +34,7 @@ for (const type of BOARD_CURSOR_CLIENT_EVENT_TYPES) {
 
 function addTextAtMenuCommandPoint(event = null) {
   const point = menuCommandWorldPoint(event);
-  closeCtxMenu('command:add-text');
+  closeCtxMenu();
   addText(point.x, point.y, '', { anchor: 'center' });
 }
 
@@ -82,13 +82,12 @@ function updateCtxActionStates() {
   darkModeMenuBtn.setAttribute('aria-pressed', appTheme === 'dark' ? 'true' : 'false');
 }
 
-function closeCtxActions(reason) {
-  MenuDebug.log('ctx-actions:close', { reason });
+function closeCtxActions() {
   closeFloatingSurface(ctxActions);
 }
 
 function openCtxMenuAt(x, y) {
-  closeOpenMenusExcept('ctx-menu', 'open-ctx-menu');
+  closeOpenMenusExcept('ctx-menu');
   updateCtxActionStates();
   ctxMenu.classList.add('visible');
   ctxActions.classList.add('visible');
@@ -117,44 +116,30 @@ function openCtxMenuAt(x, y) {
   ctxActions.style.top = ctxMenu.style.top;
 }
 
-if (DEBUG_TOOLS_ENABLED) {
-  for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'contextmenu']) {
-    document.addEventListener(type, (e) => MenuDebug.logDomEvent(`document:${type}:capture`, e), true);
-    document.addEventListener(type, (e) => MenuDebug.logDomEvent(`document:${type}:bubble`, e), false);
-    ctxMenu.addEventListener(type, (e) => MenuDebug.logDomEvent(`ctx-menu:${type}`, e));
-    objCtxMenu.addEventListener(type, (e) => MenuDebug.logDomEvent(`obj-ctx-menu:${type}`, e));
-    textCtxMenu.addEventListener(type, (e) => MenuDebug.logDomEvent(`text-ctx-menu:${type}`, e));
-  }
-}
-
-function closeCtxMenu(reason) {
-  MenuDebug.log('ctx-menu:close', { reason });
+function closeCtxMenu() {
   clearMenuCommandPressState();
   closeFloatingSurface(ctxMenu);
-  closeCtxActions(reason);
+  closeCtxActions();
 }
 
-function closeObjCtxMenu(reason) {
-  MenuDebug.log('obj-ctx-menu:close', { reason });
+function closeObjCtxMenu() {
   clearMenuCommandPressState();
   closeFloatingSurface(objCtxMenu);
 }
 
-const closeTextCtxMenu = (reason) => {
-  MenuDebug.log('text-ctx-menu:close', { reason });
+const closeTextCtxMenu = () => {
   clearMenuCommandPressState();
   closeFloatingSurface(textCtxMenu);
 };
 
-function closeOpenMenusExcept(activeMenuId = '', reason = 'menu-switch') {
-  const switchReason = `${reason}:switch`;
-  if (activeMenuId !== 'ctx-menu') closeCtxMenu(switchReason);
-  if (activeMenuId !== 'obj-ctx-menu') closeObjCtxMenu(switchReason);
-  if (activeMenuId !== 'text-ctx-menu') closeTextCtxMenu(switchReason);
+function closeOpenMenusExcept(activeMenuId = '') {
+  if (activeMenuId !== 'ctx-menu') closeCtxMenu();
+  if (activeMenuId !== 'obj-ctx-menu') closeObjCtxMenu();
+  if (activeMenuId !== 'text-ctx-menu') closeTextCtxMenu();
 }
 
-function openExclusiveMenuAt(menu, menuId, x, y, reason) {
-  closeOpenMenusExcept(menuId, reason);
+function openExclusiveMenuAt(menu, menuId, x, y) {
+  closeOpenMenusExcept(menuId);
   openMenuAt(menu, x, y);
 }
 var _menuPointerCommand = null;
@@ -165,35 +150,35 @@ function clearMenuCommandPressState() {
 }
 
 var MENU_COMMANDS = {
-  'btn-new': () => { closeCtxMenu('command:new'); newBoard(); },
+  'btn-new': () => { closeCtxMenu(); newBoard(); },
   'btn-add-text': addTextAtMenuCommandPoint,
   'btn-add-image': (event) => {
     const point = menuCommandWorldPoint(event);
-    closeCtxMenu('command:add-image');
+    closeCtxMenu();
     pickAndInsertImages(point.x, point.y);
   },
   'btn-paste': (event) => {
     const point = menuCommandWorldPoint(event);
-    closeCtxMenu('command:paste');
+    closeCtxMenu();
     pasteAtPos(point.x, point.y);
   },
-  'btn-save': () => { closeCtxMenu('command:save'); saveBoard(); },
-  'btn-save-as': () => { closeCtxMenu('command:save-as'); saveBoardAs(); },
-  'btn-open': () => { closeCtxMenu('command:open'); openBoard(); },
-  'obj-btn-copy': () => { closeObjCtxMenu('command:copy'); copySelected(); },
-  'obj-btn-delete': () => { closeObjCtxMenu('command:delete'); deleteSelected(); },
+  'btn-save': () => { closeCtxMenu(); saveBoard(); },
+  'btn-save-as': () => { closeCtxMenu(); saveBoardAs(); },
+  'btn-open': () => { closeCtxMenu(); openBoard(); },
+  'obj-btn-copy': () => { closeObjCtxMenu(); copySelected(); },
+  'obj-btn-delete': () => { closeObjCtxMenu(); deleteSelected(); },
   'obj-btn-duplicate': (event) => {
     const point = menuCommandWorldPoint(event);
-    closeObjCtxMenu('command:duplicate');
+    closeObjCtxMenu();
     duplicateSelected(point);
   },
-  'obj-btn-move-to-back': () => { closeObjCtxMenu('command:move-to-back'); sendSelectedToBack(); },
+  'obj-btn-move-to-back': () => { closeObjCtxMenu(); sendSelectedToBack(); },
   'obj-btn-flip': flipSelectedImages,
   'obj-btn-rotate': rotateSelectedImages,
-  'obj-btn-save-image': () => { closeObjCtxMenu('command:save-image'); exportSelectedImages(); },
-  'text-btn-copy': () => { closeTextCtxMenu('command:copy'); copyTextEditSelection(); },
-  'text-btn-paste': () => { closeTextCtxMenu('command:paste'); pasteTextIntoEditSelection(); },
-  'text-btn-delete': () => { closeTextCtxMenu('command:delete'); deleteTextEditSelection(); },
+  'obj-btn-save-image': () => { closeObjCtxMenu(); exportSelectedImages(); },
+  'text-btn-copy': () => { closeTextCtxMenu(); copyTextEditSelection(); },
+  'text-btn-paste': () => { closeTextCtxMenu(); pasteTextIntoEditSelection(); },
+  'text-btn-delete': () => { closeTextCtxMenu(); deleteTextEditSelection(); },
 };
 
 const getTextEditSelectionState = () =>
@@ -206,14 +191,11 @@ const readTextClipboardForEditMenu = async () => {
     if (navigator.clipboard?.readText) {
       return String(await navigator.clipboard.readText() || '');
     }
-  } catch (err) {
-    MenuDebug.log('text-ctx-menu:clipboard-text-miss', { error: String(err) });
-  }
+  } catch {}
   return '';
 };
 
 const replaceTextEditSelection = (text, { inputType }) => {
-  const collectDiagnostics = typeof BOARDFISH_PRODUCTION === 'undefined';
   const selection = getTextEditSelectionState();
   if (!selection || !_editEl) return false;
   const inputTypeValue = inputType.toLowerCase();
@@ -234,66 +216,18 @@ const replaceTextEditSelection = (text, { inputType }) => {
       insertedText: replacementText,
     },
   };
-  if (collectDiagnostics && typeof nextTextEditInputDebugSeq === 'function') {
-    replacementState._debugSeq = nextTextEditInputDebugSeq();
-  }
+
   beginTextEditHistoryAction(editingId, replacementState);
   _editEl?._boardfishSetPendingInputState?.(replacementState);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const debugNow = typeof textEditorDebugNow === 'function' ? textEditorDebugNow : () => Date.now();
-  const debugRound = typeof textEditorDebugRound === 'function'
-    ? textEditorDebugRound
-    : (value) => Math.round((Number(value) || 0) * 100) / 100;
-  const mutationStartedAt = debugNow();
-  const mutationResult =
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   replaceTextEditProxyRange(
     _editEl, replacementText, selection.start, selection.end, 'end', inputTypeValue.startsWith('delete'),
   );
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const nextValue = textEditProxyValue(_editEl);
-  if (typeof recordTextEditorInputPerfStep === 'function') {
-    const mutationMs = debugRound(debugNow() - mutationStartedAt);
-    recordTextEditorInputPerfStep('menu-replace-textarea-mutated', {
-      seq: replacementState._debugSeq ?? '',
-      inputType,
-      objectId: editingId,
-      textareaMutationMs: mutationMs,
-      textareaMutationMethod: mutationResult.method,
-      setRangeTextMs: mutationResult.setRangeTextMs || (mutationResult.method === 'setRangeText' ? mutationMs : ''),
-      valueAssignMs: mutationResult.valueAssignMs,
-      valueBuildMs: mutationResult.valueBuildMs,
-      valueSetMs: mutationResult.valueSetMs,
-      logicalSetMs: mutationResult.logicalSetMs,
-      selectionSetMs: mutationResult.selectionSetMs,
-      proxyChars: nextValue.length,
-      domProxyChars: String(_editEl.value ?? '').length,
-      domValueStale: !!_editEl._boardfishDomValueStale,
-      oldChars: oldValue.length,
-      nextChars: nextValue.length,
-      insertedChars: replacementText.length,
-      removedChars: Math.max(0, selection.end - selection.start),
-      replacementStart: selection.start,
-      replacementEnd: selection.end,
-      ...(typeof textEditorSelectionDebugStats === 'function' ? textEditorSelectionDebugStats(selection, oldValue) : {}),
-    });
-  }
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   _caretVisible = true;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dispatchStartedAt = debugNow();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   _editEl.dispatchEvent(new Event('input', { bubbles: true }));
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  if (typeof recordTextEditorInputPerfStep === 'function') {
-    recordTextEditorInputPerfStep('menu-replace-input-dispatched', {
-      seq: replacementState._debugSeq ?? '',
-      inputType,
-      objectId: editingId,
-      dispatchMs: debugRound(debugNow() - dispatchStartedAt),
-    });
-  }
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   focusTextEditProxy();
   return true;
 };
@@ -336,31 +270,16 @@ function menuCommandFromButton(button) {
   return button?.id ? MENU_COMMANDS[button.id] || null : null;
 }
 
-function menuCommandName(button) {
-  return button?.id ? button.id.replace(/^(btn|obj-btn|text-btn)-/, '') : '';
-}
-
 function runMenuCommand(button, source, commandEvent = null) {
   if (source === 'click' && commandEvent?.detail !== 0) return true;
   const run = menuCommandFromButton(button);
-  const command = menuCommandName(button);
   if (!run) {
-    MenuDebug.log('menu:command:missing', { command, source, target: button?.id || '' });
     return false;
   }
-  MenuDebug.log(button.id.startsWith('obj-')
-    ? 'obj-ctx-menu:command'
-    : button.id.startsWith('text-')
-      ? 'text-ctx-menu:command'
-      : 'ctx-menu:command', { command, source });
-  MenuDebug.log('menu:command:start', { command, source });
+
   try {
     run(commandEvent);
-    MenuDebug.log('menu:command:end', { command, source });
-  } catch (err) {
-    MenuDebug.log('menu:command:error', { command, source, error: String(err) });
-    console.error('Menu Command Failed:', command, err);
-  }
+  } catch {}
   return true;
 }
 
@@ -428,7 +347,6 @@ function runAddImagesCommandFromShortcut() { runMenuCommand(addImageBtn, 'shortc
 function runAddTextCommandFromShortcut() { runMenuCommand(addTextBtn, 'shortcut'); }
 
 function resetZoomToClosestObject() {
-  const dbg = ViewportDebug.start('resetZoom', { panX, panY, zoom, objectCount: objects.length });
   if (selectedIds.size || editingId) deselectAll();
   const center = toWorld(window.innerWidth / 2, window.innerHeight / 2);
   let closestImage = null;
@@ -453,26 +371,14 @@ function resetZoomToClosestObject() {
   const objectCenterX = object ? object.x + object.w / 2 : center.x;
   const objectCenterY = object ? object.y + object.h / 2 : center.y;
   const changed = BoardfishViewportState.setZoomPan(1, window.innerWidth / 2 - objectCenterX, window.innerHeight / 2 - objectCenterY);
-  scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'reset-zoom' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
-  ViewportDebug.end(dbg, {
-    ...(object
-      ? { objectId: object.id, objectType: object.type, distanceSq: closestImage ? closestImageDistanceSq : closestTextDistanceSq }
-      : { mode: 'empty-board-center' }),
-    centerX: center.x,
-    centerY: center.y,
-    objectCenterX,
-    objectCenterY,
-    panX,
-    panY,
-    zoom,
-  });
+  scheduleTransform(changed);
 }
 
 const resetZoomFromPill = (e) => {
   if (island?.dataset?.mode !== 'zoom') return;
   e.preventDefault();
   e.stopPropagation();
-  closeOpenMenusExcept('', 'pill-reset-zoom');
+  closeOpenMenusExcept('');
   resetZoomToClosestObject();
 };
 
@@ -485,7 +391,6 @@ const suppressZoomPillContextMenu = (e) => {
 island?.addEventListener('click', resetZoomFromPill);
 island?.addEventListener('contextmenu', suppressZoomPillContextMenu);
 
-const MENU_COMMAND_INPUT_FAMILY = HAS_POINTER_EVENTS ? 'pointer' : 'mouse';
 const MENU_COMMAND_DOWN_EVENT = HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown';
 const MENU_COMMAND_UP_EVENT = HAS_POINTER_EVENTS ? 'pointerup' : 'mouseup';
 const MENU_COMMAND_CANCEL_EVENTS = HAS_POINTER_EVENTS
@@ -499,7 +404,6 @@ function onMenuPointerDown(e) {
   clearMenuCommandPressState();
   _menuPointerCommand = button;
   button.classList.add('menu-pressed');
-  MenuDebug.log(`menu:${MENU_COMMAND_INPUT_FAMILY}-command:start`, { command: menuCommandName(button), target: button.id });
 }
 
 function onMenuPointerUp(e) {
@@ -509,7 +413,6 @@ function onMenuPointerUp(e) {
   clearMenuCommandPressState();
   if (e.pointerType === 'touch') started.blur?.();
   if (button !== started) {
-    MenuDebug.log(`menu:${MENU_COMMAND_INPUT_FAMILY}-command:cancel`, { started: started.id, ended: button?.id || '' });
     return;
   }
   e.preventDefault();
@@ -553,22 +456,14 @@ const showTextEditContextMenuAt = (clientX, clientY) => {
   textDeleteSep.style.display = hasSelection ? 'block' : 'none';
   textDeleteBtn.style.display = hasSelection ? '' : 'none';
   if (!editingId) return;
-  openExclusiveMenuAt(textCtxMenu, 'text-ctx-menu', clientX, clientY, 'show-text-menu:edit');
-  MenuDebug.log('text-ctx-menu:open', {
-    hasSelection,
-    pasteVisible: textPasteBtn.style.display !== 'none',
-    x: clientX,
-    y: clientY,
-  });
+  openExclusiveMenuAt(textCtxMenu, 'text-ctx-menu', clientX, clientY);
 };
 
 function showCanvasContextMenuAt(clientX, clientY) {
   if (_rubberBandDragActive) {
-    MenuDebug.log('canvas:contextmenu:blocked-rubber-band', { x: clientX, y: clientY });
     return;
   }
   const wp = toWorld(clientX, clientY);
-  MenuDebug.log('canvas:contextmenu', { x: clientX, y: clientY, wx: wp.x, wy: wp.y });
 
   const obj = BoardObjectGeometry.topObjectAtWorldPoint(wp);
 
@@ -582,32 +477,21 @@ function showCanvasContextMenuAt(clientX, clientY) {
   if (isMultiSelected()) {
     if (rectContainsPoint(selectedBounds(), wp) && (!obj || isSelected(obj.id))) {
       updateObjMenuActions();
-      openExclusiveMenuAt(objCtxMenu, 'obj-ctx-menu', clientX, clientY, 'show-obj-menu:multi');
-      MenuDebug.log('obj-ctx-menu:open', { reason: 'multi', x: clientX, y: clientY });
+      openExclusiveMenuAt(objCtxMenu, 'obj-ctx-menu', clientX, clientY);
+
       return;
     }
   }
 
-  MenuDebug.log('canvas:contextmenu-hit', {
-    hit: !!obj,
-    objectId: obj?.id || '',
-    objectType: obj?.type || '',
-    selectedCount: selectedIds.size,
-    x: clientX,
-    y: clientY,
-    wx: wp.x,
-    wy: wp.y,
-  });
   if (obj) {
     if (!isSelected(obj.id)) selectObject(obj.id);
     updateObjMenuActions();
-    openExclusiveMenuAt(objCtxMenu, 'obj-ctx-menu', clientX, clientY, 'show-obj-menu:object');
-    MenuDebug.log('obj-ctx-menu:open', { reason: 'object', objectId: obj.id, objectType: obj.type, x: clientX, y: clientY });
+    openExclusiveMenuAt(objCtxMenu, 'obj-ctx-menu', clientX, clientY);
+
     return;
   }
   if (selectedIds.size) deselectAll();
   openCtxMenuAt(clientX, clientY);
-  MenuDebug.log('ctx-menu:open', { x: clientX, y: clientY, wx: wp.x, wy: wp.y });
 }
 
 canvas.addEventListener('contextmenu', (e) => {
@@ -624,14 +508,12 @@ for (const id in MENU_COMMANDS) {
   });
 }
 
-
 document.addEventListener(HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown', (e) => {
   if (!hasOpenContextMenu()) return;
   if (isEventInsideVisibleContextMenu(e)) {
-    MenuDebug.log('document-outside-press:inside-menu');
     return;
   }
-  closeOpenMenusExcept('', 'document-outside-press');
+  closeOpenMenusExcept('');
 });
 
 function clearCtxActionHotspotState() {
@@ -652,7 +534,7 @@ ctxActions.addEventListener('pointerleave', clearCtxActionHotspotState);
 darkModeMenuBtn.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
-  closeCtxMenu('command:dark-mode');
+  closeCtxMenu();
   toggleAppTheme();
   updateCtxActionStates();
 });

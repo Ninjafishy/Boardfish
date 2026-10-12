@@ -5,7 +5,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-
 test('viewport panning accepts large offsets in every direction', () => {
   const zoom = 2;
 

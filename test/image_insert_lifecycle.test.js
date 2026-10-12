@@ -34,9 +34,7 @@ function loadWebImageSourceHarness({ boardContainer = null } = {}) {
 }
 
 function loadAddImageHarness() {
-  const source = readSource('src/js/image_insert.js').replace(
-    /\/\* BOARDFISH_DEV_DIAGNOSTICS_START \*\/[\s\S]*?\/\* BOARDFISH_DEV_DIAGNOSTICS_END \*\//g, '',
-  );
+  const source = readSource('src/js/image_insert.js');
   const calls = {
     histories: [],
     objects: [],
@@ -45,7 +43,6 @@ function loadAddImageHarness() {
   };
   const imageStore = {};
   const context = {
-    BOARDFISH_PRODUCTION: true,
     _bulkImageInsertDepth: 0,
     editingId: null,
     imageBitmapCache: {
@@ -200,10 +197,6 @@ test('inserted immutable Blob sources reuse CRC without changing saved bytes', a
   const first = await WebContainer.createBoardContainerBlob(board, { 'img-9': source });
   const second = await WebContainer.createBoardContainerBlob(board, { 'img-9': source });
 
-  assert.equal(first.crcComputedEntries, 2);
-  assert.equal(first.crcReusedEntries, 0);
-  assert.equal(second.crcComputedEntries, 1);
-  assert.equal(second.crcReusedEntries, 1);
   const reopened = await WebContainer.readBoardContainer(second.blob);
   assert.deepEqual(WebContainer.bytesForImageSource(reopened.board.imageStore['img-9']), bytes);
 });
@@ -289,7 +282,7 @@ test('failed web image inserts roll back their adopted source once', () => {
 
   assert.match(source, /const rollbackImageInsertSource = \(imgKey, source, hadPreviousSource = false, previousSource\) =>/);
   assert.match(source, /if \(!\(naturalW > 0 && naturalH > 0\)\) \{\s*rollbackSource\(\);/);
-  assert.match(source, /catch \(err\) \{\s*rollbackSource\(\);/);
+  assert.match(source, /catch \{\s*rollbackSource\(\);/);
   assert.doesNotMatch(source, /cleanupFailedWebImageInsertSource|revokeImageSource/);
 });
 

@@ -5,7 +5,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-
 function cloneObject(obj, runtimeTextCache = false) {
   const cloned = JSON.parse(JSON.stringify(obj));
   if (obj?.type !== 'text') return cloned;
@@ -134,13 +133,7 @@ function loadHistoryHarness() {
         return context.selectedIds.size;
       },
     },
-    HistoryDebug: {
-      count() {},
-      end() {},
-      max() {},
-      start() { return {}; },
-      step() {},
-    },
+
     cloneObject,
     cloneObjects(list, runtimeTextCache = false) {
       return list.map((obj) => cloneObject(obj, runtimeTextCache));

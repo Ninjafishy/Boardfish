@@ -1,14 +1,5 @@
 'use strict';
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-(function initBoardfishWebEnv(root) {
-  if (Object.hasOwn(root, '__BOARDFISH_DEBUG_TOOLS_ENABLED__')) return;
-  Object.defineProperty(root, '__BOARDFISH_DEBUG_TOOLS_ENABLED__', {
-    value: false,
-  });
-}(globalThis));
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 (function registerBoardfishServiceWorker(root) {
   if (!root.navigator?.serviceWorker || !root.location) return;
   const { protocol, hostname } = root.location;
@@ -19,8 +10,6 @@
   if (!canRegister) return;
 
   root.addEventListener?.('load', () => {
-    root.navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('Offline Setup Failed:', error);
-    });
+    root.navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
 }(globalThis));

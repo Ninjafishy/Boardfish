@@ -281,15 +281,7 @@
     const target = touchMouseTarget(point);
     target.dispatchEvent(makeTouchMouseEvent('mousedown', point, 0, 1));
     target.dispatchEvent(makeTouchMouseEvent('mouseup', point, 0, 0));
-    if (editingId && _editEl) focusTextEditProxyNow(_editEl
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      , typeof objectsMap?.get === 'function' ? objectsMap.get(editingId) : null, 'touch-tap-focus', {
-        phase: 'touch-tap',
-        clientX: point.x,
-        clientY: point.y,
-      }
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
-    );
+    if (editingId && _editEl) focusTextEditProxyNow(_editEl);
   }
 
   function dispatchTouchRightClick(point) {
@@ -324,7 +316,7 @@
       return;
     }
     if (!boardPressAllowed()) return;
-    scheduleTransform(BoardfishViewportState.panBy(gesture.dx, gesture.dy) /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'touch-pan', gesture.event /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+    scheduleTransform(BoardfishViewportState.panBy(gesture.dx, gesture.dy));
   }
 
   function beginTouchPinch() {
@@ -343,7 +335,7 @@
       gesture.centerX - (gesture.startCenterX - start.panX) * scale,
       gesture.centerY - (gesture.startCenterY - start.panY) * scale,
     );
-    scheduleTransform(changed /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'touch-pinch-zoom', gesture.event /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+    scheduleTransform(changed);
   }
 
   const controller = createTouchGestureController({

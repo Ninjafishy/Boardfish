@@ -47,17 +47,6 @@ var APP_THEME_STORAGE_KEY = 'bf_app_theme';
 var _canvasBackgroundColor;
 var _canvasTextColor;
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-// StartupDebug is initialized by js/startup_debug.js.
-function logStartupStep(step, detail = {}) {
-  StartupDebug.record(step, detail);
-  if (!DEBUG_TOOLS_ENABLED) return;
-  try {
-    console.info('[Boardfish startup]', step, detail);
-  } catch {}
-}
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 function normalizeAppTheme(value) {
   const theme = String(value || '').toLowerCase();
   if (theme === 'dark' || theme === 'light') return theme;
@@ -81,16 +70,8 @@ function storeAppTheme() {
 function repaintBoardForThemeChange() {
   if (typeof invalidateOffscreen === 'function') invalidateOffscreen();
   if (typeof scheduleRender === 'function') {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    scheduleRender(true, false, 'theme-change');
-    return 'scheduled-board';
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     scheduleRender(true, false);
   }
-
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  return 'deferred-unavailable';
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
 function applyAppTheme(theme, {
@@ -104,17 +85,9 @@ function applyAppTheme(theme, {
   if (appThemeMeta) appThemeMeta.setAttribute('content', appTheme === 'dark' ? '#1c1b22' : '#eaeaed');
   _canvasBackgroundColor = appTheme === 'dark' ? '#1c1b22' : 'rgb(234, 234, 237)';
   _canvasTextColor = appTheme === 'dark' ? '#fbfbfe' : '#15141A';
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logStartupStep('body-theme-applied', StartupDebug.sample('body-theme-applied'));
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (render && (changed || dirty)) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const repaintMode =
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
       repaintBoardForThemeChange();
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    logStartupStep('theme-canvas-repaint', { theme: appTheme, mode: repaintMode });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
   if (dirty) storeAppTheme();
 }
@@ -126,9 +99,7 @@ function toggleAppTheme() {
 }
 
 const startupTheme = loadStoredAppTheme();
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-logStartupStep('theme-bootstrap', { theme: startupTheme });
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
+
 applyAppTheme(startupTheme, { render: false });
 
 function canvasTextColor() {

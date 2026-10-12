@@ -49,17 +49,12 @@ test('image storage is web-ref and data-url based', () => {
   assert.match(boardContainer, /web: true/);
 });
 
-test('clipboard and debug tooling use browser clipboard paths', () => {
+test('clipboard uses browser clipboard paths', () => {
   const clipboardState = readSource('src/js/clipboard_state.js');
   const clipboardExport = readSource('src/js/clipboard_export_init.js');
-  const startupDebug = readSource('src/js/startup_debug.js');
-
   assert.match(clipboardState, /markJsClipboardWebTokenWritten/);
-  assert.match(clipboardExport, /copy:web-clipboard-write-start/);
-  assert.match(clipboardExport, /copy:web-clipboard-write-end/);
-  assert.match(clipboardExport, /web-paste-browser/);
-  assert.match(startupDebug, /method: 'browser-download'/);
-  assert.match(startupDebug, /await applyAppTheme\(targetTheme[^\n]+\n\s+await new Promise\(\(resolve\) => requestAnimationFrame\(resolve\)\);/);
+  assert.match(clipboardExport, /BoardfishClipboardIO\.copyTextToClipboard/);
+  assert.match(clipboardExport, /navigator\.clipboard\.read/);
 });
 
 test('text edit entry and shortcuts keep edge-case guards', () => {
@@ -67,14 +62,6 @@ test('text edit entry and shortcuts keep edge-case guards', () => {
 
   assert.match(textEditor, /const obj = objectsMap\.get\(id\);\s*if \(!obj\) return;\s*editingId = id;/);
   assert.match(textEditor, /const shortcutKey = \(e\.ctrlKey \|\| e\.metaKey\) && !e\.altKey && !e\.shiftKey && e\.key\.toLowerCase\(\);/);
-});
-
-test('text input debug metadata is lazy when logging is disabled', () => {
-  const textEditor = readSource('src/js/text_editor.js');
-
-  assert.match(textEditor, /const details = typeof meta === 'function' \? meta\(\) : meta;/);
-  assert.match(textEditor, /logInputStep\('start', \(\) => \(\{/);
-  assert.match(textEditor, /logInputStep\('auto-height-done', \(\) => \(\{/);
 });
 
 test('browser paste fallback owns exactly one input shield token', () => {
@@ -149,7 +136,7 @@ test('image hydration queue processes until its time budget is consumed', () => 
 
   assert.match(imageState, /var _imageHydrationQueue = new Map\(\);/);
   assert.match(imageState, /if \(count > 0 && performance\.now\(\) - batchStart >= 6\) break;/);
-  assert.match(imageState, /cacheImage\(key, source[\s\S]*?, dbg[\s\S]*?\);/);
+  assert.match(imageState, /cacheImage\(key, source\s*\);/);
 });
 
 test('edit offscreen rebuild is synchronous, single-pass, and reuses its backing size', () => {
@@ -185,7 +172,4 @@ test('save and open validation stay at the authoritative container boundaries', 
   assert.doesNotMatch(saveSource, /handle\.getFile|refreshImageSources/);
   assert.match(runtime, /waitForFileOperation\(\(\) => writable\.write\(blob\), stage, timeoutMs\)/);
   assert.match(runtime, /waitForFileOperation\([\s\S]*?\(\) => writable\.abort\(failure\)/);
-
-  const saveDebug = readSource('src/js/debug_save.js');
-  assert.match(saveDebug, /jsonBytes: e\.meta\?\.rust\?\.json_bytes \?\? ''/);
 });

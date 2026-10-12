@@ -37,12 +37,6 @@ function pruneImageCachesAfterHistoryChange(historyEntriesDropped = false) {
   pruneImageCachesToKeys(retainedKeys);
 }
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-const isHistoryDebugEnabled = () => HistoryDebug.enabled === true;
-
-const historyDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 function syncHistoryEditProxyDomValueForSelection(proxy, start, end) {
   const domValue = String(proxy?.value ?? '');
   const logicalValue = textEditProxyValue(proxy);
@@ -50,142 +44,12 @@ function syncHistoryEditProxyDomValueForSelection(proxy, start, end) {
   const selectionEnd = Math.max(selectionStart, Math.trunc(Number(end)) || selectionStart);
   const stale = !!proxy?._boardfishDomValueStale || domValue !== logicalValue;
   const needsSelectionRange = selectionStart !== selectionEnd || selectionEnd > domValue.length;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const domCharsBefore = domValue.length;
-  if (!proxy || !stale || !needsSelectionRange) {
-    return {
-      synced: false,
-      reason: !proxy ? 'missing-proxy' : (!stale ? 'dom-current' : 'selection-fits-stale-dom'),
-      ms: 0,
-      domCharsBefore,
-      domCharsAfter: domCharsBefore,
-    };
-  }
-  const startedAt = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (proxy && stale && needsSelectionRange) {
     proxy.value = logicalValue;
     setTextEditProxyLogicalValue(proxy, logicalValue);
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  return {
-    synced: true,
-    reason: selectionStart !== selectionEnd ? 'restore-highlight' : 'selection-outside-stale-dom',
-    ms: historyDebugRound(performance.now() - startedAt),
-    domCharsBefore,
-    domCharsAfter: String(proxy.value ?? '').length,
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
-
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-function historyTextContentDebugMetrics(content) {
-  const text = String(content ?? '');
-  if (!text) return { lineCount: 0, largestLineChars: 0 };
-  let lineCount = 1;
-  let currentLineChars = 0;
-  let largestLineChars = 0;
-  for (let index = 0; index < text.length; index++) {
-    if (text.charCodeAt(index) === 10) {
-      largestLineChars = Math.max(largestLineChars, currentLineChars);
-      currentLineChars = 0;
-      lineCount++;
-    } else {
-      currentLineChars++;
-    }
-  }
-  largestLineChars = Math.max(largestLineChars, currentLineChars);
-  return { lineCount, largestLineChars };
-}
-
-function prefixHistoryDebugMetrics(prefix, metrics = {}) {
-  if (!prefix) return metrics;
-  const out = {};
-  for (const key in metrics) {
-    if (!Object.hasOwn(metrics, key)) continue;
-    const value = metrics[key];
-    out[`${prefix}${key[0].toUpperCase()}${key.slice(1)}`] = value;
-  }
-  return out;
-}
-
-function getHistoryEditStateDebugMetrics(editState = null, prefix = 'editState') {
-  if (!isHistoryDebugEnabled() || !editState) return {};
-  const start = Number(editState.selectionStart) || 0;
-  const end = Number(editState.selectionEnd) || start;
-  return {
-    [`${prefix}Id`]: editState.id || '',
-    [`${prefix}SelectionStart`]: start,
-    [`${prefix}SelectionEnd`]: end,
-    [`${prefix}SelectedChars`]: Math.abs(end - start),
-    [`${prefix}SelectionDirection`]: editState.selectionDirection || 'none',
-  };
-}
-
-function historyEntryReason(entry) {
-  return entry?.reason || '';
-}
-
-function getHistoryEntryDebugMetrics(entry, prefix = 'entry') {
-  if (!isHistoryDebugEnabled()) return {};
-  const entryObjects = entry.objects;
-  const editState = entry?.editState || null;
-  const beforeEditState = entry?.beforeEditState || null;
-  return {
-    [`${prefix}Reason`]: historyEntryReason(entry),
-    [`${prefix}ObjectCount`]: entryObjects.length,
-    [`${prefix}HasEditState`]: !!editState,
-    [`${prefix}HasBeforeEditState`]: !!beforeEditState,
-    ...prefixHistoryDebugMetrics(prefix, getHistoryTextDebugMetrics(entryObjects)),
-    ...getHistoryEditStateDebugMetrics(editState, `${prefix}EditState`),
-    ...getHistoryEditStateDebugMetrics(beforeEditState, `${prefix}BeforeEditState`),
-  };
-}
-
-function getHistoryTextDebugMetrics(sourceObjects = objects) {
-  if (!isHistoryDebugEnabled()) return {};
-  let textObjectCount = 0;
-  let textCharCount = 0;
-  let largestTextChars = 0;
-  let largestTextId = '';
-  let textLineCount = 0;
-  let largestTextLineChars = 0;
-  let runtimeTextLayoutObjects = 0;
-  let runtimeTextLayoutLines = 0;
-  let runtimeTextLayoutPrefixEntries = 0;
-  for (const obj of sourceObjects || []) {
-    if (obj?.type !== 'text') continue;
-    textObjectCount++;
-    const content = String(obj.data?.content || '');
-    const chars = content.length;
-    const contentMetrics = historyTextContentDebugMetrics(content);
-    textCharCount += chars;
-    textLineCount += contentMetrics.lineCount;
-    largestTextLineChars = Math.max(largestTextLineChars, contentMetrics.largestLineChars);
-    if (chars > largestTextChars) {
-      largestTextChars = chars;
-      largestTextId = obj.id || '';
-    }
-    if (!Array.isArray(obj._layoutCache)) continue;
-    runtimeTextLayoutObjects++;
-    runtimeTextLayoutLines += obj._layoutCache.length;
-    for (const line of obj._layoutCache) {
-      runtimeTextLayoutPrefixEntries += Number(line?.prefixWidths?.length) || 0;
-    }
-  }
-  return {
-    textObjectCount,
-    textCharCount,
-    largestTextChars,
-    largestTextId,
-    textLineCount,
-    largestTextLineChars,
-    runtimeTextLayoutObjects,
-    runtimeTextLayoutLines,
-    runtimeTextLayoutPrefixEntries,
-  };
-}
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
 
 function cloneObjectsForHistoryRestore(snapshotObjects = []) {
   const clones = new Array(snapshotObjects.length);
@@ -198,24 +62,11 @@ function cloneObjectsForHistoryRestore(snapshotObjects = []) {
 
 function snapshot() {
   boardHistory = []; historyIndex = -1;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = HistoryDebug.start('snapshot', {
-    objectCount: objects.length,
-    historyLength: boardHistory.length,
-    historyIndex,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  const t0 = performance.now();
-  HistoryDebug.count('snapshots');
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const objectsSnapshot = cloneObjects(objects);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'cloneObjects', { objectCount: objectsSnapshot.length, ...getHistoryTextDebugMetrics(objectsSnapshot) });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const editState = captureEditState();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'captureEditState', { editState: !!editState });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   boardHistory.push({
     reason: 'snapshot',
     revision: ++_historyRevision,
@@ -225,11 +76,6 @@ function snapshot() {
   historyIndex = boardHistory.length - 1;
   _dirtyIds.clear();
   _historyImageCacheClipboardToken = _jsClipboardToken;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const ms = performance.now() - t0;
-  HistoryDebug.max('maxSnapshotMs', ms);
-  HistoryDebug.end(dbg, { ms, historyLength: boardHistory.length, historyIndex, ...getHistoryTextDebugMetrics(objects) });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
 // Delta push: only deep-clones objects that changed since last snapshot.
@@ -238,18 +84,7 @@ function snapshot() {
 function pushHistory(reason = '', dirty = null, beforeEditState = null) {
   if (dirty) for (const item of dirty) _dirtyIds.add(item?.obj?.id ?? item);
   const contentChanged = _dirtyIds.size > 0;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = HistoryDebug.start('pushHistory', {
-    reason,
-    objectCount: objects.length,
-    dirtyCount: _dirtyIds.size,
-    historyLength: boardHistory.length,
-    historyIndex,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  const t0 = performance.now();
-  HistoryDebug.count('pushHistory');
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   let historyEntriesDropped = boardHistory.length > historyIndex + 1;
   boardHistory.length = historyIndex + 1;
   const prevEntry = boardHistory[historyIndex];
@@ -258,10 +93,7 @@ function pushHistory(reason = '', dirty = null, beforeEditState = null) {
   const cacheEditingText = !!editingId && (
     reason === 'text-edit-checkpoint' || reason === 'text-edit-enter'
   );
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let cloned = 0;
-  let reused = 0;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const entry = new Array(objects.length);
   for (let i = 0; i < objects.length; i++) {
     const o = objects[i];
@@ -270,21 +102,11 @@ function pushHistory(reason = '', dirty = null, beforeEditState = null) {
     const runtimeTextCache = cacheEditingText && o.type === 'text' && o.id === editingId;
     const shouldClone = _dirtyIds.has(o.id) || !previous || runtimeTextCache;
     entry[i] = shouldClone ? cloneObject(o, runtimeTextCache) : previous;
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    if (shouldClone) cloned++;
-    else reused++;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.count('clonedObjects', cloned);
-  HistoryDebug.count('reusedObjects', reused);
-  HistoryDebug.step(dbg, 'clone-dirty-objects', { cloned, reused, objectCount: entry.length, ...getHistoryTextDebugMetrics(entry) });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   _dirtyIds.clear();
   const editState = captureEditState();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'captureEditState', { editState: !!editState });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   boardHistory.push({
     reason,
     revision: reason === 'text-edit-enter' && !contentChanged ? prevEntry?.revision : ++_historyRevision,
@@ -295,43 +117,13 @@ function pushHistory(reason = '', dirty = null, beforeEditState = null) {
   historyIndex++;
   historyEntriesDropped = trimHistory() || historyEntriesDropped;
   pruneImageCachesAfterHistoryChange(historyEntriesDropped);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const ms = performance.now() - t0;
-  HistoryDebug.max('maxPushHistoryMs', ms);
-  HistoryDebug.end(dbg, { reason, ms, cloned, reused, historyLength: boardHistory.length, historyIndex, ...getHistoryTextDebugMetrics(entry) });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
 function restoreSnapshot(s, editStateOverride) {
   const snapshotObjects = s?.objects || [];
   const snapshotEditState = s?.editState || null;
   const editState = editStateOverride === undefined ? snapshotEditState : editStateOverride;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const hadEditing = !!editingId;
-  const dbg = HistoryDebug.start('restoreSnapshot', {
-    objectCount: snapshotObjects.length,
-    historyLength: boardHistory.length,
-    historyIndex,
-    selectedCount: selectedIds.size,
-    editState: !!editState,
-    sourceReason: historyEntryReason(s),
-    ...getHistoryEntryDebugMetrics(s, 'source'),
-    ...getHistoryEditStateDebugMetrics(editState, 'editState'),
-    ...getHistoryTextDebugMetrics(snapshotObjects),
-  });
-  const t0 = performance.now();
-  HistoryDebug.count('restores');
-  const clearEditMeta = {
-    hadEditing,
-    previousEditingId: editingId || '',
-    previousProxyChars: typeof _editEl?.value === 'string' ? _editEl.value.length : '',
-    previousSelectionStart: _editEl?.selectionStart ?? '',
-    previousSelectionEnd: _editEl?.selectionEnd ?? '',
-    hadSelectionListener: !!_selChangeListener,
-    hadCaretTimer: !!_caretBlinkInterval,
-    hadHistoryTimer: !!_editHistoryTimer,
-  };
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const liveEditId = editingId || '';
   const liveEditProxy = _editEl || null;
   const liveEditObject = liveEditId ? objectsMap.get(liveEditId) : null;
@@ -351,10 +143,6 @@ function restoreSnapshot(s, editStateOverride) {
       document.removeEventListener('selectionchange', _selChangeListener);
       liveSelectionListenerRemoved = true;
     }
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    clearEditMeta.preservedLiveEdit = true;
-    clearEditMeta.removedSelectionListenerTemporarily = liveSelectionListenerRemoved;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   } else if (editingId) {
     clearInterval(_caretBlinkInterval);
     _caretBlinkInterval = null;
@@ -364,110 +152,43 @@ function restoreSnapshot(s, editStateOverride) {
       _selChangeListener = null;
     }
     if (_editEl) {
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const removeProxyStart = performance.now();
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
       _editEl.remove();
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      clearEditMeta.removeProxyMs = historyDebugRound(performance.now() - removeProxyStart);
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
     }
     editingId = null;
     _editEl = null;
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'clear-editing', clearEditMeta);
-  const cloneObjectsStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const clonedSnapshotObjects = cloneObjectsForHistoryRestore(snapshotObjects);
   if (preserveLiveEdit) {
     for (const key of Object.keys(liveEditObject)) delete liveEditObject[key];
     Object.assign(liveEditObject, clonedSnapshotObjects[liveEditIndex]);
     clonedSnapshotObjects[liveEditIndex] = liveEditObject;
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const cloneObjectsMs = performance.now() - cloneObjectsStart;
-  HistoryDebug.step(dbg, 'clone-snapshot-objects', {
-    cloneObjectsMs,
-    objectCount: clonedSnapshotObjects.length,
-    preservedLiveEdit: preserveLiveEdit,
-    ...getHistoryTextDebugMetrics(clonedSnapshotObjects),
-  });
-  const replaceStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   BoardfishEditorState.replaceBoardObjects(clonedSnapshotObjects, {
     normalizeText: false,
     syncTextHeights: false,
   });
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const replaceBoardObjectsMs = performance.now() - replaceStart;
-  HistoryDebug.step(dbg, 'replace-board-objects', {
-    replaceBoardObjectsMs,
-    objectCount: objects.length,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  HistoryDebug.step(dbg, 'normalize-text', { objectCount: objects.length });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   _dirtyIds.clear();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'rebuild-caches', { objectCount: objectsMap.size });
-  HistoryDebug.step(dbg, 'preserve-text-heights');
-  const invalidateStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   invalidateOffscreen();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'invalidate-offscreen', { invalidateOffscreenMs: performance.now() - invalidateStart });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (editingId && !selectedIds.has(editingId)) exitEdit();
   const obj = editState?.id ? objectsMap.get(editState.id) : null;
   // Restore the final selection before the scheduled frame
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const selectionStart = performance.now();
-  const previousSelectedCount = selectedIds.size;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   BoardfishEditorState.setSelection(obj?.type === 'text' ? [obj.id] : [...selectedIds]);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'restore-selection', {
-    setSelectionMs: performance.now() - selectionStart,
-    previousSelectedCount,
-    selectedCount: selectedIds.size,
-  });
-  const renderStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   renderAll();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'renderAll-scheduled', {
-    renderScheduleMs: performance.now() - renderStart,
-    selectedCount: selectedIds.size,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (!editState || !editState.id) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const ms = performance.now() - t0;
-    HistoryDebug.max('maxRestoreMs', ms);
-    HistoryDebug.end(dbg, { ms, objectCount: objects.length, selectedCount: selectedIds.size, ...getHistoryTextDebugMetrics(objects) });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return;
   }
   if (!obj || obj.type !== 'text') {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const ms = performance.now() - t0;
-    HistoryDebug.max('maxRestoreMs', ms);
-    HistoryDebug.end(dbg, { ms, skippedEditRestore: true, ...getHistoryTextDebugMetrics(objects) });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return;
   }
 
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'restore-edit-start', {
-    editValueChars: String(obj.data?.content || '').length,
-    objectWidth: obj.w,
-    objectHeight: obj.h,
-    ...getHistoryEditStateDebugMetrics(editState, 'editState'),
-  });
-  const enterEditStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
   let reusedEditProxy = false;
   if (preserveLiveEdit && _editEl === liveEditProxy && obj === liveEditObject) {
     reusedEditProxy = true;
@@ -483,95 +204,24 @@ function restoreSnapshot(s, editStateOverride) {
       placeInitialCaret: false,
     });
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'enter-edit-restored', {
-    enterEditMs: performance.now() - enterEditStart,
-    editStateId: editState.id,
-    reusedEditProxy,
-    proxyChars: textEditProxyValue(_editEl).length,
-    objectWidth: obj.w,
-    objectHeight: obj.h,
-    ...getHistoryTextDebugMetrics([obj]),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
   if (!_editEl) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const ms = performance.now() - t0;
-    HistoryDebug.max('maxRestoreMs', ms);
-    HistoryDebug.end(dbg, { ms, skippedEditRestore: 'missing-edit-proxy', ...getHistoryTextDebugMetrics(objects) });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return;
   }
   const max = textEditProxyValue(_editEl).length;
   const start = Math.max(0, Math.min(editState.selectionStart ?? max, max));
   const end = Math.max(0, Math.min(editState.selectionEnd ?? max, max));
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const proxyDomSync =
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
     syncHistoryEditProxyDomValueForSelection(_editEl, start, end);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const setSelectionRangeStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   _textInputSelectionHistorySuppress = { start, end };
   _editEl.setSelectionRange(start, end, editState.selectionDirection || 'none');
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const setSelectionRangeMs = performance.now() - setSelectionRangeStart;
-  let focusMs = '';
-  let focusSkipped = '';
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const editProxyAlreadyFocused = typeof document !== 'undefined' && document.activeElement === _editEl;
-  if (reusedEditProxy && editProxyAlreadyFocused) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    focusSkipped = 'already-focused';
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  } else if (typeof _editEl.focus === 'function') {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const focusStart = performance.now();
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
+  if (reusedEditProxy && editProxyAlreadyFocused) {} else if (typeof _editEl.focus === 'function') {
     _editEl.focus({ preventScroll: true });
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    focusMs = performance.now() - focusStart;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
-  } else {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    focusSkipped = 'missing-focus';
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'restore-edit-caret', {
-    setSelectionRangeMs,
-    focusMs,
-    focusSkipped,
-    editStateId: editState.id,
-    editValueChars: max,
-    proxyDomSyncedForSelection: proxyDomSync.synced,
-    proxyDomSyncReason: proxyDomSync.reason,
-    proxyDomSyncMs: proxyDomSync.ms,
-    proxyDomCharsBeforeSelection: proxyDomSync.domCharsBefore,
-    proxyDomCharsAfterSelection: proxyDomSync.domCharsAfter,
-    selectionStart: start,
-    selectionEnd: end,
-    selectedChars: Math.abs(end - start),
-    selectionDirection: editState.selectionDirection || 'none',
-  });
-  if (typeof TextSelDebug !== 'undefined') {
-    TextSelDebug._logHistoryAction?.('history-restore-edit-caret', {
-      objectId: obj.id,
-      editValueChars: max,
-      selectionStart: start,
-      selectionEnd: end,
-      selectedChars: Math.abs(end - start),
-      selectionDirection: editState.selectionDirection || 'none',
-      reusedEditProxy,
-      proxyDomSyncedForSelection: proxyDomSync.synced,
-      proxyDomSyncReason: proxyDomSync.reason,
-      proxyDomCharsBeforeSelection: proxyDomSync.domCharsBefore,
-      proxyDomCharsAfterSelection: proxyDomSync.domCharsAfter,
-      proxyChars: typeof _editEl?.value === 'string' ? _editEl.value.length : '',
-    });
-  }
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (start === end) {
     obj._textEditCaretIndex = start;
   } else {
@@ -579,16 +229,8 @@ function restoreSnapshot(s, editStateOverride) {
   }
   if (liveSelectionListenerRemoved && _selChangeListener) {
     document.addEventListener('selectionchange', _selChangeListener);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    HistoryDebug.step(dbg, 'restore-edit-listener', { editStateId: editState.id, restoredSelectionListener: true });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
   _caretVisible = true;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const ms = performance.now() - t0;
-  HistoryDebug.max('maxRestoreMs', ms);
-  HistoryDebug.end(dbg, { ms, objectCount: objects.length, selectedCount: selectedIds.size, restoredEdit: true, ...getHistoryTextDebugMetrics(objects) });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
 function captureEditState() {
@@ -603,132 +245,37 @@ function captureEditState() {
 }
 
 function undo() {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = HistoryDebug.start('undo', {
-    historyLength: boardHistory.length,
-    historyIndex,
-    editing: !!editingId,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  const flushStart = performance.now();
-  const flushedCheckpoint = !!
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
     flushEditHistoryCheckpoint();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'flush-edit-history', {
-    flushedCheckpoint,
-    flushMs: performance.now() - flushStart,
-    historyLength: boardHistory.length,
-    historyIndex,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (historyIndex <= 0) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    HistoryDebug.end(dbg, { skipped: 'at-start', flushedCheckpoint, historyLength: boardHistory.length, historyIndex });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return;
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.count('undo');
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   const actionEntry = boardHistory[historyIndex];
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const targetEntry = boardHistory[historyIndex - 1];
-  HistoryDebug.step(dbg, 'target-ready', {
-    actionReason: historyEntryReason(actionEntry),
-    targetReason: historyEntryReason(targetEntry),
-    flushedCheckpoint,
-    ...getHistoryEntryDebugMetrics(actionEntry, 'action'),
-    ...getHistoryEntryDebugMetrics(targetEntry, 'target'),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   historyIndex--;
   const undoEditState = actionEntry?.reason === 'text-edit-checkpoint'
     ? actionEntry.beforeEditState || undefined
     : undefined;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const restoreStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   restoreSnapshot(boardHistory[historyIndex], undoEditState);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'restore-done', {
-    restoreMs: performance.now() - restoreStart,
-    historyLength: boardHistory.length,
-    historyIndex,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  HistoryDebug.end(dbg, {
-    historyLength: boardHistory.length,
-    historyIndex,
-    actionReason: historyEntryReason(actionEntry),
-    targetReason: historyEntryReason(targetEntry),
-    flushedCheckpoint,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
 function redo() {
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const dbg = HistoryDebug.start('redo', {
-    historyLength: boardHistory.length,
-    historyIndex,
-    editing: !!editingId,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  const flushStart = performance.now();
-  const flushedCheckpoint = !!
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
     flushEditHistoryCheckpoint();
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'flush-edit-history', {
-    flushedCheckpoint,
-    flushMs: performance.now() - flushStart,
-    historyLength: boardHistory.length,
-    historyIndex,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (historyIndex >= boardHistory.length - 1) {
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    HistoryDebug.end(dbg, { skipped: flushedCheckpoint ? 'flushed-pending-checkpoint' : 'at-end', flushedCheckpoint, historyLength: boardHistory.length, historyIndex });
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
     return;
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.count('redo');
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   historyIndex++;
   const actionEntry = boardHistory[historyIndex];
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'target-ready', {
-    targetReason: historyEntryReason(actionEntry),
-    flushedCheckpoint,
-    ...getHistoryEntryDebugMetrics(actionEntry, 'target'),
-  });
-  const restoreStart = performance.now();
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   restoreSnapshot(actionEntry);
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  HistoryDebug.step(dbg, 'restore-done', {
-    restoreMs: performance.now() - restoreStart,
-    historyLength: boardHistory.length,
-    historyIndex,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  HistoryDebug.end(dbg, {
-    historyLength: boardHistory.length,
-    historyIndex,
-    targetReason: historyEntryReason(actionEntry),
-    flushedCheckpoint,
-    ...getHistoryTextDebugMetrics(objects),
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 function renderAll() {
-  scheduleRender(true, true /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'renderAll' /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
+  scheduleRender(true, true);
 }

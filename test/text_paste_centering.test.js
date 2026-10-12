@@ -21,7 +21,7 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
       createElement() { return { getContext: createUnitTextContext }; },
     },
     added: [],
-    debugSteps: [],
+
     editCalls: [],
     editedIds: [],
     histories: [],
@@ -46,11 +46,7 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
         return obj;
       },
     },
-    ClipDebug: {
-      step(_debug, step, meta) {
-        context.debugSteps.push({ step, meta });
-      },
-    },
+
     newId() {
       return `obj-${idCounter++}`;
     },
@@ -116,11 +112,7 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
         return clipboardData?.getData?.('text/plain') || '';
       },
     },
-    ClipDebug: {
-      end() {},
-      start() { return null; },
-      step() {},
-    },
+
     acquireInputShield() {
       return () => {};
     },
@@ -168,16 +160,6 @@ test('addText keeps top-left placement by default', () => {
   assert.equal(obj.w, DEFAULT_TEXT_BOX_HEIGHT * 6);
   assert.deepEqual(context.editedIds, [obj.id]);
   assert.deepEqual(context.histories, ['text-edit-enter']);
-});
-
-test('addText retains full text diagnostics for an active debug capture', () => {
-  const context = loadAddTextHarness();
-
-  context.addText(24, 48, 'first\nsecond', { debug: {} });
-
-  assert.equal(context.textByteLengthCalls, 5);
-  assert.equal(context.debugSteps[0].step, 'addText:start');
-  assert.equal(context.debugSteps[0].meta.textLineCount, 2);
 });
 
 test('addText strips whitespace-only lines at pasted text edges', () => {

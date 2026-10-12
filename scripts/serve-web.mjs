@@ -33,19 +33,6 @@ function safePath(urlPath) {
   return resolved;
 }
 
-function webEnvSource() {
-  return `'use strict';
-
-(function initBoardfishWebEnv(root) {
-  Object.defineProperty(root, '__BOARDFISH_DEBUG_TOOLS_ENABLED__', {
-    value: true,
-    writable: false,
-    configurable: false,
-  });
-}(globalThis));
-`;
-}
-
 async function handleRequest(req, res) {
   let filePath;
   try {
@@ -66,7 +53,8 @@ async function handleRequest(req, res) {
       'Content-Type': types.get('.js'),
       'Cache-Control': 'no-store',
     });
-    res.end(webEnvSource());
+    // Serve fresh source without installing the production service worker.
+    res.end("'use strict';\n");
     return;
   }
   try {

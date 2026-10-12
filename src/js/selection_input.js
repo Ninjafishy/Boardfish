@@ -94,67 +94,6 @@ function scheduleTextMinWidthWarm(obj) {
   }
 }
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-function selectionInputPerfDebugApi() {
-  return typeof ManualPerfDebug !== 'undefined' ? ManualPerfDebug : null;
-}
-
-function selectionResizeDebugNow() {
-  return performance.now();
-}
-
-function selectionResizeDebugRound(value) {
-  return Math.round((Number(value) || 0) * 100) / 100;
-}
-
-function selectionResizeEventMeta(event = null) {
-  const now = selectionResizeDebugNow();
-  const timestamp = Number(event?.timeStamp);
-  const timeOrigin = typeof performance !== 'undefined' ? Number(performance.timeOrigin) || 0 : 0;
-  const eventAt = Number.isFinite(timestamp) && timestamp > 0
-    ? (timestamp > timeOrigin ? timestamp - timeOrigin : timestamp)
-    : now;
-  return {
-    eventType: event?.type || '',
-    eventAt: selectionResizeDebugRound(eventAt),
-    eventAgeMs: selectionResizeDebugRound(Math.max(0, now - eventAt)),
-    clientX: event?.clientX ?? '',
-    clientY: event?.clientY ?? '',
-    button: event?.button ?? '',
-    buttons: event?.buttons ?? '',
-  };
-}
-
-function selectionResizeTextLineCount(value = '') {
-  if (!value) return 0;
-  let lines = 1;
-  for (let index = value.indexOf('\n'); index >= 0; index = value.indexOf('\n', index + 1)) lines++;
-  return lines;
-}
-
-function selectionResizeTextObjectStats(obj) {
-  const content = typeof obj?.data?.content === 'string' ? obj.data.content : '';
-  return {
-    objectId: obj?.id || '',
-    contentChars: content.length,
-    logicalLines: selectionResizeTextLineCount(content),
-    layoutCachePresent: !!obj?._layoutCache,
-    layoutCacheLines: Array.isArray(obj?._layoutCache) ? obj._layoutCache.length : '',
-    minWidthCachePresent: Number.isFinite(obj?._textMinWidthCache),
-    paragraphPrefixCacheEntries: obj?._textParagraphPrefixCache?.size || 0,
-    wrappedLineCountCachePresent: Number.isFinite(obj?._textWrappedLineCountCacheValue),
-    wrappedLineCountCacheW: Number.isFinite(obj?._textWrappedLineCountCacheW) ? obj._textWrappedLineCountCacheW : '',
-    wrappedLineIndexCacheEntries: obj?._textWrappedLineIndexCache?.entries?.length ?? '',
-    wrappedLineIndexCacheLines: obj?._textWrappedLineIndexCache?.lineCount ?? '',
-    wrappedLineIndexWidthCacheSize: obj?._textWrappedLineIndexWidthCache?.size ?? '',
-  };
-}
-
-function recordSelectionTextResizeStep(step, dragId, meta = {}) {
-  selectionInputPerfDebugApi()?.recordTextResizeStep?.(step, { dragId: dragId || '', ...meta });
-}
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 var _dialogResolve = null;
 
 function isUnsavedDialogOpen() {
@@ -225,7 +164,7 @@ function blockShieldInput(e) {
     }
   }
   if (isShieldInputAllowed(e)) return;
-  ViewportDebug.recordShieldBlock?.(e, { reason: 'input-shield' });
+
   if (e.cancelable) e.preventDefault();
   e.stopPropagation();
 }
@@ -413,214 +352,40 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
 
       // ── Single text: resize width only ──
       const { x: ox, y: oy, w: ow, h: oh } = obj;
-      /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const resizeDebugActive = !!selectionInputPerfDebugApi()?.isTextResizeTraceActive?.();
-      const resizeDebugBase = resizeDebugActive
-        ? {
-            ...selectionResizeTextObjectStats(obj),
-            dir,
-            startClientX: startX,
-            startClientY: startY,
-            startX: ox,
-            startY: oy,
-            startW: ow,
-            startH: oh,
-            zoom,
-            panX,
-            panY,
-            ...selectionResizeEventMeta(e),
-          }
-        : null;
-      const resizeDebugDragId = resizeDebugActive
-        ? (selectionInputPerfDebugApi()?.startTextResizeDrag?.(resizeDebugBase) || '')
-        : '';
-      let resizeFinalizing = false;
-      /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
       let dragMinTextW = null;
       function applyResize(clientX, clientY, eventZoom, ev) {
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const moveStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
         const dx = (clientX - startX) / eventZoom;
         const dy = (clientY - startY) / eventZoom;
         let x = ox, y = oy, w = ow, h = oh;
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        let minTextW;
-        let minWidthMs = '';
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const minWidthStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (dragMinTextW == null) {
           dragMinTextW = getTextMinWidth(obj);
         }
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        minTextW = dragMinTextW;
-        if (resizeDebugDragId) minWidthMs = selectionResizeDebugRound(selectionResizeDebugNow() - minWidthStartedAt);
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         if (resizeEast) w = Math.max(dragMinTextW, ow + dx);
         if (resizeWest) { w = Math.max(dragMinTextW, ow - dx); x = ox + ow - w; }
 
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        if (resizeDebugDragId) {
-          recordSelectionTextResizeStep('move', resizeDebugDragId, {
-            ...selectionResizeEventMeta(ev),
-            objectId: obj.id,
-            dir,
-            dx,
-            dy,
-            x,
-            y,
-            w,
-            h,
-            minTextW,
-            minWidthMs,
-            moveMs: selectionResizeDebugRound(selectionResizeDebugNow() - moveStartedAt),
-          });
-        }
-        const applyStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-        const beforeX = obj.x;
-        const beforeY = obj.y;
-        const beforeW = obj.w;
-        const beforeH = obj.h;
-        const layoutCacheHadValue = !!obj._layoutCache;
-        const layoutCacheLinesBefore = Array.isArray(obj._layoutCache) ? obj._layoutCache.length : '';
-        if (resizeDebugDragId) {
-          recordSelectionTextResizeStep('apply-start', resizeDebugDragId, {
-            objectId: obj.id,
-            beforeX,
-            beforeY,
-            beforeW,
-            beforeH,
-            x,
-            y,
-            w,
-            h,
-            layoutCacheHadValue,
-            layoutCacheLinesBefore,
-          });
-        }
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
         const render = obj.w !== w;
         obj.x = x;
         obj.y = y;
         obj.w = w;
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        let autoHeightDebug = null;
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         if (render) {
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          const clearStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-          const clearLayoutMs = resizeDebugDragId ? selectionResizeDebugRound(selectionResizeDebugNow() - clearStartedAt) : '';
-          const heightBeforeAuto = resizeDebugDragId ? obj.h : 0;
-          const autoHeightStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
           resetTextEditPreservedMinLines(obj);
           syncTextAutoHeight(obj, getTextMinLines(obj));
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          if (resizeDebugDragId) {
-            autoHeightDebug = {
-              clearLayoutMs,
-              autoHeightMs: selectionResizeDebugRound(selectionResizeDebugNow() - autoHeightStartedAt),
-              autoHeightChanged: obj.h !== heightBeforeAuto,
-              autoHeightReason: resizeFinalizing ? 'resize-final' : 'resize',
-              layoutInvalidationMethod: 'cache-keyed',
-            };
-          }
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
         }
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const scheduleStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
         if (render) drawBoard(), updateSelectionOverlay();
-        /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        if (resizeDebugDragId) {
-          const scheduleRenderMs = selectionResizeDebugRound(selectionResizeDebugNow() - scheduleStartedAt);
-          recordSelectionTextResizeStep('apply-end', resizeDebugDragId, {
-            objectId: obj.id,
-            beforeX,
-            beforeY,
-            beforeW,
-            beforeH,
-            afterX: obj.x,
-            afterY: obj.y,
-            afterW: obj.w,
-            afterH: obj.h,
-            w: obj.w,
-            h: obj.h,
-            layoutCacheHadValue,
-            layoutCacheLinesBefore,
-            layoutCachePresent: !!obj._layoutCache,
-            layoutCacheLines: Array.isArray(obj._layoutCache) ? obj._layoutCache.length : '',
-            minWidthCachePresent: Number.isFinite(obj._textMinWidthCache),
-            paragraphPrefixCacheEntries: obj._textParagraphPrefixCache?.size || 0,
-            wrappedLineCountCachePresent: Number.isFinite(obj._textWrappedLineCountCacheValue),
-            wrappedLineCountCacheW: Number.isFinite(obj._textWrappedLineCountCacheW) ? obj._textWrappedLineCountCacheW : '',
-            wrappedLineIndexCacheEntries: obj._textWrappedLineIndexCache?.entries?.length ?? '',
-            wrappedLineIndexCacheLines: obj._textWrappedLineIndexCache?.lineCount ?? '',
-            wrappedLineIndexWidthCacheSize: obj._textWrappedLineIndexWidthCache?.size ?? '',
-            clearLayoutMs: autoHeightDebug?.clearLayoutMs ?? '',
-            autoHeightMs: autoHeightDebug?.autoHeightMs ?? '',
-            autoHeightChanged: autoHeightDebug?.autoHeightChanged ?? '',
-            autoHeightReason: autoHeightDebug?.autoHeightReason ?? '',
-            layoutInvalidationMethod: autoHeightDebug?.layoutInvalidationMethod ?? '',
-            renderBoard: render,
-            renderOverlay: render,
-            scheduleRenderMs,
-            applyMs: selectionResizeDebugRound(selectionResizeDebugNow() - applyStartedAt),
-          });
-        }
-        /* BOARDFISH_DEV_DIAGNOSTICS_END */
       }
       const resizeCommitter = createRafCommitter(applyResize);
 
       beginDocumentDrag({
         move: (ev) => resizeCommitter.schedule(ev.clientX, ev.clientY, zoom, ev),
         up() {
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          if (resizeDebugDragId) {
-            recordSelectionTextResizeStep('up-start', resizeDebugDragId, {
-              objectId: obj.id,
-            });
-          }
-          const flushStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-          resizeFinalizing = true;
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
           resizeCommitter.flush();
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          resizeFinalizing = false;
-          if (resizeDebugDragId) {
-            recordSelectionTextResizeStep('flush', resizeDebugDragId, {
-              objectId: obj.id,
-              flushMs: selectionResizeDebugRound(selectionResizeDebugNow() - flushStartedAt),
-              x: obj.x,
-              y: obj.y,
-              w: obj.w,
-              h: obj.h,
-            });
-          }
-          const historyStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
           pushHistory('resize', [obj.id]);
-          /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          if (resizeDebugDragId) {
-            recordSelectionTextResizeStep('history-pushed', resizeDebugDragId, {
-              objectId: obj.id,
-              historyReason: 'resize',
-              historyMs: selectionResizeDebugRound(selectionResizeDebugNow() - historyStartedAt),
-            });
-            selectionInputPerfDebugApi()?.finishTextResizeDrag?.(resizeDebugDragId, {
-              objectId: obj.id,
-              x: obj.x,
-              y: obj.y,
-              w: obj.w,
-              h: obj.h,
-              ...selectionResizeTextObjectStats(obj),
-            });
-          }
-          /* BOARDFISH_DEV_DIAGNOSTICS_END */
         },
       });
 };
@@ -631,7 +396,6 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
     handle.addEventListener('mousedown', (e) => beginSelectionHandleDrag(handle, e));
   }
 })();
-
 
 // ─── Selection ────────────────────────────────────────────────────────────────
 
@@ -660,7 +424,7 @@ function selectAllObjects() {
 }
 
 function hideMenus() {
-  closeOpenMenusExcept('', 'hideMenus');
+  closeOpenMenusExcept('');
 }
 
 // ─── Edit mode ────────────────────────────────────────────────────────────────
@@ -684,74 +448,22 @@ const normalizeTextEditHistoryState = (id, state = null) => {
   };
 };
 
-/* BOARDFISH_DEV_DIAGNOSTICS_START */
-const textEditHistoryDebugMeta = (id, state = null, normalized = null, extra = {}) => {
-  const obj = id ? objectsMap.get(id) : null;
-  const proxyValue = _editEl
-    ? textEditProxyValue(_editEl)
-    : (typeof _editEl?.value === 'string' ? _editEl.value : '');
-  const rawStart = state?.start ?? state?.selectionStart ?? _editEl?.selectionStart ?? '';
-  const rawEnd = state?.end ?? state?.selectionEnd ?? _editEl?.selectionEnd ?? rawStart;
-  const insertedText = state?.replacement ? String(state.replacement.insertedText ?? '') : '';
-  return {
-    objectId: id || '',
-    inputType: state?.inputType || '',
-    rawStart,
-    rawEnd,
-    rawSelectedChars: Number.isFinite(rawStart) && Number.isFinite(rawEnd) ? Math.abs(rawEnd - rawStart) : '',
-    normalizedStart: normalized?.selectionStart ?? '',
-    normalizedEnd: normalized?.selectionEnd ?? '',
-    normalizedSelectedChars: normalized ? Math.abs((normalized.selectionEnd ?? 0) - (normalized.selectionStart ?? 0)) : '',
-    selectionDirection: normalized?.selectionDirection || state?.direction || state?.selectionDirection || '',
-    stateValueChars: typeof state?.value === 'string' ? state.value.length : '',
-    proxyValueChars: proxyValue.length,
-    domProxyChars: typeof _editEl?.value === 'string' ? _editEl.value.length : '',
-    contentChars: typeof obj?.data?.content === 'string' ? obj.data.content.length : '',
-    hadSelection: state?.hasSelection ?? (Number.isFinite(rawStart) && Number.isFinite(rawEnd) ? rawStart !== rawEnd : ''),
-    replacementStart: state?.replacement?.start ?? '',
-    replacementEnd: state?.replacement?.end ?? '',
-    insertedChars: insertedText.length,
-    ...extra,
-  };
-};
-
-const logTextEditHistoryDebug = (label, id, state = null, normalized = null, extra = {}) => {
-  if (typeof TextSelDebug === 'undefined') return;
-  TextSelDebug._logHistoryAction?.(label, textEditHistoryDebugMeta(id, state, normalized, extra));
-};
-/* BOARDFISH_DEV_DIAGNOSTICS_END */
-
 const beginTextEditHistoryAction = (id = editingId, state = null) => {
   if (!id) return null;
   const splitPending = shouldCommitTextEditInputImmediately(
     state?.inputType,
     state?.hasSelection ?? (state?.start !== state?.end),
   );
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const hadPendingStart = !!(_editHistoryActionStartState && _editHistoryActionStartState.id === id);
-  const hadTimer = !!_editHistoryTimer;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (splitPending) {
     if (_editHistoryTimer) flushEditHistoryCheckpoint();
     if (_editHistoryActionStartState?.id === id) _editHistoryActionStartState = null;
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let reusedStart = true;
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   if (!_editHistoryActionStartState || _editHistoryActionStartState.id !== id) {
     _editHistoryActionStartState = normalizeTextEditHistoryState(id, state);
-    /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    reusedStart = false;
-    /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logTextEditHistoryDebug('history-begin', id, state, _editHistoryActionStartState, {
-    splitPending,
-    hadTimer,
-    hadPendingStart,
-    reusedStart,
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   return _editHistoryActionStartState;
 };
 
@@ -762,12 +474,7 @@ function pushEditHistoryIfChanged(id) {
   if (obj.data.content === _editHistoryLastContent) return false;
   const beforeEditState = _editHistoryActionStartState?.id === id ? _editHistoryActionStartState : null;
   _editHistoryActionStartState = null;
-  /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  logTextEditHistoryDebug('history-push', id, null, beforeEditState, {
-    previousContentChars: String(_editHistoryLastContent || '').length,
-    nextContentChars: String(obj.data.content || '').length,
-  });
-  /* BOARDFISH_DEV_DIAGNOSTICS_END */
+
   pushHistory('text-edit-checkpoint', null, beforeEditState);
   _editHistoryLastContent = obj.data.content;
   return true;

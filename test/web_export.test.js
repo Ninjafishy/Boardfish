@@ -10,7 +10,7 @@ require('../src/js/export_utils.js');
 test('web image export writes original bytes to a picked folder', async () => {
   const previous = {
     BoardfishImageStore: globalThis.BoardfishImageStore,
-    ExportDebug: globalThis.ExportDebug,
+
     canvasToPngBlob: globalThis.canvasToPngBlob,
     imageNeedsRendering: globalThis.imageNeedsRendering,
     isWebImageRef: globalThis.isWebImageRef,
@@ -48,12 +48,7 @@ test('web image export writes original bytes to a picked folder', async () => {
   };
 
   globalThis.BoardfishImageStore = { getSource: () => source };
-  globalThis.ExportDebug = {
-    recordSaveBatch() {},
-    recordSaveDone() {},
-    recordSaveStart() {},
-    step() {},
-  };
+
   globalThis.imageNeedsRendering = () => false;
   globalThis.isWebImageRef = (value) => globalThis.BoardfishWebBoardContainer.isWebImageRef(value);
   globalThis.renderImageToCanvas = () => null;
@@ -62,9 +57,7 @@ test('web image export writes original bytes to a picked folder', async () => {
 
   try {
     const result = await globalThis.BoardfishExportUtils.downloadImageObjects(
-      [{ id: 'obj-1', type: 'image', data: { imgKey: 'img-1' } }],
-      null,
-      { targetMode: 'folder' },
+      [{ id: 'obj-1', type: 'image', data: { imgKey: 'img-1' } }], { targetMode: 'folder' },
     );
     assert.equal(result.method, 'directory-picker');
     assert.equal(result.downloadedCount, 1);
@@ -86,7 +79,7 @@ test('web image export writes original bytes to a picked folder', async () => {
     };
     globalThis.canvasToPngBlob = async () => renderedBlob;
     await globalThis.BoardfishExportUtils.downloadImageObjects(
-      [{ id: 'obj-2', type: 'image', data: { imgKey: 'img-2', rotation: 90 } }], null, { targetMode: 'folder' },
+      [{ id: 'obj-2', type: 'image', data: { imgKey: 'img-2', rotation: 90 } }], { targetMode: 'folder' },
     );
     assert.equal(fallbackSource, source);
     assert.equal(writes[1].data, renderedBlob);
@@ -113,7 +106,7 @@ test('exports recover broken source bytes as PNGs in downloads, folders, and ZIP
   const overrides = {
     BoardfishImageStore: { getSource: (key) => sources[key] },
     BoardfishRuntime: { downloadBlob: (data, name) => writes.push({ name, data }) },
-    ExportDebug: { step() {}, recordSaveBatch() {}, recordSaveDone() {}, recordSaveStart() {} },
+
     imageNeedsRendering: () => false,
     isWebImageRef: container.isWebImageRef,
     readableImageSourceBlob: loadReadableImageSourceBlob(),
@@ -128,7 +121,7 @@ test('exports recover broken source bytes as PNGs in downloads, folders, and ZIP
     t.after(() => { if (previous === undefined) delete globalThis[key]; else globalThis[key] = previous; });
   }
   const objects = Object.keys(sources).map((key) => ({ id: key, type: 'image', data: { imgKey: key } }));
-  const single = await globalThis.BoardfishExportUtils.downloadImageObjects([objects[0]], null, { filename: 'recovered.jpg' });
+  const single = await globalThis.BoardfishExportUtils.downloadImageObjects([objects[0]], { filename: 'recovered.jpg' });
   assert.equal(single.downloadedCount, 1);
   assert.equal(writes[0].name, 'recovered.png');
   assert.equal(writes[0].data, rendered);
@@ -141,14 +134,14 @@ test('exports recover broken source bytes as PNGs in downloads, folders, and ZIP
       }; } };
     },
   });
-  const folder = await globalThis.BoardfishExportUtils.downloadImageObjects(objects, null, { targetMode: 'folder' });
+  const folder = await globalThis.BoardfishExportUtils.downloadImageObjects(objects, { targetMode: 'folder' });
   assert.equal(folder.downloadedCount, objects.length);
   for (const entry of writes.slice(1)) {
     assert.match(entry.name, /\.png$/);
     assert.equal(entry.data, rendered);
   }
 
-  const zipped = await globalThis.BoardfishExportUtils.downloadImageObjects(objects, null);
+  const zipped = await globalThis.BoardfishExportUtils.downloadImageObjects(objects);
   assert.equal(zipped.downloadedCount, objects.length);
   assert.equal(writes.at(-1).data.type, 'application/zip');
   const zipBytes = Buffer.from(await writes.at(-1).data.arrayBuffer());

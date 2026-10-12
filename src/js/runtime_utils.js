@@ -1,16 +1,10 @@
 'use strict';
 
-// Runtime behavior shared by production and the developer diagnostics.
+// Shared runtime scheduling.
 var openHydrationConcurrency = 8;
 
 function getOpenHydrationConcurrency() {
   return openHydrationConcurrency;
-}
-
-function setOpenHydrationConcurrency(value) {
-  const next = Math.max(1, Math.min(32, Math.floor(Number(value) || openHydrationConcurrency)));
-  openHydrationConcurrency = next;
-  return next;
 }
 
 async function mapWithConcurrency(items, limit, worker) {

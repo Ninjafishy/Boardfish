@@ -114,10 +114,7 @@ test('web board open defers image byte extraction during container read', async 
           objects: [],
           imageStore: {},
         },
-        debug: {
-          board_json_bytes: 2,
-          image_bytes: 0,
-        },
+
         imageEntries: [],
       };
     },
@@ -132,10 +129,9 @@ test('web board open defers image byte extraction during container read', async 
 
   assert.equal(seenOptions.length, 1);
   assert.equal(seenOptions[0].lazyImageRefs, true);
-  assert.equal(seenOptions[0].verifyImageCrc, false);
 });
 
-test('web save validates during the single container build and reports its actual phases', async () => {
+test('web save validates once per payload stage and commits after writing', async () => {
   const harness = loadWebRuntimeHarness();
   const validations = [];
   const writes = [];
@@ -200,18 +196,7 @@ test('web save validates during the single container build and reports its actua
 
   assert.equal(validations.length, 2);
   assert.equal(writes.length, 1);
-  assert.equal(result.json_bytes, 120);
-  assert.equal(result.json_stringify_ms, 2);
-  assert.equal(result.json_encode_ms, 3);
-  assert.equal(result.source_lookup_ms, 4);
-  assert.equal(result.validate_ms, 5);
-  assert.equal(result.zip_ms, 6);
-  assert.equal(result.crc_ms, 7);
-  assert.equal(result.blob_image_bytes, 4);
-  assert.equal(result.image_source_refresh_count, 1);
-  assert.equal(result.image_source_refresh_bytes, 4);
-  assert.equal(result.image_source_refresh_backing, 'detached-memory');
-  assert.equal(result.image_source_refresh_error, '');
+
   assert.deepEqual(events, [
     'stabilize-image-sources',
     'create-container',
@@ -293,7 +278,7 @@ test('Save As skips volatile image detachment only for a confirmed distinct targ
       );
 
       assert.equal(events.filter((event) => event === 'stabilize').length, testCase.expectedStabilizations);
-      assert.equal(result.image_source_refresh_skipped, testCase.expectedSkip);
+
       assert.deepEqual(events.slice(-4), ['create-container', 'create-writable', 'write', 'close']);
     });
   }
@@ -307,7 +292,7 @@ test('distinct-target save rebuilds once from a fresh source after write-time Bl
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'source.bf', { type: 'application/octet-stream' }),
-    { lazyImageRefs: true, verifyImageCrc: false },
+    { lazyImageRefs: true, },
   );
   const rawImageStore = opened.board.imageStore;
   const staleBlob = rawImageStore['img-1'].__blob;
@@ -378,10 +363,9 @@ test('distinct-target save rebuilds once from a fresh source after write-time Bl
   assert.equal(aborts, 1);
   assert.equal(closes, 1);
   assert.notEqual(rawImageStore['img-1'].__blob, staleBlob);
-  assert.equal(result.image_source_refresh_backing, 'fresh-file-retry');
+
   const reopened = await WebContainer.readBoardContainer(persisted, {
     lazyImageRefs: true,
-    verifyImageCrc: true,
   });
   assert.deepEqual(await WebContainer.bytesForImageSourceAsync(reopened.board.imageStore['img-1']), imageBytes);
 });
@@ -394,7 +378,7 @@ test('same-target save recovers a stale source before container preparation', as
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'same-target.bf', { type: 'application/octet-stream' }),
-    { lazyImageRefs: true, verifyImageCrc: false },
+    { lazyImageRefs: true, },
   );
   const rawImageStore = opened.board.imageStore;
   const staleBlob = rawImageStore['img-1'].__blob;
@@ -436,10 +420,9 @@ test('same-target save recovers a stale source before container preparation', as
   assert.equal(sourceReads, 1);
   assert.notEqual(rawImageStore['img-1'].__blob, staleBlob);
   assert.equal(rawImageStore['img-1'].__blobVolatile, false);
-  assert.equal(result.image_source_refresh_backing, 'fresh-file-retry+detached-memory');
+
   const reopened = await WebContainer.readBoardContainer(persisted, {
     lazyImageRefs: true,
-    verifyImageCrc: true,
   });
   assert.deepEqual(await WebContainer.bytesForImageSourceAsync(reopened.board.imageStore['img-1']), imageBytes);
 });
@@ -455,7 +438,7 @@ test('stale-source recovery rejects a fresh file whose image identity changed', 
   const changed = await WebContainer.createBoardContainerBlob(board, { 'img-1': changedBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'changed-source.bf', { type: 'application/octet-stream' }),
-    { lazyImageRefs: true, verifyImageCrc: false },
+    { lazyImageRefs: true, },
   );
   const rawImageStore = opened.board.imageStore;
   Object.defineProperty(rawImageStore['img-1'].__blob, 'stream', {
@@ -574,7 +557,7 @@ test('same-handle saves detach File-backed images and remain readable across rep
   const initial = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const opened = await WebContainer.readBoardContainer(
     new File([initial.blob], 'repeated-save.bf', { type: 'application/octet-stream' }),
-    { lazyImageRefs: true, verifyImageCrc: false },
+    { lazyImageRefs: true, },
   );
   const rawImageStore = opened.board.imageStore;
   assert.equal(rawImageStore['img-1'].__blobVolatile, true);
@@ -604,7 +587,6 @@ test('same-handle saves detach File-backed images and remain readable across rep
     assert.ok(persisted);
     const reopened = await WebContainer.readBoardContainer(persisted, {
       lazyImageRefs: true,
-      verifyImageCrc: true,
     });
     assert.deepEqual(await WebContainer.bytesForImageSourceAsync(reopened.board.imageStore['img-1']), imageBytes);
     if (attempt === 0) {

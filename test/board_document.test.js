@@ -138,12 +138,4 @@ test('strips runtime text layout caches from saved board data', () => {
   assert.equal(json.includes('_layoutCache'), false);
   assert.equal(json.includes('_editStartContent'), false);
   assert.ok(json.length < content.length * 2);
-
-  const metrics = BoardDocument.getBoardSaveMetrics(data, { rawObjects: [runtimeTextObject] });
-  assert.equal(metrics.textCharCount, content.length);
-  assert.equal(metrics.largestTextChars, content.length);
-  assert.equal(metrics.runtimeTextCacheObjects, 1);
-  assert.equal(metrics.runtimeTextCacheLines, 120);
-  assert.equal(metrics.runtimeTextCachePrefixEntries, 240);
-  assert.ok(metrics.runtimeTextPrivateFields >= 4);
 });

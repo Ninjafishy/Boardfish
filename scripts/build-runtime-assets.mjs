@@ -4,63 +4,16 @@ import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { WEB_PREVIEW_SCRIPTS } from '../src/js/startup_manifest.mjs';
+import { WEB_SCRIPTS } from '../src/js/startup_manifest.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const srcRoot = path.join(root, 'src');
 const jsRoot = path.join(srcRoot, 'js');
 
-const RUNTIME_CONSOLE_SENTINEL = '__BOARDFISH_RUNTIME_CONSOLE_7E3D2A91__';
-const DROP_DIAGNOSTIC_SENTINEL = '__BOARDFISH_DROP_DIAGNOSTIC_1C6A53B4__';
-const readableProductionAudit = process.env.BOARDFISH_BUILD_READABLE === '1';
-const DEV_DIAGNOSTICS_START = '/* BOARDFISH_DEV_DIAGNOSTICS_START */';
-const DEV_DIAGNOSTICS_END = '/* BOARDFISH_DEV_DIAGNOSTICS_END */';
-const DIAGNOSTIC_APIS = Object.freeze([
-  'ClipDebug',
-  'HistoryDebug',
-  'ViewportDebug',
-  'OpenDebug',
-  'ExportDebug',
-  'InsertDebug',
-  'TextSelDebug',
-  'PillDebug',
-  'MenuDebug',
-]);
-const DIAGNOSTIC_CALLS = Object.freeze([
-  'logStep',
-  'logInputStep',
-  'textEditorDebugLog',
-  'textEditorDebugNow',
-  'textEditorDebugRound',
-  'textEditorEventDebugStats',
-  'textEditorSelectionDebugStats',
-  'textEditorCaretLineDebugStats',
-  'textEditorObjectDebugStats',
-  'textEditorSizeDebugStats',
-  'textEditorProxySizeDebugStats',
-  'textEditorTextStats',
-  'recordTextEditorInputPerfStep',
-  'recordInputSetupStep',
-  'nextTextEditInputDebugSeq',
-  'canvasInputDebugRound',
-  'canvasInputNow',
-  'canvasInputViewportDebugSnapshot',
-  'canvasInputTextDebugLog',
-  'logClickEditStep',
-  'objectCommandDebugNow',
-  'objectCommandTextStats',
-  'imageFileDebugName',
-  'imageSourceDebugInfo',
-]);
-const PRODUCTION_FALSE_DIAGNOSTIC_FLAGS = Object.freeze([
-  'collectDiagnostics',
-  'collectDebug',
-]);
-
 const variants = {
   'web-preview': {
     outDir: path.join(root, 'dist-web'),
-    scripts: WEB_PREVIEW_SCRIPTS,
+    scripts: WEB_SCRIPTS,
     bundle: 'assets/boardfish-web-preview.min.js',
   },
 };
@@ -102,93 +55,13 @@ async function concatenateScripts(scripts, variantName) {
   return parts.join('');
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function normalizeQualifiedDiagnosticApis(source) {
-  const apiPattern = DIAGNOSTIC_APIS.map(escapeRegExp).join('|');
-  return source.replace(
-    new RegExp(`\\b(?:root|globalThis|window)\\.(${apiPattern})\\b`, 'g'),
-    '$1',
-  );
-}
-
-function inlineProductionDiagnosticFlags(source) {
-  let next = source;
-  for (const flag of PRODUCTION_FALSE_DIAGNOSTIC_FLAGS) {
-    next = next.replace(
-      new RegExp(`\\b(?:const|let|var)\\s+${escapeRegExp(flag)}\\s*=\\s*[^;]+;`, 'g'),
-      '',
-    );
-  }
-  return next;
-}
-
-function stripMarkedDeveloperDiagnostics(source) {
-  const starts = source.split(DEV_DIAGNOSTICS_START).length - 1;
-  const ends = source.split(DEV_DIAGNOSTICS_END).length - 1;
-  if (starts !== ends) throw new Error('Unbalanced Diagnostic Markers');
-  const block = new RegExp(
-    `${escapeRegExp(DEV_DIAGNOSTICS_START)}[\\s\\S]*?${escapeRegExp(DEV_DIAGNOSTICS_END)}`,
-    'g',
-  );
-  return source.replace(block, '');
-}
-
-function aliasNamedDiagnosticCalls(source) {
-  const callPattern = DIAGNOSTIC_CALLS.map(escapeRegExp).join('|');
-  return source.replace(
-    new RegExp(`(?<![\\w$])(${callPattern})\\s*(?:\\?\\.)?\\s*\\(`, 'g'),
-    (match, _name, offset, wholeSource) => {
-      const prefix = wholeSource.slice(Math.max(0, offset - 24), offset);
-      return /\bfunction\s*$/.test(prefix) ? match : `${DROP_DIAGNOSTIC_SENTINEL}.log(`;
-    },
-  );
-}
-
 async function compileProductionBundle(source) {
-  if (source.includes(RUNTIME_CONSOLE_SENTINEL) || source.includes(DROP_DIAGNOSTIC_SENTINEL)) {
-    throw new Error('Build Sentinel Conflict');
-  }
-
-  const define = {
-    BOARDFISH_PRODUCTION: 'true',
-    DEBUG_TOOLS_ENABLED: 'false',
-    module: 'undefined', require: 'undefined',
-    console: RUNTIME_CONSOLE_SENTINEL,
-  };
-  for (const flag of PRODUCTION_FALSE_DIAGNOSTIC_FLAGS) define[flag] = 'false';
-  for (const api of DIAGNOSTIC_APIS) {
-    define[`${api}.enabled`] = 'false';
-    define[api] = DROP_DIAGNOSTIC_SENTINEL;
-  }
-
-  // esbuild can drop console calls including their arguments. Hide the real
-  // console first, route diagnostics through console, then restore it.
-  const productionSource = inlineProductionDiagnosticFlags(stripMarkedDeveloperDiagnostics(source));
-  const diagnosticCallsAliased = aliasNamedDiagnosticCalls(normalizeQualifiedDiagnosticApis(productionSource));
-  const substituted = await esbuild.transform(diagnosticCallsAliased, {
-    define,
+  return esbuild.transform(source, {
+    define: { module: 'undefined', require: 'undefined' },
     legalComments: 'none',
-  });
-  const droppable = substituted.code.replaceAll(DROP_DIAGNOSTIC_SENTINEL, 'console');
-  const minifyOptions = {
-    legalComments: 'none',
-    minifyIdentifiers: !readableProductionAudit,
-    minifySyntax: true,
-    minifyWhitespace: !readableProductionAudit,
+    minify: true,
     treeShaking: true,
-  };
-  const stripped = await esbuild.transform(droppable, { drop: ['console'], ...minifyOptions });
-  const restored = await esbuild.transform(stripped.code, {
-    define: { [RUNTIME_CONSOLE_SENTINEL]: 'console' },
-    ...minifyOptions,
   });
-  if (restored.code.includes(RUNTIME_CONSOLE_SENTINEL)) {
-    throw new Error('Build Sentinel Restore Failed');
-  }
-  return restored;
 }
 
 async function writeIndex(outDir, scriptTag, preloadScript) {
@@ -229,7 +102,7 @@ async function buildBundle(variantName, config) {
   await writeIndex(config.outDir, `<script src="${bundle}"></script>`, bundle);
   await writeServiceWorker(config.outDir, [bundle]);
 
-  const rawKb = Math.round(result.code.length / 1024 * 10) / 10;
+  const rawKb = Math.round(Buffer.byteLength(result.code) / 1024 * 10) / 10;
   const gzipKb = Math.round(gzipSync(result.code).length / 1024 * 10) / 10;
   console.log(`${variantName}: ${bundle} ${rawKb} KB raw, ${gzipKb} KB gzip`);
 }

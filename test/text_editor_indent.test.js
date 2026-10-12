@@ -84,13 +84,11 @@ function loadTextClipboardFreshnessHarness({ maybeStale = false } = {}) {
         return Promise.resolve({ checked: true, token: 'bf-token' });
       },
     },
-    jsClipboardStillCurrent(_dbg, options) {
+    jsClipboardStillCurrent(options) {
       calls.currentOptions = options;
       return true;
     },
-    textEditorDebugNow() {
-      return 0;
-    },
+
     textEditorClipStep() {},
   };
 
@@ -204,7 +202,6 @@ function loadExitEditHarness() {
   return context;
 }
 
-
 function makePasteEvent() {
   return {
     type: 'paste',
@@ -213,19 +210,6 @@ function makePasteEvent() {
     defaultPrevented: false,
     preventDefault() { this.defaultPrevented = true; },
   };
-}
-
-function recordClipDebug(context) {
-  const clipEvents = [];
-  context.ClipDebug = {
-    start(op, meta) {
-      clipEvents.push({ op, step: 'start', meta });
-      return { id: clipEvents.length, op };
-    },
-    step(dbg, step, meta) { clipEvents.push({ op: dbg.op, step, meta }); },
-    end(dbg, meta) { clipEvents.push({ op: dbg.op, step: 'end', meta }); },
-  };
-  return clipEvents;
 }
 
 function makeBeforeInputEvent(inputType, data = '') {
@@ -408,7 +392,7 @@ test('large text paste proxy replacement assigns value directly instead of setRa
   const result = replaceTextEditProxyRange(proxy, 'PASTE', largePrefix.length, largePrefix.length, 'end');
 
   assert.equal(setRangeTextCalled, false);
-  assert.equal(result.method, 'value');
+
   assert.equal(proxy.value, `${largePrefix}PASTEtail`);
   assert.equal(proxy.selectionStart, largePrefix.length + 'PASTE'.length);
   assert.equal(proxy.selectionEnd, largePrefix.length + 'PASTE'.length);
@@ -434,7 +418,7 @@ test('large synthetic proxy replacement can defer the textarea DOM value', () =>
   const result = replaceTextEditProxyRange(proxy, '', 10, 30, 'start', true);
 
   assert.equal(setRangeTextCalled, false);
-  assert.equal(result.method, 'logical');
+
   assert.equal(proxy.value, largeText);
   assert.equal(proxy._boardfishLogicalValue, `${largeText.slice(0, 10)}${largeText.slice(30)}`);
   assert.equal(proxy._boardfishDomValueStale, true);
@@ -466,8 +450,6 @@ test('small proxy replacement starts from logical text when DOM value is stale',
 
   const result = replaceTextEditProxyRange(proxy, 'X', 1, 1, 'end');
 
-  assert.equal(result.method, 'setRangeText');
-  assert.equal(result.domSyncedBeforeMutation, true);
   assert.equal(proxy.value, 'aXbc');
   assert.equal(proxy._boardfishLogicalValue, 'aXbc');
   assert.equal(proxy._boardfishDomValueStale, false);
@@ -513,7 +495,6 @@ test('verified Boardfish text selection paste can use native textarea insertion'
     selection: { start: 6, end: 6, direction: 'none', hasSelection: false },
     fallbackText: 'PASTE',
     inputType: 'insertFromPaste',
-    debug: { id: 1 },
   });
 
   assert.equal(result.text, 'PASTE');
@@ -521,16 +502,15 @@ test('verified Boardfish text selection paste can use native textarea insertion'
   assert.equal(pendingState.replacement.start, 6);
   assert.equal(pendingState.replacement.end, 6);
   assert.equal(pendingState.replacement.insertedText, 'PASTE');
-  assert.equal(pendingState.nativePasteEndMeta.path, 'jsClipboard-text-selection-native');
+
   assert.equal(historyAction.id, obj.id);
 });
 
 test('native Boardfish paste keeps pending state through beforeinput', () => {
   const context = loadLiveTextEditResizeHarness();
   const { obj } = context;
-  const clipEvents = recordClipDebug(context);
+
   context.BoardfishClipboardIO = {
-    describeClipboardData() { return {}; },
     readBoardfishClipboardTokenFromEvent() { return 'bf-token'; },
     readClipboardTextFromEvent() { return 'Boardfish text'; },
   };
@@ -555,17 +535,13 @@ test('native Boardfish paste keeps pending state through beforeinput', () => {
   context.proxy.dispatchEvent({ type: 'input', inputType: 'insertFromPaste', data: 'Boardfish text' });
 
   assert.equal(obj.data.content, 'hello Boardfish text');
-  assert.ok(clipEvents.some((event) => event.step === 'text-edit-input:end'));
-  assert.ok(clipEvents.some((event) => event.step === 'end' && event.meta?.path === 'jsClipboard-text-selection-native'));
-  assert.equal(clipEvents.some((event) => event.step === 'paste:text-edit-range-text-set'), false);
 });
 
 test('external paste with stale Boardfish clipboard can use native textarea insertion', () => {
   const context = loadLiveTextEditResizeHarness();
   const { obj } = context;
-  const clipEvents = recordClipDebug(context);
+
   context.BoardfishClipboardIO = {
-    describeClipboardData() { return {}; },
     readBoardfishClipboardTokenFromEvent() { return ''; },
     readClipboardTextFromEvent() { return 'outside text'; },
   };
@@ -590,10 +566,6 @@ test('external paste with stale Boardfish clipboard can use native textarea inse
   context.proxy.dispatchEvent({ type: 'input', inputType: 'insertFromPaste', data: 'outside text' });
 
   assert.equal(obj.data.content, 'hello outside text');
-  assert.ok(clipEvents.some((event) => event.step === 'paste:text-edit-native-textarea-skipped'));
-  assert.ok(clipEvents.some((event) => event.step === 'paste:text-edit-native-event-text-allowed'));
-  assert.ok(clipEvents.some((event) => event.step === 'end' && event.meta?.path === 'fallback-event-text-native'));
-  assert.equal(clipEvents.some((event) => event.step === 'paste:text-edit-range-text-set'), false);
 });
 
 test('paste after stale proxy restore uses logical text before copy', () => {
@@ -602,7 +574,6 @@ test('paste after stale proxy restore uses logical text before copy', () => {
   const copiedTexts = [];
   const jsClipboardWrites = [];
   context.BoardfishClipboardIO = {
-    describeClipboardData() { return {}; },
     readClipboardTextFromEvent() { return 'X'; },
     copyTextToClipboard(text) {
       copiedTexts.push(text);
@@ -642,7 +613,6 @@ test('external edit paste trims whitespace-only edge lines before insertion', ()
   const { obj } = context;
   const rawPasteText = '\nline 1\n\nline 2\n';
   context.BoardfishClipboardIO = {
-    describeClipboardData() { return {}; },
     readBoardfishClipboardTokenFromEvent() { return ''; },
     readClipboardTextFromEvent() { return rawPasteText; },
   };
@@ -1159,53 +1129,12 @@ test('undo-restored large pasted text shrinks on the next selected delete', () =
   assert.deepEqual(context.renders.at(-1), { board: true, overlay: true, reason: undefined });
 });
 
-test('perf text input trace records selected-content delete phases', () => {
-  const context = loadLiveTextEditResizeHarness();
-  const { obj } = context;
-  const steps = [];
-  context.ManualPerfDebug = {
-    isTextEditInputTraceActive(inputType) {
-      return String(inputType || '').startsWith('delete');
-    },
-    recordTextEditInputStep(step, meta) {
-      steps.push({ step, meta });
-    },
-  };
-  obj.data = { content: 'alpha beta gamma' };
-
-  context.enterEdit(obj.id, { history: false });
-  context.proxy.setSelectionRange(6, 10, 'forward');
-  const before = makeBeforeInputEvent('deleteContentBackward');
-  context.proxy.dispatchEvent(before);
-  assert.equal(before.prevented, false);
-
-  context.proxy.value = 'alpha gamma';
-  context.proxy.setSelectionRange(6, 6, 'none');
-  context.proxy.dispatchEvent({ type: 'input', inputType: 'deleteContentBackward' });
-
-  assert.equal(obj.data.content, 'alpha gamma');
-  assert.ok(steps.some((event) => event.step === 'beforeinput-state-ready'));
-  assert.ok(steps.some((event) => event.step === 'replacement-ready' && event.meta.removedChars === 4));
-  assert.ok(steps.some((event) => event.step === 'layout-patched' || event.step === 'layout-invalidated'));
-  assert.ok(steps.some((event) => event.step === 'history-recorded'));
-  assert.ok(steps.some((event) => event.step === 'render-scheduled'));
-  assert.ok(steps.some((event) => event.step === 'end'));
-  assert.deepEqual([...new Set(steps.map((event) => event.meta.seq).filter(Boolean))], [1]);
-});
-
 test('large keyboard structural delete avoids textarea setRangeText', () => {
   const context = loadLiveTextEditResizeHarness();
   const { obj } = context;
   const largeText = `${'word '.repeat(5000)}tail`;
   const steps = [];
-  context.ManualPerfDebug = {
-    isTextEditInputTraceActive(inputType) {
-      return String(inputType || '').startsWith('delete');
-    },
-    recordTextEditInputStep(step, meta) {
-      steps.push({ step, meta });
-    },
-  };
+
   obj.data = { content: largeText };
 
   context.enterEdit(obj.id, { history: false });
@@ -1228,10 +1157,6 @@ test('large keyboard structural delete avoids textarea setRangeText', () => {
   assert.equal(context.proxy.selectionStart, 10);
   assert.equal(context.proxy.selectionEnd, 10);
   const mutationStep = steps.find((event) => event.step === 'keydown-delete-textarea-mutated');
-  assert.equal(mutationStep.meta.textareaMutationMethod, 'logical');
-  assert.equal(mutationStep.meta.domProxyChars, largeText.length);
-  assert.equal(mutationStep.meta.proxyChars, obj.data.content.length);
-  assert.equal(mutationStep.meta.nextChars, obj.data.content.length);
 });
 
 test('editing existing default-height text can shrink below the default new textbox height', () => {

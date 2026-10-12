@@ -69,7 +69,7 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
       };
     },
     beginDocumentDrag(handlers) { dragHandlers.push(handlers); },
-    ViewportDebug: { start() { return {}; }, end() {} },
+
     pushHistory(reason) { context.history.push(reason); },
     enterEdit(id, options = {}) {
       context.entered.push(id);
@@ -133,7 +133,7 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
       delete target._textEditCaretLineStartIndex;
     },
     flushEditHistoryCheckpoint() {},
-    TextSelDebug: { _logSelection(type) { context.logs.push(type); } },
+
     scheduleRender(select, overlay) { context.renders.push({ select, overlay }); },
     scheduleTransform(changed, source, event) {
       context.viewportTransforms.push({ changed, source, event });
@@ -228,7 +228,7 @@ function loadRubberBandHarness() {
       },
     },
     scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
-    ViewportDebug: { isEnabled: () => false, start() { return {}; }, count() {}, end() {}, timing() {} },
+
     BoardfishViewportState: { zoomAroundClient() {}, panBy() {} },
     scheduleTransform() {},
     createRafCommitter(apply) {
@@ -477,8 +477,8 @@ test('a mobile pinch schedules the same canonical viewport transform frame as de
   assert.equal(context.viewportTransforms.length, 1);
   assert.deepEqual(context.viewportTransforms[0], {
     changed: true,
-    source: 'touch-pinch-zoom',
-    event: moveEvent,
+    source: undefined,
+    event: undefined,
   });
 });
 
@@ -594,5 +594,4 @@ test('double-clicking text while editing places the caret without selecting a wo
   context.startTextSelectionDrag({ clientX: 12, clientY: 22, detail: 2 }, context.obj, { x: 12, y: 22 });
 
   assert.deepEqual(context.editProxy.selection, [10, 10]);
-  assert.deepEqual(context.logs.at(-1), 'mouse-down');
 });
