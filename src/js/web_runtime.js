@@ -40,8 +40,7 @@
 
   function describeFileRef(ref) {
     if (!ref) return '';
-    if (typeof ref === 'string') return ref;
-    return ref.name || ref.handle?.name || ref.file?.name || '';
+    return typeof ref === 'string' ? ref : ref.name || ref.handle?.name || ref.file?.name || '';
   }
 
   function fileNameFromRef(ref, fallback = 'board.bf') {
@@ -50,13 +49,11 @@
   }
 
   function canSaveToExistingTarget(ref) {
-    if (!ref) return false;
-    return ref.unusable !== true && ref.kind === 'web-file-handle';
+    return !ref ? false : ref.unusable !== true && ref.kind === 'web-file-handle';
   }
 
   function persistentFileHandleFromRef(ref) {
-    if (ref?.kind !== 'web-file-handle') return null;
-    return ref.handle || null;
+    return ref?.kind !== 'web-file-handle' ? null : ref.handle || null;
   }
 
   async function fileRefsAreSameEntry(firstRef, secondRef) {

@@ -1,8 +1,6 @@
 // ─── Add objects ─────────────────────────────────────────────────────────────
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-const objectCommandDebugNow = () => performance.now();
-
 const objectCommandTextStats = (value) => {
   const text = String(value ?? '');
   const lines = text ? text.split('\n') : [];
@@ -20,12 +18,12 @@ const objectCommandTextStats = (value) => {
 function addText(wx, wy, content = '', options = {}) {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const dbg = options?.debug || null;
-  let stepStartedAt = dbg && objectCommandDebugNow();
+  let stepStartedAt = dbg && performance.now();
   const addStartedAt = stepStartedAt;
   const logStep = (step, meta = {}) => {
     if (!dbg || typeof ClipDebug === 'undefined') return;
     const details = typeof meta === 'function' ? meta() : meta;
-    const now = objectCommandDebugNow();
+    const now = performance.now();
     ClipDebug.step(dbg, `addText:${step}`, {
       ms: Math.round((now - stepStartedAt) * 100) / 100,
       totalMs: Math.round((now - addStartedAt) * 100) / 100,
@@ -83,12 +81,12 @@ function addText(wx, wy, content = '', options = {}) {
   logStep('render-scheduled', { objectId: obj.id });
   if (content) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const historyStartedAt = dbg && objectCommandDebugNow();
+    const historyStartedAt = dbg && performance.now();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     pushHistory('add-text');
     logStep('history-pushed', () => ({
       objectId: obj.id,
-      historyMs: Math.round((objectCommandDebugNow() - historyStartedAt) * 100) / 100,
+      historyMs: Math.round((performance.now() - historyStartedAt) * 100) / 100,
     }));
   } else {
     enterEdit(obj.id);

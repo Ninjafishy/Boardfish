@@ -24,8 +24,7 @@ const isImageSource = (src) => typeof src === 'string' ? !!src : isWebImageRef(s
 
 function imageStoreBytesEstimate(src) {
   if (typeof src === 'string') return src.length;
-  if (isWebImageRef(src)) return Number(src.bytes || 0) || 0;
-  return 0;
+  return isWebImageRef(src) ? Number(src.bytes || 0) || 0 : 0;
 }
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -71,8 +70,8 @@ function renderImageToCanvas(obj, sourceImg = null) {
   });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const img = sourceImg || imageBitmapCache[obj.data.imgKey];
-  const sourceW = img?.naturalWidth || img?.width || 0;
-  const sourceH = img?.naturalHeight || img?.height || 0;
+  const sourceW = img?.width || 0;
+  const sourceH = img?.height || 0;
   if (!img || !sourceW || !sourceH) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     ClipDebug.end(dbg, { ready: false });

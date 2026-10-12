@@ -15,10 +15,7 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
     performance,
     canvas: {
       addEventListener(type, listener) { addListener(canvasListeners, type, listener); },
-      contains() { return true; },
-      classList: { add() {}, remove() {} },
     },
-    boardCanvas: {},
     document: { activeElement: null, addEventListener() {} },
     TouchEvent: touchInput ? function TouchEvent() {} : undefined,
     navigator: { maxTouchPoints: touchInput ? 5 : 0 },
@@ -60,16 +57,7 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
       return point.x >= bounds.x1 && point.x <= bounds.x2 && point.y >= bounds.y1 && point.y <= bounds.y2;
     },
     selectObject(id) { selectedIds.clear(); selectedIds.add(id); },
-    exitEdit() {},
-    createRafCommitter(apply) {
-      let args = null;
-      return {
-        schedule(...nextArgs) { args = nextArgs; },
-        flush() { if (args) apply(...args); args = null; },
-      };
-    },
     beginDocumentDrag(handlers) { dragHandlers.push(handlers); },
-    ViewportDebug: { start() { return {}; }, end() {} },
     pushHistory(reason) { context.history.push(reason); },
     enterEdit(id, options = {}) {
       context.entered.push(id);
@@ -98,10 +86,6 @@ function loadCanvasInputHarness({ selected = true, touchInput = false } = {}) {
         this.selectionEnd = normalizedEnd;
         this.selectionDirection = direction;
       },
-    },
-    textEditProxyValue(proxy) {
-      if (typeof proxy?._boardfishLogicalValue === 'string') return proxy._boardfishLogicalValue;
-      return String(proxy?.value ?? '');
     },
     setTextEditProxySelectionRange(proxy, start, end = start, direction = 'none', value) {
       const text = String(value ?? context.textEditProxyValue(proxy));
@@ -183,18 +167,12 @@ function loadRubberBandHarness() {
     window: {
       addEventListener() {},
     },
-    canvas: { addEventListener() {}, classList: { add() {}, remove() {} } },
-    boardCanvas: {},
+    canvas: { addEventListener() {} },
     document: {
       addEventListener() {},
     },
     objects,
-    objectsMap: new Map(objects.map((obj) => [obj.id, obj])),
     selectedIds,
-    editingId: null,
-    zoom: 1,
-    panX: 0,
-    panY: 0,
     _rubberBandDragActive: false,
     rubberBand: { style: {} },
     rubberBandCommits: [],
@@ -228,9 +206,6 @@ function loadRubberBandHarness() {
       },
     },
     scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
-    ViewportDebug: { isEnabled: () => false, start() { return {}; }, count() {}, end() {}, timing() {} },
-    BoardfishViewportState: { zoomAroundClient() {}, panBy() {} },
-    scheduleTransform() {},
     createRafCommitter(apply) {
       let args = null;
       const flush = () => {
@@ -243,8 +218,6 @@ function loadRubberBandHarness() {
       context.flushRubberBandFrame = flush;
       return { schedule(...nextArgs) { args = nextArgs; }, flush };
     },
-    isMultiSelected: () => false,
-    BoardObjectGeometry: { topObjectAtWorldPoint: () => null },
     toWorld: () => ({ x: 0, y: 0 }),
   };
 

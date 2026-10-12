@@ -41,20 +41,6 @@
     return new Error(entryName ? `Invalid File Entry: ${entryName}` : 'Invalid Board File');
   }
 
-  function ensureByteRange(bytes, offset, length) {
-    const start = Number(offset);
-    const size = Number(length);
-    if (
-      !Number.isFinite(start) ||
-      !Number.isFinite(size) ||
-      start < 0 ||
-      size < 0 ||
-      start + size > bytes.length
-    ) {
-      throw invalidContainerError();
-    }
-  }
-
   function makeCrcTable() {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
@@ -81,8 +67,7 @@
 
   function yieldToEventLoop() {
     if (typeof BoardfishView !== 'undefined') return BoardfishView.yieldToEventLoop();
-    if (root.scheduler?.yield) return root.scheduler.yield();
-    return new Promise((resolve) => setTimeout(resolve, 0));
+    return root.scheduler?.yield ? root.scheduler.yield() : new Promise((resolve) => setTimeout(resolve, 0));
   }
 
   const CRC_CHUNK_SIZE = 1024 * 1024;
@@ -334,7 +319,7 @@
     const entries = new Map();
     let offset = 0;
     for (let i = 0; i < entryCount; i++) {
-      ensureByteRange(bytes, offset, 46);
+      if (offset + 46 > bytes.length) throw invalidContainerError();
       if (view.getUint32(offset, true) !== ZIP_CENTRAL_DIRECTORY) {
         throw invalidContainerError();
       }
@@ -613,8 +598,7 @@
     const identity = imageSourceCrcIdentity(source);
     if (!identity) return null;
     const cached = imageSourceCrcCache.get(source);
-    if (!cached || cached.identity !== identity || cached.byteLength !== byteLength) return null;
-    return cached.crc;
+    return !cached || cached.identity !== identity || cached.byteLength !== byteLength ? null : cached.crc;
   }
 
   function cacheImageSourceCrc(source, byteLength, crc) {
@@ -628,8 +612,7 @@
     const identity = imageSourceCrcIdentity(source);
     if (!identity) return null;
     const cached = imageSourceArchiveIdentityCache.get(source);
-    if (!cached || cached.identity !== identity || cached.byteLength !== byteLength) return null;
-    return cached;
+    return !cached || cached.identity !== identity || cached.byteLength !== byteLength ? null : cached;
   }
 
   function cacheImageSourceArchiveIdentity(source, byteLength, crc) {
@@ -646,8 +629,7 @@
   function blobForWebImageRef(source) {
     if (isBlobLike(source?.__blob)) return source.__blob;
     const bytes = source.__bytes;
-    if (!bytes || typeof Blob !== 'function') return null;
-    return new Blob([bytes], { type: source?.mime || 'image/png' });
+    return !bytes || typeof Blob !== 'function' ? null : new Blob([bytes], { type: source?.mime || 'image/png' });
   }
 
   function manifestEntryForKey(board, key) {
@@ -687,8 +669,7 @@
   function mimeForImageSource(source, manifest = {}) {
     if (typeof manifest.mime === 'string' && manifest.mime) return manifest.mime;
     if (isWebImageRef(source) && source.mime) return source.mime;
-    if (typeof source === 'string') return dataUrlParts(source).mime;
-    return 'image/png';
+    return typeof source === 'string' ? dataUrlParts(source).mime : 'image/png';
   }
 
   function bytesForImageSource(source) {
@@ -706,8 +687,7 @@
     if (isWebImageRef(source)) return blobForWebImageRef(source);
     if (isBlobLike(source)) return source;
     const bytes = bytesForImageSource(source);
-    if (!bytes || typeof Blob !== 'function') return null;
-    return new Blob([bytes], { type: mimeForImageSource(source) });
+    return !bytes || typeof Blob !== 'function' ? null : new Blob([bytes], { type: mimeForImageSource(source) });
   }
 
   async function bytesForImageSourceAsync(source) {
@@ -717,8 +697,7 @@
       const blob = blobForWebImageRef(source);
       if (blob) return new Uint8Array(await blob.arrayBuffer());
     }
-    if (isBlobLike(source)) return new Uint8Array(await source.arrayBuffer());
-    return bytesForImageSource(source);
+    return isBlobLike(source) ? new Uint8Array(await source.arrayBuffer()) : bytesForImageSource(source);
   }
 
   async function recoverMatchingVolatileImageRefsFromContainer(board, rawImageStore = {}, containerBlob) {
@@ -912,10 +891,8 @@
   async function readBoardContainer(input, options = {}) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const startedAt = nowMs();
-    let phaseStart = startedAt;
-
     const containerFileBytes = Number(input?.size) || 0;
-    phaseStart = nowMs();
+    let phaseStart = nowMs();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     const directory = await parseCentralDirectoryFromBlob(input);
     const entries = directory.entries;

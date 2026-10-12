@@ -230,9 +230,7 @@ var ExportDebug = (() => {
       atMs: massiveElapsedMs(),
       phase: meta.phase || '',
       ms: Math.round(ms * 100) / 100,
-      processed: meta.processed ?? '',
-      imageCount: meta.imageCount ?? '',
-      entryCount: meta.entryCount ?? '',
+      ...debugPick(meta, 'processed imageCount entryCount'),
     }, 'ms');
     massiveStep('event-loop-yield', meta);
   }
@@ -300,8 +298,7 @@ var ExportDebug = (() => {
       phase: meta.phase || '',
       text,
       finishedCount,
-      preparedCount: meta.preparedCount ?? '',
-      totalCount: meta.totalCount ?? '',
+      ...debugPick(meta, 'preparedCount totalCount'),
     });
     massiveStep('ui-progress', meta);
   }
@@ -524,8 +521,7 @@ var ExportDebug = (() => {
         step: e.step,
         imgKey: e.meta?.imgKey ?? '',
         totalRenderMs: e.dt ?? '',
-        width: e.meta?.width ?? '',
-        height: e.meta?.height ?? '',
+        ...debugMetaFields(e, 'width height'),
         dataUrlMB: e.meta?.bytes ? Math.round(e.meta.bytes / 1024 / 1024 * 100) / 100 : '',
       }))
       .sort((a, b) => Number(b.totalRenderMs || 0) - Number(a.totalRenderMs || 0));
@@ -572,8 +568,7 @@ var ExportDebug = (() => {
       resolveProcessed: massive?.resolve?.processed ?? '',
       resolveDurationMs: massive?.resolve?.durationMs ?? '',
       saveDurationMs: massive?.save?.durationMs ?? '',
-      eventLoopYields: massive?.smoothness?.eventLoopYields ?? '',
-      maxYieldMs: massive?.smoothness?.maxYieldMs ?? '',
+      ...debugPick(massive?.smoothness, 'eventLoopYields maxYieldMs'),
       error: last?.meta?.error || '',
     };
     console.table([out]);

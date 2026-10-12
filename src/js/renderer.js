@@ -160,7 +160,7 @@
       if (!(x2 > x1 && y2 > y1)) return null;
       if (x1 !== x || y1 !== y || x2 !== objRight || y2 !== objBottom) {
         const sourceWidth = img.width;
-        const sourceHeight = img.height || img.naturalHeight;
+        const sourceHeight = img.height;
         if (sourceHeight > 0) {
           const sx = sourceWidth / w;
           const sy = sourceHeight / h;
@@ -338,8 +338,8 @@
       const scaledDelta = drawCounterValue(counters, 'scaledImages') - before.scaledImages;
       row.objectW = Number(obj.w || 0) || 0;
       row.objectH = Number(obj.h || 0) || 0;
-      row.fullSourceW = fullSource?.width || fullSource?.naturalWidth || '';
-      row.fullSourceH = fullSource?.height || fullSource?.naturalHeight || '';
+      row.fullSourceW = fullSource?.width || '';
+      row.fullSourceH = fullSource?.height || '';
       row.drawDeviceW = Math.round(row.objectW * Math.max(Number(deps.zoom?.()) || 0, 0) * Math.max(Number(deps.dpr?.()) || 1, 1) * 100) / 100;
       row.drawDeviceH = Math.round(row.objectH * Math.max(Number(deps.zoom?.()) || 0, 0) * Math.max(Number(deps.dpr?.()) || 1, 1) * 100) / 100;
       row.cropped = drawCounterValue(counters, 'croppedImages') > before.croppedImages;

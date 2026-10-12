@@ -22,8 +22,7 @@ var SaveDebug = (() => {
   function serializedSaveColumns(e) {
     return {
       jsonBytes: e.meta?.rust?.json_bytes ?? '',
-      queueMs: e.meta?.queueMs ?? '',
-      elapsedMs: e.meta?.elapsedMs ?? '',
+      ...debugMetaFields(e, 'queueMs elapsedMs'),
       rustSerializeMs: e.meta?.rust?.serialize_ms ?? '',
       rustJsonStringifyMs: e.meta?.rust?.json_stringify_ms ?? '',
       rustJsonEncodeMs: e.meta?.rust?.json_encode_ms ?? '',
@@ -97,8 +96,7 @@ var SaveDebug = (() => {
 
   function latestRun() {
     const start = debugLast(core.events, e => e.step === 'start' && /^saveBoard/.test(e.op || ''));
-    if (!start) return [];
-    return core.events.filter(e => e.id === start.id);
+    return !start ? [] : core.events.filter(e => e.id === start.id);
   }
 
   function report() {

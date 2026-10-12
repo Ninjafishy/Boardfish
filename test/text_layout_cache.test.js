@@ -59,10 +59,6 @@ function loadTextLayout({
     },
     navigator: { userAgent },
     objects: [],
-    TextSelDebug: {
-      _logHit() {},
-    },
-    scheduleRender() {},
   };
   if (trackSegmenter) {
     const NativeSegmenter = Intl.Segmenter;
@@ -842,8 +838,8 @@ test('text lines always start at the left padding', () => {
   assert.equal(Object.hasOwn(line, 'align'), false);
 });
 
-test('text caret x centers between neighboring glyph ink bounds', () => {
-  const { context } = loadTextLayout({
+function loadCaretInkLayout() {
+  return loadTextLayout({
     measureWidth(text) {
       return String(text).length * 10;
     },
@@ -860,6 +856,10 @@ test('text caret x centers between neighboring glyph ink bounds', () => {
       };
     },
   });
+}
+
+test('text caret x centers between neighboring glyph ink bounds', () => {
+  const { context } = loadCaretInkLayout();
   const textLayout = context.__testTextLayout;
   const obj = {
     id: 'text-1',
@@ -880,23 +880,7 @@ test('text caret x centers between neighboring glyph ink bounds', () => {
 });
 
 test('text caret x keeps logical positions next to whitespace', () => {
-  const { context } = loadTextLayout({
-    measureWidth(text) {
-      return String(text).length * 10;
-    },
-    measureTextMetrics(text, { width }) {
-      if (text === 'X') {
-        return {
-          actualBoundingBoxLeft: -4,
-          actualBoundingBoxRight: 9,
-        };
-      }
-      return {
-        actualBoundingBoxLeft: 0,
-        actualBoundingBoxRight: width,
-      };
-    },
-  });
+  const { context } = loadCaretInkLayout();
   const textLayout = context.__testTextLayout;
   const obj = {
     id: 'text-1',

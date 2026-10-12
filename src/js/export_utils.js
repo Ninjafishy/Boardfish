@@ -14,8 +14,7 @@
 
   function guessImageExtForSource(src) {
     if (isWebImageRef(src)) return src.ext === 'jpeg' ? 'jpg' : (src.ext || 'png');
-    if (typeof src === 'string') return guessImageExtFromDataUrl(src);
-    return 'png';
+    return typeof src === 'string' ? guessImageExtFromDataUrl(src) : 'png';
   }
 
   function randomHex() {
@@ -170,8 +169,7 @@
   const imageSourceKind = (source) => {
     if (isWebImageRef(source)) return 'web-ref';
     if (typeof source === 'string') return source.startsWith('data:') ? 'data-url' : 'string';
-    if (!source) return 'missing';
-    return typeof source;
+    return !source ? 'missing' : typeof source;
   };
   const recordWebResolveEntry = (obj, index, entry, ms, extra = {}) => {
     ExportDebug.recordResolve?.({

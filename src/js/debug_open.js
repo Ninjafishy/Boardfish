@@ -100,8 +100,7 @@ var OpenDebug = (() => {
       rustImageReadMaxKey: e.meta?.rust?.image_read_max_key ?? '',
       rustLazyImageRefs: e.meta?.rust?.lazy_image_refs ?? '',
       rustImageCrcMs: e.meta?.rust?.image_crc_ms ?? '',
-      ms: e.meta?.ms ?? '',
-      skipped: e.meta?.skipped ?? '',
+      ...debugMetaFields(e, 'ms skipped'),
     }));
     console.table(rows);
     return rows;
@@ -114,8 +113,7 @@ var OpenDebug = (() => {
       op: last?.op || '',
       totalMs: last?.total ?? '',
       imageCount: last?.meta?.imageCount ?? last?.meta?.imageObjectCount ?? '',
-      objectCount: last?.meta?.objectCount ?? '',
-      hydrated: last?.meta?.hydrated ?? '',
+      ...debugPick(last?.meta, 'objectCount hydrated'),
       error: last?.meta?.error || '',
       hydrationMode: 'all-before-interaction',
       hydrationConcurrency: getOpenHydrationConcurrency(),
@@ -258,8 +256,7 @@ var OpenDebug = (() => {
 
   function latestOpenEvents() {
     const lastStart = debugLast(events, e => e.step === 'start' && /^open/.test(e.op || ''));
-    if (!lastStart) return [];
-    return events.filter(e => e.id === lastStart.id);
+    return !lastStart ? [] : events.filter(e => e.id === lastStart.id);
   }
 
   function numberValue(value) {
@@ -407,8 +404,7 @@ var OpenDebug = (() => {
         total: e.total,
         dt: e.dt,
         ms: e.meta?.ms ?? e.meta?.queueWaitMs ?? '',
-        count: e.meta?.count ?? '',
-        hydrated: e.meta?.hydrated ?? '',
+        ...debugMetaFields(e, 'count hydrated'),
         pending: e.meta?.pendingImages ?? '',
         ...debugMetaFields(e, 'selected skipped missingImages'),
         imgKey: e.meta?.imgKey || e.meta?.key || '',

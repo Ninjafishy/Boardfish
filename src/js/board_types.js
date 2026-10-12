@@ -42,8 +42,7 @@
   function imageRefKind(src) {
     if (typeof src === 'string') return src.startsWith('data:') ? IMAGE_REF_KINDS.DATA_URL : IMAGE_REF_KINDS.STRING;
     if (isObject(src) && (src.path || src.mime || src.ext)) return IMAGE_REF_KINDS.MANIFEST;
-    if (src == null) return IMAGE_REF_KINDS.MISSING;
-    return typeof src;
+    return src == null ? IMAGE_REF_KINDS.MISSING : typeof src;
   }
 
   function dataUrlMime(dataUrl) {
@@ -54,16 +53,14 @@
     const value = String(mime || '').toLowerCase();
     if (value === 'image/jpeg' || value === 'image/jpg') return 'jpg';
     if (value === 'image/webp') return 'webp';
-    if (value === 'image/gif') return 'gif';
-    return 'png';
+    return value === 'image/gif' ? 'gif' : 'png';
   }
 
   function mimeForExt(ext = '') {
     const value = String(ext || '').replace(/^\./, '').toLowerCase();
     if (value === 'jpg' || value === 'jpeg') return 'image/jpeg';
     if (value === 'webp') return 'image/webp';
-    if (value === 'gif') return 'image/gif';
-    return 'image/png';
+    return value === 'gif' ? 'image/gif' : 'image/png';
   }
 
   function normalizeImageExt(ext = '', mime = '') {

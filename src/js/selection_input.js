@@ -3,7 +3,7 @@ var _selOverlayStyleState = { transform: '', width: '', height: '' };
 var _multiSelBoxes = [], _multiSelMotions = [];
 var _rubberBandDragActive = false;
 var _textMinWidthWarmCancel = null;
-var _textMinWidthWarmObjectId = '';
+var _textMinWidthWarmObjectId;
 const SELECTION_IMAGE_EDGE_OVERDRAW_DEVICE_PX = 1;
 
 function setSelectionOverlayScreenRect(element, state, resting, animated, padDevicePx = 0) {
@@ -38,8 +38,7 @@ function selectionOverlayObjectBounds(obj, motion = BoardfishMotion.getLastDrawn
 }
 
 function _cleanOverlay(value) {
-  if (Math.abs(value) < 1e-9) return 0;
-  return Math.round(value * 1e9) / 1e9;
+  return Math.abs(value) < 1e-9 ? 0 : Math.round(value * 1e9) / 1e9;
 }
 
 function beginRubberBandDrag() {
@@ -99,16 +98,12 @@ function selectionInputPerfDebugApi() {
   return typeof ManualPerfDebug !== 'undefined' ? ManualPerfDebug : null;
 }
 
-function selectionResizeDebugNow() {
-  return performance.now();
-}
-
 function selectionResizeDebugRound(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function selectionResizeEventMeta(event = null) {
-  const now = selectionResizeDebugNow();
+  const now = performance.now();
   const timestamp = Number(event?.timeStamp);
   const timeOrigin = typeof performance !== 'undefined' ? Number(performance.timeOrigin) || 0 : 0;
   const eventAt = Number.isFinite(timestamp) && timestamp > 0
@@ -189,10 +184,12 @@ function pointedElementForInputEvent(e) {
 
 const isEventInsideVisibleSurface = (e, surface) => {
   if (!surface || !surface.classList.contains('visible')) return false;
-  if (isInputEventNode(e.target) && surface.contains(e.target)) return true;
   // A concrete event target is already the browser's hit-test result. Only use
   // elementFromPoint for ambiguous document/window-targeted synthetic events.
-  if (isInputEventNode(e.target) && e.target.nodeType === 1) return false;
+  if (isInputEventNode(e.target)) {
+    if (surface.contains(e.target)) return true;
+    if (e.target.nodeType === 1) return false;
+  }
   const pointed = pointedElementForInputEvent(e);
   return isInputEventNode(pointed) && surface.contains(pointed);
 };
@@ -251,8 +248,7 @@ const oppositeSelectionDir = function oppositeSelectionDir(dir) {
   if (dir === 'nw') return 'se';
   if (dir === 'ne') return 'sw';
   if (dir === 'se') return 'nw';
-  if (dir === 'sw') return 'ne';
-  return '';
+  return dir === 'sw' ? 'ne' : '';
 };
 
 const boundsCornerPoint = function boundsCornerPoint(bounds, dir) {
@@ -447,7 +443,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
       let dragMinTextW = null;
       function applyResize(clientX, clientY, eventZoom, ev) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const moveStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+        const moveStartedAt = resizeDebugDragId ? performance.now() : 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         const dx = (clientX - startX) / eventZoom;
         const dy = (clientY - startY) / eventZoom;
@@ -456,14 +452,14 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         let minTextW;
         let minWidthMs = '';
 
-        const minWidthStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+        const minWidthStartedAt = resizeDebugDragId ? performance.now() : 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (dragMinTextW == null) {
           dragMinTextW = getTextMinWidth(obj);
         }
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         minTextW = dragMinTextW;
-        if (resizeDebugDragId) minWidthMs = selectionResizeDebugRound(selectionResizeDebugNow() - minWidthStartedAt);
+        if (resizeDebugDragId) minWidthMs = selectionResizeDebugRound(performance.now() - minWidthStartedAt);
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (resizeEast) w = Math.max(dragMinTextW, ow + dx);
         if (resizeWest) { w = Math.max(dragMinTextW, ow - dx); x = ox + ow - w; }
@@ -482,10 +478,10 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
             h,
             minTextW,
             minWidthMs,
-            moveMs: selectionResizeDebugRound(selectionResizeDebugNow() - moveStartedAt),
+            moveMs: selectionResizeDebugRound(performance.now() - moveStartedAt),
           });
         }
-        const applyStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+        const applyStartedAt = resizeDebugDragId ? performance.now() : 0;
         const beforeX = obj.x;
         const beforeY = obj.y;
         const beforeW = obj.w;
@@ -517,10 +513,10 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (render) {
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          const clearStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
-          const clearLayoutMs = resizeDebugDragId ? selectionResizeDebugRound(selectionResizeDebugNow() - clearStartedAt) : '';
+          const clearStartedAt = resizeDebugDragId ? performance.now() : 0;
+          const clearLayoutMs = resizeDebugDragId ? selectionResizeDebugRound(performance.now() - clearStartedAt) : '';
           const heightBeforeAuto = resizeDebugDragId ? obj.h : 0;
-          const autoHeightStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+          const autoHeightStartedAt = resizeDebugDragId ? performance.now() : 0;
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           resetTextEditPreservedMinLines(obj);
           syncTextAutoHeight(obj, getTextMinLines(obj));
@@ -528,7 +524,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           if (resizeDebugDragId) {
             autoHeightDebug = {
               clearLayoutMs,
-              autoHeightMs: selectionResizeDebugRound(selectionResizeDebugNow() - autoHeightStartedAt),
+              autoHeightMs: selectionResizeDebugRound(performance.now() - autoHeightStartedAt),
               autoHeightChanged: obj.h !== heightBeforeAuto,
               autoHeightReason: resizeFinalizing ? 'resize-final' : 'resize',
               layoutInvalidationMethod: 'cache-keyed',
@@ -537,12 +533,12 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
         }
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const scheduleStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+        const scheduleStartedAt = resizeDebugDragId ? performance.now() : 0;
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         if (render) drawBoard(), updateSelectionOverlay();
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
         if (resizeDebugDragId) {
-          const scheduleRenderMs = selectionResizeDebugRound(selectionResizeDebugNow() - scheduleStartedAt);
+          const scheduleRenderMs = selectionResizeDebugRound(performance.now() - scheduleStartedAt);
           recordSelectionTextResizeStep('apply-end', resizeDebugDragId, {
             objectId: obj.id,
             beforeX,
@@ -574,7 +570,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
             renderBoard: render,
             renderOverlay: render,
             scheduleRenderMs,
-            applyMs: selectionResizeDebugRound(selectionResizeDebugNow() - applyStartedAt),
+            applyMs: selectionResizeDebugRound(performance.now() - applyStartedAt),
           });
         }
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
@@ -590,7 +586,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
               objectId: obj.id,
             });
           }
-          const flushStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+          const flushStartedAt = resizeDebugDragId ? performance.now() : 0;
           resizeFinalizing = true;
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           resizeCommitter.flush();
@@ -599,14 +595,14 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
           if (resizeDebugDragId) {
             recordSelectionTextResizeStep('flush', resizeDebugDragId, {
               objectId: obj.id,
-              flushMs: selectionResizeDebugRound(selectionResizeDebugNow() - flushStartedAt),
+              flushMs: selectionResizeDebugRound(performance.now() - flushStartedAt),
               x: obj.x,
               y: obj.y,
               w: obj.w,
               h: obj.h,
             });
           }
-          const historyStartedAt = resizeDebugDragId ? selectionResizeDebugNow() : 0;
+          const historyStartedAt = resizeDebugDragId ? performance.now() : 0;
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           pushHistory('resize', [obj.id]);
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -614,7 +610,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
             recordSelectionTextResizeStep('history-pushed', resizeDebugDragId, {
               objectId: obj.id,
               historyReason: 'resize',
-              historyMs: selectionResizeDebugRound(selectionResizeDebugNow() - historyStartedAt),
+              historyMs: selectionResizeDebugRound(performance.now() - historyStartedAt),
             });
             selectionInputPerfDebugApi()?.finishTextResizeDrag?.(resizeDebugDragId, {
               objectId: obj.id,
@@ -692,9 +688,7 @@ const normalizeTextEditHistoryState = (id, state = null) => {
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 const textEditHistoryDebugMeta = (id, state = null, normalized = null, extra = {}) => {
   const obj = id ? objectsMap.get(id) : null;
-  const proxyValue = _editEl
-    ? textEditProxyValue(_editEl)
-    : (typeof _editEl?.value === 'string' ? _editEl.value : '');
+  const proxyValue = _editEl ? textEditProxyValue(_editEl) : '';
   const rawStart = state?.start ?? state?.selectionStart ?? _editEl?.selectionStart ?? '';
   const rawEnd = state?.end ?? state?.selectionEnd ?? _editEl?.selectionEnd ?? rawStart;
   const insertedText = state?.replacement ? String(state.replacement.insertedText ?? '') : '';
@@ -788,8 +782,7 @@ const clearEditHistoryCheckpointTimer = () => {
 function flushEditHistoryCheckpoint() {
   clearEditHistoryCheckpointTimer();
   if (typeof _textInputSelectionHistorySuppress !== 'undefined') _textInputSelectionHistorySuppress = null;
-  if (!editingId) return false;
-  return pushEditHistoryIfChanged(editingId);
+  return !editingId ? false : pushEditHistoryIfChanged(editingId);
 }
 
 const shouldCommitTextEditInputImmediately = (inputType = '', hadSelection = false) =>

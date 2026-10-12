@@ -28,7 +28,7 @@ function loadLiveTextEditResizeHarness() {
     z: 1,
     data: { content: 'example text' },
   };
-  const makeProxy = (context) => ({
+  const makeProxy = () => ({
     id: '',
     style: {},
     value: '',
@@ -43,8 +43,8 @@ function loadLiveTextEditResizeHarness() {
       this.listeners[event.type]?.(event);
       return true;
     },
-    focus() { context.focusedProxy = true; },
-    remove() { context.removedProxy = true; },
+    focus() {},
+    remove() {},
     setSelectionRange(start, end, direction = 'none') {
       const max = String(this.value ?? '').length;
       const normalizedStart = Math.max(0, Math.min(Math.trunc(Number(start)) || 0, max));
@@ -65,7 +65,6 @@ function loadLiveTextEditResizeHarness() {
   });
   const context = {
     performance,
-    console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],
     obj,
@@ -79,9 +78,7 @@ function loadLiveTextEditResizeHarness() {
     _editHistoryActionStartState: null,
     _textInputSelectionHistorySuppress: null,
     jsClipboard: null,
-    _jsClipboardWebMaybeStale: false,
     setJsClipboard() {},
-    clearJsClipboard() {},
     getJsClipboardWebToken: () => '',
     _caretVisible: false,
     dirty: [],
@@ -89,7 +86,7 @@ function loadLiveTextEditResizeHarness() {
     renders: [],
     animations: [],
     flushes: 0,
-    TextSelDebug: { _logSelection() {}, _logHit() {} },
+    TextSelDebug: { _logSelection() {} },
     document: {
       activeElement: null,
       body: { appendChild(node) { context.document.activeElement = node; } },
@@ -111,7 +108,7 @@ function loadLiveTextEditResizeHarness() {
             },
           };
         }
-        const proxy = makeProxy(context);
+        const proxy = makeProxy();
         context.proxy = proxy;
         return proxy;
       },
@@ -126,9 +123,6 @@ function loadLiveTextEditResizeHarness() {
     },
     BoardfishMotion: {
       applyCopyFeedback(payload) { context.animations.push(payload); },
-    },
-    BoardfishEditorState: {
-      removeObjectsById() {},
     },
     beginTextEditHistoryAction() {},
     shouldCommitTextEditInputImmediately() { return false; },

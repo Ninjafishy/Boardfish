@@ -7,6 +7,12 @@ const vm = require('../test-support/browser_vm.js');
 const WebContainer = require('../src/js/web_board_container.js');
 const { singleImageBoard } = require('../test-support/image_output.js');
 
+function failedImageStream() {
+  return new ReadableStream({
+    start(controller) { controller.error(new TypeError('Failed to fetch')); },
+  });
+}
+
 function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
   const source = readSource('src/js/web_runtime.js');
   const timers = [];
@@ -67,10 +73,6 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
           calls.appended++;
         },
       },
-    },
-    URL: {
-      createObjectURL() { return 'blob:board'; },
-      revokeObjectURL() {},
     },
   };
   vm.createContext(context);
@@ -363,11 +365,7 @@ test('distinct-target save rebuilds once from a fresh source after write-time Bl
       if (attempt === 1) {
         Object.defineProperty(staleBlob, 'stream', {
           configurable: true,
-          value() {
-            return new ReadableStream({
-              start(controller) { controller.error(new TypeError('Failed to fetch')); },
-            });
-          },
+          value: failedImageStream,
         });
       }
       return {
@@ -420,11 +418,7 @@ test('same-target save recovers a stale source before container preparation', as
   const staleBlob = rawImageStore['img-1'].__blob;
   Object.defineProperty(staleBlob, 'stream', {
     configurable: true,
-    value() {
-      return new ReadableStream({
-        start(controller) { controller.error(new TypeError('Failed to fetch')); },
-      });
-    },
+    value: failedImageStream,
   });
   harness.context.BoardfishWebLimits = { validateBoardPayload() {} };
   harness.context.BoardfishWebBoardContainer = WebContainer;
@@ -480,11 +474,7 @@ test('stale-source recovery rejects a fresh file whose image identity changed', 
   const rawImageStore = opened.board.imageStore;
   Object.defineProperty(rawImageStore['img-1'].__blob, 'stream', {
     configurable: true,
-    value() {
-      return new ReadableStream({
-        start(controller) { controller.error(new TypeError('Failed to fetch')); },
-      });
-    },
+    value: failedImageStream,
   });
   harness.context.BoardfishWebLimits = { validateBoardPayload() {} };
   harness.context.BoardfishWebBoardContainer = WebContainer;
@@ -727,7 +717,7 @@ test('a writer opened after its save times out is aborted without writing or com
   harness.context.BoardfishWebBoardContainer = {
     async createBoardContainerBlob() { return { blob: new Blob(['board']) }; },
   };
-  let finishOpening, aborts = 0, writes = 0, closes = 0, locked = false;
+  let finishOpening, aborts = 0, writes = 0, closes = 0;
   const opening = new Promise(resolve => { finishOpening = resolve; });
   const handle = { createWritable() { return opening; } };
   const ref = { kind: 'web-file-handle', handle, name: 'delayed-board.bf' };
@@ -736,7 +726,7 @@ test('a writer opened after its save times out is aborted without writing or com
   harness.runTimers();
   await assert.rejects(save, /Save Timed Out: Opening File/);
   assert.equal(ref.unusable, true);
-  locked = true;
+  let locked = true;
   finishOpening({
     async write() { writes++; },
     async close() { closes++; },

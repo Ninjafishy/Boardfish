@@ -15,7 +15,7 @@ const DEFAULT_TEXT_BOX_HEIGHT = TEST_NEW_TEXT_EDIT_MIN_LINES * TEST_LINE_H + TES
 const DEFAULT_TEXT_BOX_WIDTH = DEFAULT_TEXT_BOX_HEIGHT * 6;
 
 function loadTextEditorHelpers() {
-  const context = { console };
+  const context = {};
   vm.createContext(context);
   vm.runInContext(
     readSource('src/js/text_editor.js') +
@@ -30,26 +30,10 @@ function loadTextEditorHelpers() {
 function loadTextEditorIntegrationHelpers() {
   const context = {
     performance,
-    console,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     document: {
       createElement() { return { getContext: createUnitTextContext }; },
     },
-    objects: [],
-    dirty: [],
-    histories: [],
-    renders: [],
-    animations: [],
-    _caretVisible: false,
-    BoardfishMotion: {
-      applyCopyFeedback(payload) { context.animations.push(payload); },
-    },
-    shouldCommitTextEditInputImmediately() { return false; },
-    flushEditHistoryCheckpoint() { context.flushedHistory = true; return false; },
-    invalidateOffscreen() {},
-    markDirty(obj) { context.dirty.push(obj.id); },
-    pushHistory(reason) { context.histories.push(reason); },
-    scheduleRender(board, overlay, reason) { context.renders.push({ board, overlay, reason }); },
   };
   vm.createContext(context);
   vm.runInContext(
@@ -134,23 +118,18 @@ function loadExitEditHarness() {
   };
   const context = {
     performance,
-    console,
-    BoardfishWebLimits: { canReplaceText() { return true; } },
-    objects: [obj],
     obj,
     objectsMap: new Map([[obj.id, obj]]),
     editingId: obj.id,
-    _editEl: { value: '', remove() { context.removedProxy = true; } },
+    _editEl: { value: '', remove() {} },
     _caretBlinkInterval: 7,
     _selChangeListener: null,
     _editHistoryTimer: null,
     _editHistoryLastContent: 'Hi',
     _editHistoryActionStartState: null,
-    _textInputSelectionHistorySuppress: null,
     dirty: [],
     histories: [],
     editHistoryPushes: [],
-    animations: [],
     renders: [],
     clearedIntervals: [],
     clearedTimeouts: [],
@@ -172,18 +151,11 @@ function loadExitEditHarness() {
           },
         };
       },
-      removeEventListener() {},
     },
     window: {
       getSelection() {
-        return { removeAllRanges() { context.removedRanges = true; } };
+        return { removeAllRanges() {} };
       },
-    },
-    BoardfishMotion: {
-      applyCopyFeedback(payload) { context.animations.push(payload); },
-    },
-    BoardfishEditorState: {
-      removeObjectsById() {},
     },
     clearInterval(id) { context.clearedIntervals.push(id); },
     clearTimeout(id) { context.clearedTimeouts.push(id); },
@@ -191,7 +163,6 @@ function loadExitEditHarness() {
     pushEditHistoryIfChanged(id) { context.editHistoryPushes.push(id); return false; },
     pushHistory(reason) { context.histories.push(reason); },
     scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
-    invalidateOffscreen() { context.invalidated = true; },
   };
   vm.createContext(context);
   vm.runInContext(

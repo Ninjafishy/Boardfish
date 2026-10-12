@@ -23,8 +23,7 @@
   function imageClipboardHtml(token, dataUrl = '') {
     const marker = createBoardfishClipboardMarker(token);
     const src = String(dataUrl || '');
-    if (!src) return boardfishTokenClipboardHtml(token);
-    return `${marker}<img src="${src}" alt="">`;
+    return !src ? boardfishTokenClipboardHtml(token) : `${marker}<img src="${src}" alt="">`;
   }
 
   async function blobToDataUrl(blob) {
@@ -59,8 +58,7 @@
   }
 
   function readBoardfishClipboardTokenFromEvent(clipboardData) {
-    if (!clipboardData) return '';
-    return readBoardfishClipboardTokenFromHtml(clipboardData.getData?.('text/html') || '');
+    return !clipboardData ? '' : readBoardfishClipboardTokenFromHtml(clipboardData.getData?.('text/html') || '');
   }
 
   function supportsRichClipboardWrite() {
@@ -70,12 +68,8 @@
   const writeClipboardItem = (parts) => clipboardNavigator().clipboard.write([new ClipboardItem(parts)]);
 
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  function clipboardIoNow() {
-    return performance.now();
-  }
-
-  function clipboardIoElapsedMs(startedAt) {
-    return Math.round((clipboardIoNow() - startedAt) * 100) / 100;
+    function clipboardIoElapsedMs(startedAt) {
+    return Math.round((performance.now() - startedAt) * 100) / 100;
   }
 
   function textClipboardStats(text) {
@@ -257,7 +251,7 @@
     const boardfishToken = options?.boardfishToken || '';
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const meta = options;
-    const writeStartedAt = clipboardIoNow();
+    const writeStartedAt = performance.now();
     const stats = textClipboardStats(text);
     ClipDebug.step(dbg, 'web-clipboard-text-write-start', {
       ...meta,
@@ -267,7 +261,7 @@
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     if (boardfishToken && supportsRichClipboardWrite()) {
       /* BOARDFISH_DEV_DIAGNOSTICS_START */
-      const richStartedAt = clipboardIoNow();
+      const richStartedAt = performance.now();
       /* BOARDFISH_DEV_DIAGNOSTICS_END */
       try {
         await writeClipboardItem({
@@ -300,7 +294,7 @@
       }
     }
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
-    const plainStartedAt = clipboardIoNow();
+    const plainStartedAt = performance.now();
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
     await clipboardNavigator().clipboard.writeText(text);
     /* BOARDFISH_DEV_DIAGNOSTICS_START */

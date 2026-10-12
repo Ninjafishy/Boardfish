@@ -122,9 +122,6 @@ test('image renderer crops untransformed images to the visible viewport', () => 
   };
   const counters = BoardfishRenderer.createDrawCounters();
   const source = {
-    complete: true,
-    naturalWidth: 200,
-    naturalHeight: 100,
     width: 200,
     height: 100,
   };
@@ -200,9 +197,6 @@ test('image renderer overdraws image edges by one device pixel at the current vi
     },
   };
   const source = {
-    complete: true,
-    naturalWidth: 80,
-    naturalHeight: 60,
     width: 80,
     height: 60,
   };
@@ -254,9 +248,6 @@ test('image renderer keeps smoothing enabled for active full fallback', () => {
     },
   };
   const source = {
-    complete: true,
-    naturalWidth: 4000,
-    naturalHeight: 4000,
     width: 4000,
     height: 4000,
   };
@@ -299,9 +290,6 @@ test('viewport navigation keeps culling and uses the canonical image draw path',
   const selectCalls = [];
   const drawSmoothingEnabled = [];
   const source = {
-    complete: true,
-    naturalWidth: 2000,
-    naturalHeight: 1200,
     width: 2000,
     height: 1200,
   };
@@ -342,7 +330,7 @@ test('viewport navigation keeps culling and uses the canonical image draw path',
     panX: () => 0,
     panY: () => 0,
     selectImageSourceForDraw(key, selectedObj, fullSource, view, activeInput) {
-      selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
+      selectCalls.push({ view, activeInput });
       return { source, scale: 1, targetScale: 1 };
     },
     viewportCullingEnabled: () => true,
@@ -380,9 +368,6 @@ test('animated image motion keeps smoothing and prioritizes variant selection', 
     scale() {},
   };
   const source = {
-    complete: true,
-    naturalWidth: 4000,
-    naturalHeight: 4000,
     width: 4000,
     height: 4000,
   };
@@ -400,7 +385,7 @@ test('animated image motion keeps smoothing and prioritizes variant selection', 
     panX: () => 0,
     panY: () => 0,
     selectImageSourceForDraw(key, selectedObj, fullSource, view, activeInput) {
-      selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
+      selectCalls.push({ activeInput });
       return { source, scale: 1, targetScale: 1 };
     },
     viewportCullingEnabled: () => true,
@@ -426,9 +411,6 @@ test('animated image motion draws an image that jiggles into the viewport', () =
   const BoardfishRenderer = loadRenderer();
   const drawImageCalls = [];
   const source = {
-    complete: true,
-    naturalWidth: 20,
-    naturalHeight: 4,
     width: 20,
     height: 4,
   };
@@ -468,9 +450,6 @@ test('animated image cropping inverse-maps translation and non-uniform scale', (
   const BoardfishRenderer = loadRenderer();
   const drawImageCalls = [];
   const source = {
-    complete: true,
-    naturalWidth: 600,
-    naturalHeight: 600,
     width: 600,
     height: 600,
   };
@@ -977,9 +956,6 @@ test('renderer applies object motion translation and non-uniform scaling around 
     drawImage(...args) { calls.push(['drawImage', ...args]); },
   };
   const source = {
-    complete: true,
-    naturalWidth: 20,
-    naturalHeight: 20,
     width: 20,
     height: 20,
   };
@@ -1011,9 +987,6 @@ test('renderer applies motion scaling around the requested fractional object ori
     drawImage(...args) { calls.push(['drawImage', ...args]); },
   };
   const source = {
-    complete: true,
-    naturalWidth: 20,
-    naturalHeight: 20,
     width: 20,
     height: 20,
   };

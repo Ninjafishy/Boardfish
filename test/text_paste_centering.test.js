@@ -94,15 +94,12 @@ function loadPasteHarness({ browserText = '', normalizeExternalText, clipboard =
   const calls = { addText: [], images: [], readText: 0 };
   const context = {
     performance,
-    console,
-    Promise,
     calls,
     document: {
       addEventListener() {},
       createElement(tag) {
         return tag === 'template' && htmlFixture ? htmlFixture.createTemplate() : { getContext: createUnitTextContext };
       },
-      visibilityState: 'visible',
     },
     navigator: {
       clipboard: {

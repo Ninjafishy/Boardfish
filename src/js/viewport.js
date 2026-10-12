@@ -11,13 +11,12 @@ var long_message = 3 * short_message;
 var _islMsgActive = false;
 var _islMsgTimer = null;
 var _islMsgToken = 0;
-var _islandSyncedZoom = NaN;
+var _islandSyncedZoom;
 
 const formatZoomPercent = () => {
   const pct = Math.max(0, (Number.isFinite(zoom) ? zoom : 1) * 100);
   const roundedPct = Math.round(pct * 10) / 10;
-  if (roundedPct >= 10) return `${Math.round(pct)}%`;
-  return `${Math.max(0.1, roundedPct).toFixed(1)}%`;
+  return roundedPct >= 10 ? `${Math.round(pct)}%` : `${Math.max(0.1, roundedPct).toFixed(1)}%`;
 };
 
 const setPillMessageText = (text) => {
@@ -72,8 +71,7 @@ function startIslandBusyMsg(text) {
     },
     done(finalMsg = null, duration = short_message) {
       if (token !== _islMsgToken) return;
-      if (finalMsg) return showIslandMsg(finalMsg, duration);
-      return hideIsland('busy-done');
+      return finalMsg ? showIslandMsg(finalMsg, duration) : hideIsland('busy-done');
     },
   };
 }
@@ -86,8 +84,7 @@ function finishPillTask({
 } = {}) {
   beforeFinish();
   if (busyPill) return busyPill.done(finalMsg, duration);
-  if (finalMsg) return showIslandMsg(finalMsg, duration);
-  return hideIsland('pill-finished');
+  return finalMsg ? showIslandMsg(finalMsg, duration) : hideIsland('pill-finished');
 }
 
 function showIslandMsg(msg, duration = 0) {
@@ -281,8 +278,7 @@ const applyTextSelectionMotionTransform = (context, bounds, motion) => {
 const textLayoutLineIntersectsViewport = (line, viewportRect = null) => {
   if (!viewportRect) return true;
   const y = Number(line?.y);
-  if (!Number.isFinite(y)) return true;
-  return y + LINE_H >= viewportRect.y1 && y <= viewportRect.y2;
+  return !Number.isFinite(y) ? true : y + LINE_H >= viewportRect.y1 && y <= viewportRect.y2;
 };
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
@@ -791,7 +787,7 @@ var _needTransform = false;
 var _needBoardRender = false;
 var _needOverlayRender = false;
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-var _frameScheduledAt = 0;
+var _frameScheduledAt;
 var _frameSources = [];
 var _activeRenderSource = 'direct';
 var _lastDrawBoardMeta = null;
@@ -934,10 +930,6 @@ function textDrawWarmupLineWidth(line, obj) {
   return Math.max(1, lineXAtOffset(line, obj, textLength) - lineXAtOffset(line, obj, 0));
 }
 
-function textDrawWarmupBaseX(line, obj) {
-  return lineXAtOffset(line, obj, 0);
-}
-
 function resizeTextDrawWarmupCanvas(width, height, target = null) {
   const canvas = target?.canvas || _textDrawWarmupCanvas;
   if (!canvas || target?.target === TEXT_DRAW_WARMUP_TARGET_BOARD) return;
@@ -989,7 +981,7 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
         ctx.fillStyle = canvasTextColor();
         ctx.textBaseline = 'alphabetic';
         ctx.font = FONT;
-        const baseX = textDrawWarmupBaseX(line, obj);
+        const baseX = lineXAtOffset(line, obj, 0);
         const textY = Number.isFinite(Number(line.textY)) ? Number(line.textY) : Number(line.y || 0) + TEXT_BASELINE_Y_OFFSET;
         ctx.setTransform(
           deviceScale,
@@ -1030,8 +1022,7 @@ function warmTextLayoutDrawLines(obj, layout, options = {}) {
 
 function roundTextDrawWarmupZoom(value) {
   const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return '';
-  return Math.round(numeric * 10000) / 10000;
+  return !Number.isFinite(numeric) ? '' : Math.round(numeric * 10000) / 10000;
 }
 
 function normalizeTextDrawWarmupZooms(options = {}) {

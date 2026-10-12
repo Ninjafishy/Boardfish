@@ -125,8 +125,7 @@ var InsertDebug = (() => {
     const out = {
       source: last.meta?.source || '',
       added: last.meta?.added ?? imageEnds.filter(e => e.meta?.added).length,
-      fileCount: last.meta?.fileCount ?? '',
-      acceptedFileCount: last.meta?.acceptedFileCount ?? '',
+      ...debugMetaFields(last, 'fileCount acceptedFileCount'),
       totalMs: last.total ?? '',
       concurrency: concurrencyStep?.meta?.concurrency ?? '',
       timeToFirstObjectMs: start && objectAdd ? round(objectAdd.at - start.at) : '',

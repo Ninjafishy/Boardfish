@@ -152,16 +152,14 @@ var ClipDebug = (() => {
           kind: 'mouse-pan-start',
           at: e.at,
           afterCopyMs: round(e.at - copyStart.at),
-          startX: e.meta?.startX ?? '',
-          startY: e.meta?.startY ?? '',
+          ...debugMetaFields(e, 'startX startY'),
         });
       } else if (e.op === 'eventLoop' && e.step === 'gap') {
         timeline.push({
           kind: 'event-loop-gap',
           at: e.at,
           afterCopyMs: round(e.at - copyStart.at),
-          gapMs: e.meta?.gapMs ?? '',
-          overMs: e.meta?.overMs ?? '',
+          ...debugMetaFields(e, 'gapMs overMs'),
         });
       } else if (e.op === 'longTask' && e.step === 'entry') {
         timeline.push({
@@ -179,10 +177,7 @@ var ClipDebug = (() => {
         at: row.at,
         afterCopyMs: round(row.at - copyStart.at),
         inputSource: row.inputSource || '',
-        inputAgeMs: row.inputAgeMs ?? '',
-        queueMs: row.queueMs ?? '',
-        frameMs: row.frameMs ?? '',
-        rafGap: row.rafGap ?? '',
+        ...debugPick(row, 'inputAgeMs queueMs frameMs rafGap'),
         sources: row.sources || '',
       });
     }
@@ -490,8 +485,7 @@ var ClipDebug = (() => {
         eventAgeMs: e.meta?.eventAgeMs ?? '',
         source: e.meta?.source || '',
         target: e.meta?.target || '',
-        defaultPrevented: e.meta?.defaultPrevented ?? '',
-        blocked: e.meta?.blocked ?? '',
+        ...debugMetaFields(e, 'defaultPrevented blocked'),
       }));
     const eventLoopRows = viewportEvents
       .filter(e => (e.op === 'eventLoop' || e.op === 'longTask') && e.at >= startAt && e.at <= endAt)
@@ -563,8 +557,7 @@ var ClipDebug = (() => {
       maxEditSelectionMs: round(maxEditSelectionMs),
       maxEventLoopGapMs: round(maxEventLoopGapMs),
       maxLongTaskMs: round(maxLongTaskMs),
-      oldChars: replacement?.meta?.oldChars ?? '',
-      nextChars: replacement?.meta?.nextChars ?? '',
+      ...debugPick(replacement?.meta, 'oldChars nextChars'),
       insertedChars: latestMetaValue(run, ['insertedChars', 'textLen', 'fallbackTextChars', 'textCharCount']),
       selectedChars: latestMetaValue(run, ['selectedChars']),
       textBytes: latestMetaValue(run, ['textBytes']),
@@ -572,8 +565,7 @@ var ClipDebug = (() => {
       largestLineChars: latestMetaValue(run, ['largestLineChars']),
       layoutPatched: layoutPatch?.meta?.layoutPatched ?? '',
       layoutPatchMs: layoutPatch?.dt ?? '',
-      layoutPatchLineDelta: layoutPatch?.meta?.layoutPatchLineDelta ?? '',
-      layoutPatchLogicalLineDelta: layoutPatch?.meta?.layoutPatchLogicalLineDelta ?? '',
+      ...debugPick(layoutPatch?.meta, 'layoutPatchLineDelta layoutPatchLogicalLineDelta'),
       layoutPatchReason: layoutPatch?.meta?.layoutPatchReason || '',
       objectWidth: latestMetaValue(run, ['objectWidth']),
       objectHeight: latestMetaValue(run, ['objectHeight']),
@@ -1160,14 +1152,11 @@ var ViewportDebug = (() => {
       key: event?.key || '',
       code: event?.code || '',
       repeat: !!event?.repeat,
-      deltaX: event?.deltaX ?? '',
-      deltaY: event?.deltaY ?? '',
+      ...debugPick(event, 'deltaX deltaY'),
       ...wheelEventMeta(event),
       ...debugPick(event, 'button buttons clientX clientY movementX movementY offsetX offsetY pointerId'),
       pointerType: event?.pointerType || '',
-      pressure: event?.pressure ?? '',
-      isPrimary: event?.isPrimary ?? '',
-      isTrusted: event?.isTrusted ?? '',
+      ...debugPick(event, 'pressure isPrimary isTrusted'),
       ctrlKey: !!event?.ctrlKey,
       metaKey: !!event?.metaKey,
       shiftKey: !!event?.shiftKey,
@@ -2183,8 +2172,7 @@ var ViewportDebug = (() => {
         at: e.at,
         kind: e.op,
         step: e.step,
-        gapMs: e.meta?.gapMs ?? '',
-        overMs: e.meta?.overMs ?? '',
+        ...debugMetaFields(e, 'gapMs overMs'),
         durationMs: e.meta?.duration ?? '',
         startTime: e.meta?.startTime ?? '',
       }));
@@ -2240,9 +2228,7 @@ var ViewportDebug = (() => {
           id: e.id,
           at: e.at,
           source,
-          queueMs: startMeta.queueMs ?? '',
-          inputAgeMs: startMeta.inputAgeMs ?? '',
-          rafGap: startMeta.rafGap ?? '',
+          ...debugPick(startMeta, 'queueMs inputAgeMs rafGap'),
           ...debugMetaFields(e, 'frameMs doTransform doBoard doOverlay slow'),
         };
       })
@@ -2385,8 +2371,7 @@ var ViewportDebug = (() => {
           at: e.at,
           kind: e.op,
           step: e.step,
-          gapMs: e.meta?.gapMs ?? '',
-          overMs: e.meta?.overMs ?? '',
+          ...debugMetaFields(e, 'gapMs overMs'),
           durationMs: e.meta?.duration ?? '',
         });
       }

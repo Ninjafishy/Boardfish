@@ -17,7 +17,7 @@
   let drawTime = 0;
   let reducedMotionQuery;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  let motionRenderRequestedAt = 0;
+  let motionRenderRequestedAt;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
   const prefersReducedMotion = () => {
@@ -174,8 +174,7 @@
     const ax = a.x + a.w / 2, bx = b.x + b.w / 2;
     if (ax !== bx) return ax - bx;
     const ay = a.y + a.h / 2, by = b.y + b.h / 2;
-    if (ay !== by) return ay - by;
-    return a.id.localeCompare(b.id);
+    return ay !== by ? ay - by : a.id.localeCompare(b.id);
   };
 
   const noteObject = (obj, startedAt, groupSide, groupSize, cohortKey) => {

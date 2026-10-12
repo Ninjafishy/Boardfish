@@ -9,7 +9,6 @@ test('browser clipboard reads use the active PiP document instead of the hidden 
   let reads = 0;
   const context = vm.createContext({
     navigator: { clipboard: { read() { throw new Error('Hidden opener clipboard'); } } },
-    performance,
     ClipDebug: { step() {} },
   });
   vm.runInContext(readSource('src/js/clipboard_io.js'), context);
@@ -47,7 +46,6 @@ function loadClipboardStateHarness() {
     },
     document: {
       addEventListener() {},
-      visibilityState: 'visible',
     },
     window: {
       addEventListener() {},
@@ -264,11 +262,8 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     messages: [],
   };
   const context = {
-    console,
-    Promise,
     document: {
       addEventListener() {},
-      visibilityState: 'visible',
     },
     performance: { now: () => 0 },
     calls,
@@ -283,7 +278,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     historyIndex: 0,
     zCounter: 1,
     BoardfishClipboardIO: {
-      readBoardfishClipboardTokenFromEvent() { return ''; },
       readBoardfishClipboardTokenFromBrowser() { calls.histories.push('browser-token-read'); return Promise.resolve({ checked: true, token: '' }); },
     },
     BoardfishEditorState: {
@@ -294,9 +288,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
       setSelection(ids, options = {}) {
         calls.selections.push({ ids, options });
       },
-    },
-    BoardfishMotion: {
-      applyCopyFeedback() {},
     },
     BoardfishWebLimits: {
       canAddObjects() { return true; },
@@ -375,7 +366,6 @@ function loadTextEditCopyHarness(value, options = {}) {
   };
   const context = {
     performance,
-    console,
     editingId: 'text-1',
     _editEl: editProxy,
     objectsMap: new Map([['text-1', { id: 'text-1', type: 'text', data: { content: value } }]]),
@@ -396,8 +386,6 @@ function loadTextEditCopyHarness(value, options = {}) {
         if (payload.textSelection) calls.jello.push({ ...payload.textSelection });
       },
     },
-    MenuDebug: { log() {} },
-    clearJsClipboard() {},
     focusTextEditProxyNow(proxy) { proxy?.focus({ preventScroll: true }); },
     scheduleRender(board, overlay, sourceName) {
       calls.renders.push({ board, overlay, source: sourceName });

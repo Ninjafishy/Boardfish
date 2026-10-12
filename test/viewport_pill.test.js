@@ -53,9 +53,6 @@ function loadViewportPillHarness() {
     island,
     islZoom,
     clearTimeout() {},
-    setTimeout() {
-      return 1;
-    },
     PillDebug: {
       log() {},
     },
@@ -558,7 +555,6 @@ test('finishing a board open preserves the frozen frame size until its resize re
   context.boardDocument = () => ({ body: { appendChild() {} } });
   context.canvas.prepend = () => {};
   context.openingShield = { classList: { remove() {} }, replaceChildren() {}, style: {} };
-  context.boardCanvas.removeAttribute = () => { context.boardCanvas.style = {}; };
   Object.assign(context.boardCanvas.style, { left: '12px', top: '34px' });
   context.surfaceRect = { width: 480, height: 320 };
 

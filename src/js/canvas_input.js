@@ -8,24 +8,19 @@ var EDIT_HISTORY_DEBOUNCE_MS = 500;
 var _textInputSelectionHistorySuppress = null, _editHistoryActionStartState = null;
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
-function canvasInputNow() {
-  return performance.now();
-}
-
 function canvasInputDebugRound(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function canvasInputEventTimestampMs(event = null) {
   const timestamp = Number(event?.timeStamp);
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return canvasInputNow();
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return performance.now();
   return timestamp > performance.timeOrigin ? timestamp - performance.timeOrigin : timestamp;
 }
 
 function canvasInputWheelDeltaScale(deltaMode) {
   if (deltaMode === 1) return 16;
-  if (deltaMode === 2) return Math.max(1, Number(boardWindow().innerHeight) || 1);
-  return 1;
+  return deltaMode === 2 ? Math.max(1, Number(boardWindow().innerHeight) || 1) : 1;
 }
 
 function canvasInputWheelDebugMeta(e) {
@@ -47,7 +42,7 @@ function canvasInputEventDebugMeta(e) {
   const eventAt = canvasInputEventTimestampMs(e);
   return {
     eventAt,
-    eventAgeMs: Math.max(0, canvasInputNow() - eventAt),
+    eventAgeMs: Math.max(0, performance.now() - eventAt),
     eventType: e?.type || '',
     clientX: e?.clientX ?? '',
     clientY: e?.clientY ?? '',
@@ -108,13 +103,13 @@ function focusTextEditProxyNow(proxy
       canvasInputTextDebugLog(label, obj, { ...meta, ...out });
       return out;
     }
-    const focusStart = canvasInputNow();
+    const focusStart = performance.now();
     proxy.focus({ preventScroll: true });
     const out = {
       focused: true,
       skipped: false,
       reason: '',
-      focusMs: canvasInputDebugRound(canvasInputNow() - focusStart),
+      focusMs: canvasInputDebugRound(performance.now() - focusStart),
       activeElementIsProxy: typeof document !== 'undefined' ? boardDocument().activeElement === proxy : '',
     };
     canvasInputTextDebugLog(label, obj, { ...meta, ...out });
@@ -126,7 +121,7 @@ function handleViewportWheel(e) {
   if (!e.ctrlKey && !e.metaKey && !isEventInsideViewportWheelSurface(e)) return;
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const collectDebug = ViewportDebug.isEnabled();
-  const handlerStart = collectDebug ? canvasInputNow() : 0;
+  const handlerStart = collectDebug ? performance.now() : 0;
   const wheelMeta = collectDebug ? canvasInputWheelDebugMeta(e) : null;
   const eventMeta = collectDebug ? canvasInputEventDebugMeta(e) : null;
   const beforeMeta = collectDebug ? canvasInputViewportDebugSnapshot('Before') : null;
@@ -171,7 +166,7 @@ function handleViewportWheel(e) {
       scheduleTransform(BoardfishViewportState.zoomAroundClient(e.clientX, e.clientY, requestedZoom) /* BOARDFISH_DEV_DIAGNOSTICS_START */ , 'wheel-zoom', e /* BOARDFISH_DEV_DIAGNOSTICS_END */ );
       if (collectDebug) {
         const { panXBefore, panYBefore, zoomBefore } = beforeMeta;
-        const handlerMs = canvasInputDebugRound(canvasInputNow() - handlerStart);
+        const handlerMs = canvasInputDebugRound(performance.now() - handlerStart);
         const zoomDeltaPct = zoomBefore ? ((zoom / zoomBefore) - 1) * 100 : 0;
         const panDeltaX = panX - panXBefore;
         const panDeltaY = panY - panYBefore;
@@ -222,7 +217,7 @@ function handleViewportWheel(e) {
     if (collectDebug) {
       const { panXBefore, panYBefore, zoomBefore } = beforeMeta;
       const appliedPanX = -e.deltaX, appliedPanY = -e.deltaY;
-      const handlerMs = canvasInputDebugRound(canvasInputNow() - handlerStart);
+      const handlerMs = canvasInputDebugRound(performance.now() - handlerStart);
       const panDeltaX = panX - panXBefore;
       const panDeltaY = panY - panYBefore;
       ViewportDebug.recordPanZoom?.('wheel-pan', {
@@ -259,7 +254,7 @@ function handleViewportWheel(e) {
     }
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   } finally {
-    if (collectDebug) ViewportDebug.timing('wheelHandler', canvasInputNow() - handlerStart);
+    if (collectDebug) ViewportDebug.timing('wheelHandler', performance.now() - handlerStart);
   }
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 }
@@ -270,9 +265,7 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 
 // ─── Pan (spacebar + left click) ─────────────────────────────────────────────
 var _spaceDown = false,
-  _rubberBandSelectionCleanup = null,
-  hideRubberBandSelectionVisual = null,
-  cancelRubberBandSelection = null;
+  _rubberBandSelectionCleanup = null;
 
 BoardfishView.addDocumentListener('keyup', (e) => {
   if (e.code !== 'Space') return;
@@ -307,7 +300,7 @@ function startMousePan(e) {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
   const startPanX = panX, startPanY = panY;
   const startZoom = zoom;
-  const panStartedAt = collectPanDebug ? canvasInputNow() : 0;
+  const panStartedAt = collectPanDebug ? performance.now() : 0;
   let moveCount = 0;
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   let lastClientX = startX;
@@ -329,7 +322,7 @@ function startMousePan(e) {
   function onMove(ev) {
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     const collectDebug = ViewportDebug.isEnabled();
-    const handlerStart = collectDebug ? canvasInputNow() : 0;
+    const handlerStart = collectDebug ? performance.now() : 0;
     try {
       const panXBefore = panX;
       const panYBefore = panY;
@@ -343,7 +336,7 @@ function startMousePan(e) {
       if (collectDebug) {
         const panDeltaX = panX - panXBefore;
         const panDeltaY = panY - panYBefore;
-        const handlerMs = canvasInputDebugRound(canvasInputNow() - handlerStart);
+        const handlerMs = canvasInputDebugRound(performance.now() - handlerStart);
         moveCount++;
         ViewportDebug.recordPanZoom?.('mouse-pan-move', {
           mode: 'pan',
@@ -375,7 +368,7 @@ function startMousePan(e) {
       lastClientY = ev.clientY;
     /* BOARDFISH_DEV_DIAGNOSTICS_START */
     } finally {
-      if (collectDebug) ViewportDebug.timing('mousePanHandler', canvasInputNow() - handlerStart);
+      if (collectDebug) ViewportDebug.timing('mousePanHandler', performance.now() - handlerStart);
     }
     /* BOARDFISH_DEV_DIAGNOSTICS_END */
   }
@@ -403,7 +396,7 @@ function startMousePan(e) {
         panDeltaY,
         panDistancePx,
         moveCount,
-        durationMs: canvasInputNow() - panStartedAt,
+        durationMs: performance.now() - panStartedAt,
         cancelled: !!ev?.__boardfishDragCancel,
       }, ev);
       ViewportDebug.end(panDbg, {
@@ -465,12 +458,12 @@ function startSelectedRegionDrag(e) {
   return createSelectionDragSession(e.clientX, e.clientY);
 }
 
-hideRubberBandSelectionVisual = () => {
+var hideRubberBandSelectionVisual = () => {
   finishRubberBandDrag();
   rubberBand.style.display = 'none';
 };
 
-cancelRubberBandSelection = (reason = 'cancel') => {
+var cancelRubberBandSelection = (reason = 'cancel') => {
   if (!_rubberBandDragActive) return false;
   const cancelEvent = { __boardfishRubberBandCancel: true, reason };
   if (_rubberBandSelectionCleanup) _rubberBandSelectionCleanup(cancelEvent);
@@ -541,18 +534,18 @@ function textCaretHitAtWorldPoint(obj, point, preferFull = false
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 ) {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const layoutStart = canvasInputNow();
+  const layoutStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const visible = preferFull && obj._layoutCache
     ? getTextLayout(obj)
     : getTextLayoutForViewport(obj, { y1: point.y, y2: point.y });
   const layout = visible.length ? visible : getTextLayout(obj);
-  TextSelDebug._logLayout?.(source + '-layout', obj, layout, canvasInputNow() - layoutStart);
+  TextSelDebug._logLayout?.(source + '-layout', obj, layout, performance.now() - layoutStart);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const hitStart = canvasInputNow();
+  const hitStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const hit = layoutHitTestCaret(layout, point.x, point.y, obj);
-  TextSelDebug._logHitTiming?.(source + '-hit', obj, hit, canvasInputNow() - hitStart, { wx: point.x, wy: point.y });
+  TextSelDebug._logHitTiming?.(source + '-hit', obj, hit, performance.now() - hitStart, { wx: point.x, wy: point.y });
   return hit;
 }
 
@@ -625,10 +618,10 @@ function startObjectDrag(e, obj) {
       if (!isSelected(obj.id)) selectObject(obj.id);
       if (canClickToEditText) {
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const clickEditStart = canvasInputNow();
+        const clickEditStart = performance.now();
         let clickEditStepStart = clickEditStart;
         const logClickEditStep = (label, meta = {}) => {
-          const t = canvasInputNow();
+          const t = performance.now();
           canvasInputTextDebugLog(label, obj, {
             phase: 'click-to-edit',
             clientX: ev?.clientX ?? '',
@@ -650,23 +643,23 @@ function startObjectDrag(e, obj) {
           previousEditingId: editingId || '',
         });
         /* BOARDFISH_DEV_DIAGNOSTICS_START */
-        const enterEditStart = canvasInputNow();
+        const enterEditStart = performance.now();
         /* BOARDFISH_DEV_DIAGNOSTICS_END */
         enterEdit(obj.id, { placeInitialCaret: false });
         logClickEditStep('click-to-edit-enter-edit', {
-          enterEditMs: canvasInputDebugRound(canvasInputNow() - enterEditStart),
+          enterEditMs: canvasInputDebugRound(performance.now() - enterEditStart),
           hasEditProxy: !!_editEl,
           editingId: editingId || '',
         });
         if (_editEl && ev) {
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          const worldStart = canvasInputNow();
+          const worldStart = performance.now();
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           const upPoint = toWorld(ev.clientX, ev.clientY);
           logClickEditStep('click-to-edit-world-point', {
             wx: upPoint.x,
             wy: upPoint.y,
-            worldPointMs: canvasInputDebugRound(canvasInputNow() - worldStart),
+            worldPointMs: canvasInputDebugRound(performance.now() - worldStart),
           });
           const clickHit = textCaretHitAtWorldPoint(obj, upPoint, false
             /* BOARDFISH_DEV_DIAGNOSTICS_START */
@@ -674,11 +667,11 @@ function startObjectDrag(e, obj) {
             /* BOARDFISH_DEV_DIAGNOSTICS_END */
           );
           /* BOARDFISH_DEV_DIAGNOSTICS_START */
-          const caretStart = canvasInputNow();
+          const caretStart = performance.now();
           /* BOARDFISH_DEV_DIAGNOSTICS_END */
           applyTextEditCaretHit(obj, _editEl, clickHit);
           logClickEditStep('click-to-edit-caret-applied', {
-            caretApplyMs: canvasInputDebugRound(canvasInputNow() - caretStart),
+            caretApplyMs: canvasInputDebugRound(performance.now() - caretStart),
             selectionStart: _editEl.selectionStart ?? '',
             selectionEnd: _editEl.selectionEnd ?? '',
             selectionDirection: _editEl.selectionDirection || 'none',
@@ -715,7 +708,7 @@ function startObjectDrag(e, obj) {
         logClickEditStep('click-to-edit-end', {
           hasEditProxy: !!_editEl,
           editingId: editingId || '',
-          clickToEditTotalMs: canvasInputDebugRound(canvasInputNow() - clickEditStart),
+          clickToEditTotalMs: canvasInputDebugRound(performance.now() - clickEditStart),
         });
       }
     }
@@ -725,7 +718,7 @@ function startObjectDrag(e, obj) {
 
 canvas.addEventListener('mousedown', (e) => {
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const mouseDownStart = canvasInputNow();
+  const mouseDownStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   // Spacebar pan
   if (e.button === 0 && _spaceDown) {
@@ -740,22 +733,22 @@ canvas.addEventListener('mousedown', (e) => {
 
   e.preventDefault();
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const worldStart = canvasInputNow();
+  const worldStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const wp = toWorld(e.clientX, e.clientY);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const worldPointMs = canvasInputDebugRound(canvasInputNow() - worldStart);
+  const worldPointMs = canvasInputDebugRound(performance.now() - worldStart);
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const additive = e.metaKey || e.ctrlKey;
   const canGroupDrag = isMultiSelected() && !additive;
   const groupDragFromBounds = canGroupDrag && rectContainsPoint(selectedBounds(), wp);
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const hitStart = canvasInputNow();
+  const hitStart = performance.now();
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
   const obj = groupDragFromBounds ? null : BoardObjectGeometry.topObjectAtWorldPoint(wp);
   const groupDrag = groupDragFromBounds || (canGroupDrag && isSelected(obj?.id));
   /* BOARDFISH_DEV_DIAGNOSTICS_START */
-  const hitTestMs = canvasInputDebugRound(canvasInputNow() - hitStart);
+  const hitTestMs = canvasInputDebugRound(performance.now() - hitStart);
   canvasInputTextDebugLog('canvas-mousedown-route', obj, {
     phase: 'canvas-mousedown',
     clientX: e.clientX,
@@ -773,8 +766,8 @@ canvas.addEventListener('mousedown', (e) => {
     hitObjectSelected: obj ? isSelected(obj.id) : '',
     selectedCount: selectedIds.size,
     editingId: editingId || '',
-    ms: canvasInputDebugRound(canvasInputNow() - mouseDownStart),
-    totalMs: canvasInputDebugRound(canvasInputNow() - mouseDownStart),
+    ms: canvasInputDebugRound(performance.now() - mouseDownStart),
+    totalMs: canvasInputDebugRound(performance.now() - mouseDownStart),
   });
   /* BOARDFISH_DEV_DIAGNOSTICS_END */
 

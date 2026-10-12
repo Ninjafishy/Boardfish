@@ -302,8 +302,7 @@ const TEXT_EDIT_INDENT = '\t';
 const textEditLineStartAt = (value, index) => {
   const text = String(value ?? '');
   const clamped = Math.max(0, Math.min(index ?? 0, text.length));
-  if (clamped <= 0) return 0;
-  return text.lastIndexOf('\n', clamped - 1) + 1;
+  return clamped <= 0 ? 0 : text.lastIndexOf('\n', clamped - 1) + 1;
 };
 
 const textEditLineIndentAt = (value, index) => {
@@ -453,8 +452,7 @@ const textEditBlankLineDeleteRange = (text = '', index, keyOrInputType = '') => 
   if (backward && pos > start) return { start: pos - 1, end: pos, insertedText: '' };
   if (!backward && end < text.length) return { start, end: end + 1, insertedText: '' };
   if (start > 0) return { start: start - 1, end, insertedText: '' };
-  if (end < text.length) return { start, end: end + 1, insertedText: '' };
-  return null;
+  return end < text.length ? { start, end: end + 1, insertedText: '' } : null;
 };
 
 const dispatchTextEditInputEvent = (proxy, inputType) => {
@@ -1301,7 +1299,7 @@ function enterEdit(id, {
 	    const oldValue = inputState.value ?? obj.data.content ?? '';
 	    let replacement = inputState.replacement || null;
 	    let synthesizedStaleReplacement = false;
-	    let nextRawValue = '';
+	    let nextRawValue;
 	    if (proxy._boardfishDomValueStale && !replacement) {
 	      replacement = textEditBeforeInputReplacement(oldValue, inputState, event);
 	      synthesizedStaleReplacement = !!replacement;

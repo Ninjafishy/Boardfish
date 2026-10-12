@@ -68,7 +68,6 @@ function loadSelectionInputHarness(objects, options = {}) {
     objCtxMenu: createElement('obj-ctx-menu'),
     textCtxMenu: createElement('text-ctx-menu'),
     ctxActions: createElement('ctx-actions'),
-    island: createElement('island'),
     unsavedDialog: createElement('dialog'),
     _boardOpening: false,
     _inputShieldStack: [],
@@ -101,8 +100,6 @@ function loadSelectionInputHarness(objects, options = {}) {
     hasSelection: () => selectedIds.size > 0,
     getFirstSelectedObject: () => objects[0] || null,
     isBoardInputBlocked: () => context._boardOpening || context._inputShieldStack.length > 0,
-    shouldKeepSelectionOverlayWhileBlocked: () => false,
-    acquireInputShield: () => () => {},
     bringObjectToFront() {},
     BoardfishEditorState: {
       clearSelection() {

@@ -75,16 +75,14 @@ var drawableBitmapWarmupWarmedByKind = {};
 function isViewportImageScalingActive() { return viewportImageScalingEnabled; }
 
 function isImageVariantDrawableSource(source) {
-  if (!source) return false;
-  return !!(source.complete && source.naturalWidth > 0) || !!(source.width > 0 && source.height > 0);
+  return source?.width > 0 && source.height > 0;
 }
 
 /* BOARDFISH_DEV_DIAGNOSTICS_START */
 function drawableBitmapWarmupKind(meta = {}) {
   const kind = String(meta.kind || '');
   if (kind === 'full-image') return 'fullImage';
-  if (kind === 'scaled-variant') return 'scaledVariant';
-  return 'other';
+  return kind === 'scaled-variant' ? 'scaledVariant' : 'other';
 }
 
 function countDrawableBitmapWarmupKind(target, meta = {}) {
@@ -94,8 +92,8 @@ function countDrawableBitmapWarmupKind(target, meta = {}) {
 /* BOARDFISH_DEV_DIAGNOSTICS_END */
 
 function drawableBitmapWarmupTargetSize(source, meta = {}) {
-  const sourceW = source?.width || source?.naturalWidth || 0;
-  const sourceH = source?.height || source?.naturalHeight || 0;
+  const sourceW = source?.width || 0;
+  const sourceH = source?.height || 0;
   if (!(sourceW > 0 && sourceH > 0)) return { sourceW, sourceH, width: 1, height: 1 };
   const maxEdge = meta.kind === 'scaled-variant' ? 512 : meta.kind === 'full-image' ? 256 : 1;
   const scale = Math.min(1, maxEdge / Math.max(sourceW, sourceH));
@@ -449,8 +447,8 @@ function scheduleScaledVariantQueue() {
 }
 
 function chooseImageScaleForDraw(obj, source, view = { zoom, dpr: boardWindow().devicePixelRatio || 1 }, activeOverscale = false) {
-  const sourceW = source?.width || source?.naturalWidth || 0;
-  const sourceH = source?.height || source?.naturalHeight || 0;
+  const sourceW = source?.width || 0;
+  const sourceH = source?.height || 0;
   if (!sourceW || !sourceH) return 1;
   const viewZoom = view.zoom;
   const dpr = view.dpr;
@@ -479,8 +477,8 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
       ? { key, scale, queued: false, skipped: 'pending', priorityBoosted }
       : false;
   }
-  const sourceW = source?.width || source?.naturalWidth || 0;
-  const sourceH = source?.height || source?.naturalHeight || 0;
+  const sourceW = source?.width || 0;
+  const sourceH = source?.height || 0;
   if (!sourceW || !sourceH) {
     return typeof BOARDFISH_PRODUCTION === 'undefined'
       ? { key, scale, queued: false, skipped: 'missing-size' }
@@ -618,8 +616,7 @@ function isScaledImageVariantPending(key, scale) {
 }
 
 function activeViewportInputIdleMs() {
-  if (!(lastViewportInputAt > 0)) return Infinity;
-  return Math.max(0, performance.now() - lastViewportInputAt);
+  return !(lastViewportInputAt > 0) ? Infinity : Math.max(0, performance.now() - lastViewportInputAt);
 }
 
 function isActiveViewportInput() {

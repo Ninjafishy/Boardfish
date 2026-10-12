@@ -50,7 +50,6 @@ function loadKeyboard(overrides = {}) {
     saveBoard: () => calls.push(['saveBoard']),
     pasteAtPos: (x, y) => calls.push(['pasteAtPos', x, y]),
     enterEdit: (id, options = {}) => calls.push(['enterEdit', id, options]),
-    hasSelection: () => false,
     rotateSelectedImages: () => calls.push(['rotateSelectedImages']),
     flipSelectedImages: () => calls.push(['flipSelectedImages']),
     runAddImagesCommandFromShortcut: () => calls.push(['runAddImagesCommandFromShortcut']),

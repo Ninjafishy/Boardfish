@@ -260,8 +260,7 @@
     const pointed = typeof boardDocument().elementFromPoint === 'function'
       ? boardDocument().elementFromPoint(point.x, point.y)
       : null;
-    if (pointed?.dispatchEvent && canvas.contains(pointed)) return pointed;
-    return boardCanvas || canvas;
+    return pointed?.dispatchEvent && canvas.contains(pointed) ? pointed : boardCanvas || canvas;
   }
 
   function makeTouchMouseEvent(type, point, button, buttons) {

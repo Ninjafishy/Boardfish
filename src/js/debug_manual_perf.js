@@ -65,8 +65,7 @@ var ManualPerfDebug = (() => {
 
   function clampInteger(value, fallback, min, max) {
     const number = Math.trunc(Number(value));
-    if (!Number.isFinite(number)) return fallback;
-    return Math.max(min, Math.min(max, number));
+    return !Number.isFinite(number) ? fallback : Math.max(min, Math.min(max, number));
   }
 
   function mb(bytes) {
@@ -88,8 +87,7 @@ var ManualPerfDebug = (() => {
   function sourceKind(source) {
     if (typeof source === 'string') return source.startsWith('data:') ? 'data-url' : 'string';
     if (typeof isWebImageRef === 'function' && isWebImageRef(source)) return 'web-ref';
-    if (source && typeof source === 'object') return 'object-ref';
-    return 'missing';
+    return source && typeof source === 'object' ? 'object-ref' : 'missing';
   }
 
   function sourceApproxBytes(source) {
@@ -246,8 +244,7 @@ var ManualPerfDebug = (() => {
       viewportScaleCacheMB: mem.viewportScaleCacheMB,
       jsHeapUsedMB: mem.jsHeapUsedMB,
       panZoomEvents: panZoom.events ?? '',
-      panEvents: panZoom.panEvents ?? '',
-      zoomEvents: panZoom.zoomEvents ?? '',
+      ...debugPick(panZoom, 'panEvents zoomEvents'),
       viewportFrames: viewport.frameSummary?.frames ?? '',
       viewportSlowFrames: viewport.frameSummary?.slowFramesOver16ms ?? '',
       viewportMaxFrameMs: viewport.frameSummary?.maxFrameMs ?? '',
@@ -481,21 +478,14 @@ var ManualPerfDebug = (() => {
     const panZoom = viewportReport.panZoomSummary || {};
     return {
       panZoomEvents: panZoom.events ?? '',
-      panEvents: panZoom.panEvents ?? '',
-      zoomEvents: panZoom.zoomEvents ?? '',
-      blockedEvents: panZoom.blockedEvents ?? '',
+      ...debugPick(panZoom, 'panEvents zoomEvents blockedEvents'),
       ...debugPick(frame, 'frames inputFrames transformFrames slowFramesOver16ms maxFrameMs avgInputAgeMs maxInputAgeMs maxQueueMs'),
       wheelEvents: wheel.bufferedWheelEvents ?? '',
       wheelPanEvents: wheel.panEvents ?? '',
       wheelZoomEvents: wheel.zoomEvents ?? '',
-      maxWheelGapMs: wheel.maxWheelGapMs ?? '',
-      avgZoomStepPct: wheel.avgZoomStepPct ?? '',
-      maxZoomStepPct: wheel.maxZoomStepPct ?? '',
-      maxPanDistancePx: panZoom.maxPanDistancePx ?? '',
-      maxZoomDeltaPct: panZoom.maxZoomDeltaPct ?? '',
-      avgDrawMs: draw.avgDrawMs ?? '',
-      maxDrawMs: draw.maxDrawMs ?? '',
-      maxObjectLoopMs: draw.maxObjectLoopMs ?? '',
+      ...debugPick(wheel, 'maxWheelGapMs avgZoomStepPct maxZoomStepPct'),
+      ...debugPick(panZoom, 'maxPanDistancePx maxZoomDeltaPct'),
+      ...debugPick(draw, 'avgDrawMs maxDrawMs maxObjectLoopMs'),
       avgTransformMs: transform.avgTotalMs ?? '',
       maxTransformMs: transform.maxTotalMs ?? '',
     };
@@ -894,8 +884,7 @@ var ManualPerfDebug = (() => {
     const commandModifier = event.ctrlKey !== event.metaKey && !event.altKey;
     if (commandModifier && !event.shiftKey && (key === 'z' || code === 'KeyZ')) return 'undo';
     if (commandModifier && event.shiftKey && (key === 'z' || code === 'KeyZ')) return 'redo';
-    if (commandModifier && !event.shiftKey && (key === 'y' || code === 'KeyY')) return 'redo';
-    return '';
+    return commandModifier && !event.shiftKey && (key === 'y' || code === 'KeyY') ? 'redo' : '';
   }
 
   function sanitizePerfMeta(value) {
@@ -921,8 +910,7 @@ var ManualPerfDebug = (() => {
       domValueLength: typeof domProxyValue === 'string' ? domProxyValue.length : '',
       domValueStale: !!_editEl?._boardfishDomValueStale,
       contentLength: typeof obj?.data?.content === 'string' ? obj.data.content.length : '',
-      selectionStart: _editEl?.selectionStart ?? '',
-      selectionEnd: _editEl?.selectionEnd ?? '',
+      ...debugPick(_editEl, 'selectionStart selectionEnd'),
       selectionDirection: _editEl?.selectionDirection || '',
       objectW: obj?.w ?? '',
       objectH: obj?.h ?? '',
@@ -1027,10 +1015,7 @@ var ManualPerfDebug = (() => {
       objectId: obj?.id || '',
       objectFound: !!obj,
       objectType: obj?.type || '',
-      x: obj?.x ?? '',
-      y: obj?.y ?? '',
-      w: obj?.w ?? '',
-      h: obj?.h ?? '',
+      ...debugPick(obj, 'x y w h'),
       contentChars: includeContent ? content.length : '',
       logicalLines: includeContent ? countTextLines(content) : '',
       layoutCachePresent: !!obj?._layoutCache,
@@ -1297,8 +1282,7 @@ var ManualPerfDebug = (() => {
       worstInputStep: input.worstStep?.step ?? '',
       maxTextareaMutationMs: input.maxTextareaMutationMs ?? '',
       ...debugPick(frame, 'frames slowFramesOver16ms maxFrameMs maxInputAgeMs'),
-      maxDrawMs: draw.maxDrawMs ?? '',
-      maxEditLayoutMs: draw.maxEditLayoutMs ?? '',
+      ...debugPick(draw, 'maxDrawMs maxEditLayoutMs'),
       historyMaxEnterEditMs: historySummary.maxEnterEditMs ?? '',
       historyMaxFocusMs: historySummary.maxFocusMs ?? '',
     };
@@ -1386,8 +1370,7 @@ var ManualPerfDebug = (() => {
     if (options.allInputs) return true;
     const value = String(inputType || '').toLowerCase();
     if (options.deleteInputs !== false && isDeleteLikeTextInput(value)) return true;
-    if (options.pasteInputs === true && value.includes('paste')) return true;
-    return false;
+    return options.pasteInputs === true && value.includes('paste');
   }
 
   function recordTextEditInputStep(step, meta = {}) {
@@ -1673,8 +1656,7 @@ var ManualPerfDebug = (() => {
       ...debugPick(eventSummary, 'wheel pointermove mousemove selectionchange'),
       maxEventGapMs: eventSummary.maxGapMs ?? '',
       gapsOver32ms: eventSummary.gapsOver32ms ?? '',
-      inputRuns: inputStepSummary.inputRuns ?? '',
-      deleteInputRuns: inputStepSummary.deleteInputRuns ?? '',
+      ...debugPick(inputStepSummary, 'inputRuns deleteInputRuns'),
       maxInputHandlerMs: inputStepSummary.maxInputTotalMs ?? '',
       maxInputStepMs: inputStepSummary.maxStepMs ?? '',
       worstInputStep: inputStepSummary.worstStep?.step ?? '',
@@ -2117,16 +2099,14 @@ var ManualPerfDebug = (() => {
     ) return 'edit-highlight';
     if (mode.includes('highlight')) return 'edit-highlight';
     if (mode.includes('edit') || mode.includes('edti')) return 'edit';
-    if (mode.includes('select')) return 'select';
-    return 'plain';
+    return mode.includes('select') ? 'select' : 'plain';
   }
 
   function largeTextPanningLabelForMode(mode) {
     if (mode === 'manual-sequence') return 'large-text-pan-manual-sequence';
     if (mode === 'select') return 'large-text-pan-select-mode';
     if (mode === 'edit') return 'large-text-pan-edit-mode';
-    if (mode === 'edit-highlight') return 'large-text-pan-edit-highlight';
-    return 'large-text-pan-plain';
+    return mode === 'edit-highlight' ? 'large-text-pan-edit-highlight' : 'large-text-pan-plain';
   }
 
   function largeTextPrimaryObject(options = {}) {
@@ -2219,10 +2199,7 @@ var ManualPerfDebug = (() => {
       wrappedLineIndexLines: obj?._textWrappedLineIndexCache?.lineCount ?? '',
       wrappedLineCountCachePresent: Number.isFinite(obj?._textWrappedLineCountCacheValue),
       paragraphPrefixCacheEntries: obj?._textParagraphPrefixCache?.size ?? '',
-      x: obj?.x ?? '',
-      y: obj?.y ?? '',
-      w: obj?.w ?? '',
-      h: obj?.h ?? '',
+      ...debugPick(obj, 'x y w h'),
       zoom: typeof zoom !== 'undefined' ? zoom : '',
       panX: typeof panX !== 'undefined' ? panX : '',
       panY: typeof panY !== 'undefined' ? panY : '',
@@ -2263,8 +2240,7 @@ var ManualPerfDebug = (() => {
       focusTextEditProxyNow(_editEl, obj, 'large-text-panning-focus', {
         phase: 'large-text-panning-state',
         highlight,
-        selectionStart: _editEl.selectionStart ?? '',
-        selectionEnd: _editEl.selectionEnd ?? '',
+        ...debugPick(_editEl, 'selectionStart selectionEnd'),
       });
     } else {
       _editEl.focus?.({ preventScroll: true });
@@ -2480,8 +2456,7 @@ var ManualPerfDebug = (() => {
     const prewarm = report.layoutPrewarm || {};
     return {
       mode: report.mode || '',
-      contentChars: report.startSnapshot?.contentChars ?? '',
-      logicalLines: report.startSnapshot?.logicalLines ?? '',
+      ...debugPick(report.startSnapshot, 'contentChars logicalLines'),
       selectedCharsStart: report.startSnapshot?.selectedChars ?? '',
       selectedCharsEnd: report.endSnapshot?.selectedChars ?? '',
       prewarmTextObjects: prewarm.warmedTextObjects ?? '',
@@ -2490,9 +2465,7 @@ var ManualPerfDebug = (() => {
       prewarmVisibleLines: prewarm.warmedVisibleLines ?? '',
       prewarmTotalLines: prewarm.warmedTotalLines ?? '',
       domEvents: eventSummary.events ?? '',
-      wheel: eventSummary.wheel ?? '',
-      pointermove: eventSummary.pointermove ?? '',
-      mousemove: eventSummary.mousemove ?? '',
+      ...debugPick(eventSummary, 'wheel pointermove mousemove'),
       maxDomEventGapMs: eventSummary.maxGapMs ?? '',
       domGapsOver32ms: eventSummary.gapsOver32ms ?? '',
       ...debugPick(frame, 'frames inputFrames slowFramesOver16ms maxFrameMs maxInputAgeMs maxQueueMs rawInputEvents'),

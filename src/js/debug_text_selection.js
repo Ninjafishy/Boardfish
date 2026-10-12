@@ -460,8 +460,7 @@ var TextSelDebug = (() => {
       ))
       .map(eventRow);
     const max = (field, predicate = null) => rows.reduce((value, row) => {
-      if (predicate && !predicate(row)) return value;
-      return Math.max(value, Number(row[field]) || 0);
+      return predicate && !predicate(row) ? value : Math.max(value, Number(row[field]) || 0);
     }, 0);
     const isEnter = (row) => String(row.label || '').startsWith('enter-');
     const isClickToEdit = (row) => String(row.label || '').startsWith('click-to-edit-');
@@ -702,9 +701,7 @@ var TextSelDebug = (() => {
     push({
       type: 'pointer',
       label,
-      clientX: event?.clientX ?? '',
-      clientY: event?.clientY ?? '',
-      buttons: event?.buttons ?? '',
+      ...debugPick(event, 'clientX clientY buttons'),
       ...extra,
     });
   }

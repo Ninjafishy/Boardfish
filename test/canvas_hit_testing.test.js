@@ -37,7 +37,6 @@ function loadCanvasWheelHarness() {
     classList: { add() {}, remove() {} },
   });
   const context = {
-    performance: { now: () => 100 },
     window: {
       addEventListener(type, handler, options) {
         listeners.window.push({ type, handler, options });
@@ -49,41 +48,24 @@ function loadCanvasWheelHarness() {
       },
     },
     canvas: makeTarget('canvas'),
-    boardCanvas: {},
-    objectsMap: new Map(),
-    selectedIds: new Set(),
     editingId: null,
     zoom: 1,
-    panX: 0,
-    panY: 0,
     _rubberBandDragActive: false,
     zoomCalls: [],
     transforms: [],
-    isEventInsideViewportWheelSurface: (e) => e.insideViewportWheelSurface === true,
     ViewportDebug: {
       isEnabled: () => false,
-      start: () => ({}),
       count() {},
-      end() {},
-      timing() {},
     },
     BoardfishViewportState: {
       zoomAroundClient(clientX, clientY, nextZoom) {
         context.zoom = nextZoom;
         context.zoomCalls.push({ clientX, clientY, nextZoom }); return true;
       },
-      panBy() { return true; },
     },
     scheduleTransform(changed, source, event) {
       context.transforms.push({ changed, source, event });
     },
-    createRafCommitter: () => ({ schedule() {}, flush() {} }),
-    beginDocumentDrag() {},
-    isMultiSelected: () => false,
-    BoardObjectGeometry: { topObjectAtWorldPoint: () => null },
-    toWorld: () => ({ x: 0, y: 0 }),
-    deselectAll() {},
-    BoardfishEditorState: { setSelection() {} },
   };
 
   vm.createContext(context);
@@ -147,7 +129,6 @@ function loadMenuCommandHarness() {
 
   const context = {
     calls: [],
-    console,
     MenuDebug: { log() {} },
     MENU_COMMANDS: {
       'btn-open': (event) => context.calls.push(event),
@@ -248,7 +229,6 @@ function loadTextEditPasteHarness({ htmlFixture } = {}) {
     replaceTextEditSelection(text, options) {
       calls.replacements.push({ text, options });
     },
-    MenuDebug: { log() {} },
   };
 
   if (htmlFixture) {
@@ -414,7 +394,7 @@ test('wheel zoom over visible floating UI uses the viewport wheel handler', () =
   assert.match(viewportSource, /lastViewportInputAt = now;\s*if \(changed === false && !editingId\) return;/);
   assert.doesNotMatch(inputSource, /const newZoom = Math\.min\(ZOOM_MAX/);
   assert.match(selectionSource, /boardDocument\(\)\.elementFromPoint\(x, y\)/);
-  assert.match(selectionSource, /if \(isInputEventNode\(e\.target\) && e\.target\.nodeType === 1\) return false;/);
+  assert.match(selectionSource, /if \(e\.target\.nodeType === 1\) return false;/);
   assert.match(selectionSource, /const isEventInsideViewportWheelSurface = \(e\) => \{[\s\S]*canvas\.contains\(e\.target\)[\s\S]*isEventInsideVisibleContextMenu\(e\) \|\| isEventInsideVisibleSurface\(e, island\);[\s\S]*\};/);
   assert.match(selectionSource, /const isEventInsideVisibleContextMenu = \(e\) => \{[\s\S]*isEventInsideVisibleSurface\(e, ctxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, objCtxMenu\)[\s\S]*isEventInsideVisibleSurface\(e, ctxActions\)[\s\S]*\};/);
   assert.match(styles, /#island \{[\s\S]*overscroll-behavior: none;[\s\S]*touch-action: none;/);
@@ -619,7 +599,6 @@ test('text edit caret stays inside content bounds at low zoom', () => {
   const context = {
     LINE_H: 24,
     TEXT_PAD: 16,
-    zoom: 1,
     lineCaretXAtOffset(line, obj, offset) {
       return obj.x + context.TEXT_PAD + offset * 10;
     },
@@ -709,7 +688,6 @@ test('overlapping text selection highlight runs share one path fill', () => {
   const drawCalls = [];
   const context = {
     TextSelDebug: { _logDraw() {} },
-    applyTextSelectionMotionTransform() {},
   };
   vm.createContext(context);
   vm.runInContext(

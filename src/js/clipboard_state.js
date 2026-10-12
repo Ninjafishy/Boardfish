@@ -2,7 +2,7 @@
 
 // Clipboard state for in-app object copy/paste plus browser clipboard tokens.
 var jsClipboard = null;
-var _jsClipboardSetAt = 0;
+var _jsClipboardSetAt;
 var _jsClipboardToken = 0;
 var _jsClipboardWebToken = '';
 var _jsClipboardWebTokenWritten = false;

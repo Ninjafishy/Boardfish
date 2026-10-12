@@ -249,8 +249,6 @@ const trimMapCache = (map, maxEntries) => {
   while (map.size > maxEntries) map.delete(map.keys().next().value);
 };
 
-const textLayoutDebugNow = () => performance.now();
-
 const textLayoutDebugRound = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
 const clearMeasuredTextWidthCache = () => {
@@ -578,7 +576,7 @@ function textWrappedLineIndexEntryForVisual(cache, visualLineIndex) {
 }
 
 function prewarmTextObjectLayoutRuntimeCaches(obj) {
-  const startedAt = textLayoutDebugNow();
+  const startedAt = performance.now();
   const content = obj.data?.content || '';
   const beforePrefixEntries = obj._textParagraphPrefixCache?.size || 0;
   const lineIndexCache = ensureCachedTextWrappedLineIndex(obj, content);
@@ -596,7 +594,7 @@ function prewarmTextObjectLayoutRuntimeCaches(obj) {
       processedLogicalLines: 0,
       prefixCacheEntriesAdded: 0,
       skipped: 'warm',
-      totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
+      totalMs: textLayoutDebugRound(performance.now() - startedAt),
     };
   }
   let processedLogicalLines = 0;
@@ -612,7 +610,7 @@ function prewarmTextObjectLayoutRuntimeCaches(obj) {
     logicalLineEntries: entries.length,
     processedLogicalLines,
     prefixCacheEntriesAdded: Math.max(0, afterPrefixEntries - beforePrefixEntries),
-    totalMs: textLayoutDebugRound(textLayoutDebugNow() - startedAt),
+    totalMs: textLayoutDebugRound(performance.now() - startedAt),
   };
 }
 
@@ -1210,8 +1208,7 @@ function getTextLayoutForViewport(obj, viewportRect) {
   const baseY = obj.y + TEXT_PAD;
   const first = Math.max(0, Math.ceil((viewportRect.y1 - baseY - LINE_H) / LINE_H));
   const last = Math.floor((viewportRect.y2 - baseY) / LINE_H);
-  if (last < first) return [];
-  return getTextLayoutForLineRange(obj, first, last);
+  return last < first ? [] : getTextLayoutForLineRange(obj, first, last);
 }
 
 function lineBaseX(obj) {

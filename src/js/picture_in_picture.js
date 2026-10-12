@@ -9,7 +9,7 @@ function trackPictureInPictureBounds(targetWindow, onResize) {
     dpr: targetWindow.devicePixelRatio,
   });
   let previous = readBounds();
-  let frame = null;
+  let frame;
   let stopped = false;
   const track = () => {
     if (stopped) return;
