@@ -40,13 +40,12 @@ const readWebClipboardTokenForPaste = async (clipboardData) => {
 };
 
 const trimPastedTextObjectContent = (obj) => {
-  if (obj?.type !== 'text') return false;
+  if (obj?.type !== 'text') return;
   const content = textForTextObjectPaste(obj.data?.content);
-  if (content === obj.data.content) return false;
+  if (content === obj.data.content) return;
   obj.data.content = content;
   clearTextObjectLayoutRuntime(obj);
   syncTextAutoHeight(obj);
-  return true;
 };
 
 const webSourceClipboardMime = (source) => {

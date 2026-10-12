@@ -198,7 +198,6 @@ function loadRubberBandHarness() {
     rubberBand: { style: {} },
     rubberBandCommits: [],
     cleaned: 0,
-    deselected: 0,
     renders: [],
     selections: [],
     beginRubberBandDrag() {
@@ -215,7 +214,6 @@ function loadRubberBandHarness() {
       };
     },
     deselectAll() {
-      context.deselected += 1;
       selectedIds.clear();
     },
     objectIntersectsRect() { return true; },

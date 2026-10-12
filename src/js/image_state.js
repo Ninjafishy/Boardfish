@@ -111,11 +111,10 @@ const createImageBitmapForSource = async (source) => {
 };
 
 const addImageRuntimeObjectKeysToSet = (keys, value) => {
-  if (!value || typeof value !== 'object') return keys;
+  if (!value || typeof value !== 'object') return;
   for (const sourceKey in value) {
     if (Object.hasOwn(value, sourceKey)) keys.add(sourceKey);
   }
-  return keys;
 };
 
 const IMAGE_READY_RENDER_INTERVAL_MS = 120;

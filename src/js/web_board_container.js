@@ -640,8 +640,7 @@
     throw new Error(`Missing File Entry: ${path}`);
   }
 
-  function mimeForImageSource(source, manifest = {}) {
-    if (typeof manifest.mime === 'string' && manifest.mime) return manifest.mime;
+  function mimeForImageSource(source) {
     if (isWebImageRef(source) && source.mime) return source.mime;
     if (typeof source === 'string') return dataUrlParts(source).mime;
     return 'image/png';

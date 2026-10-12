@@ -442,16 +442,12 @@ function isActiveViewportInput() {
   return activeViewportInputIdleMs() < IMAGE_VARIANT_ACTIVE_INPUT_PRIORITY_MS;
 }
 
-function prewarmVisibleScaledImageVariants(options = {}) {
+function prewarmVisibleScaledImageVariants() {
   if (!viewportImageScalingEnabled || _boardOpening) {
     return;
   }
-  const scale = Number(options.scale) || IMAGE_SCALE;
-  if (scale !== IMAGE_SCALE) {
-    return;
-  }
-  const padPx = Number.isFinite(options.padPx) ? options.padPx : IMAGE_VARIANT_PREWARM_PAD_PX;
-  const rect = viewportWorldRect(padPx);
+  const scale = IMAGE_SCALE;
+  const rect = viewportWorldRect(IMAGE_VARIANT_PREWARM_PAD_PX);
 
   for (const obj of objects) {
     if (obj?.type !== 'image' || !obj.data?.imgKey || !objectIntersectsRect(obj, rect)) continue;

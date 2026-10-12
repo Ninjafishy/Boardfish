@@ -111,7 +111,6 @@
       progress?.({
         phase: 'prepare-progress',
         preparedCount: downloads.length,
-        totalCount: imageObjs.length,
       });
       if (i % 2 === 1 || i === imageObjs.length - 1) {
         await delay(0);
@@ -137,11 +136,11 @@
       filename = target?.filename || `images_${randomHex()}.zip`;
       mime = 'application/zip';
     }
-    progress?.({ phase: 'save-start', preparedCount: downloads.length, totalCount: imageObjs.length });
+    progress?.({ phase: 'save-start', preparedCount: downloads.length });
 
     await saveExportData(data, target, filename, mime);
 
-    progress?.({ phase: 'save-progress', preparedCount: downloads.length, finishedCount: downloads.length, totalCount: imageObjs.length });
+    progress?.({ phase: 'save-progress', preparedCount: downloads.length, finishedCount: downloads.length });
     return { downloadedCount: downloads.length };
   }
 
@@ -214,7 +213,6 @@
         progress?.({
           phase: 'prepare-progress',
           preparedCount: i + 1,
-          totalCount: imageObjs.length,
         });
         continue;
       }
@@ -222,7 +220,6 @@
       progress?.({
         phase: 'prepare-progress',
         preparedCount: i + 1,
-        totalCount: imageObjs.length,
       });
 
       try {
@@ -234,7 +231,6 @@
         phase: 'save-progress',
         preparedCount: i + 1,
         finishedCount: i + 1,
-        totalCount: imageObjs.length,
       });
       if (i % 2 === 1 || i === imageObjs.length - 1) {
         await delay(0);

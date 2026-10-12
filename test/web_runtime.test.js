@@ -13,7 +13,6 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
   const rootListeners = new Map();
   const inputListeners = new Map();
   const calls = {
-    appended: 0,
     clicked: 0,
     removed: 0,
   };
@@ -42,10 +41,9 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
   };
   const context = {
     Promise,
-    performance: { now: () => 0 },
-    setTimeout(callback, delay = 0) {
+    setTimeout(callback) {
       const id = timers.length + 1;
-      timers.push({ callback, delay, active: true });
+      timers.push({ callback, active: true });
       return id;
     },
     clearTimeout(id) {
@@ -63,9 +61,7 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
         return input;
       },
       body: {
-        appendChild() {
-          calls.appended++;
-        },
+        appendChild() {},
       },
     },
     URL: {
@@ -78,7 +74,6 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
   return {
     calls,
     context,
-    input,
     rootListeners,
     runTimers() {
       for (const timer of [...timers]) {
@@ -114,8 +109,6 @@ test('web board open defers image byte extraction during container read', async 
           objects: [],
           imageStore: {},
         },
-
-        imageEntries: [],
       };
     },
   };

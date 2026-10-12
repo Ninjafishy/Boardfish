@@ -28,7 +28,7 @@ function loadLiveTextEditResizeHarness() {
     z: 1,
     data: { content: 'example text' },
   };
-  const makeProxy = (context) => ({
+  const makeProxy = () => ({
     id: '',
     style: {},
     value: '',
@@ -43,8 +43,8 @@ function loadLiveTextEditResizeHarness() {
       this.listeners[event.type]?.(event);
       return true;
     },
-    focus() { context.focusedProxy = true; },
-    remove() { context.removedProxy = true; },
+    focus() {},
+    remove() {},
     setSelectionRange(start, end, direction = 'none') {
       const max = String(this.value ?? '').length;
       const normalizedStart = Math.max(0, Math.min(Math.trunc(Number(start)) || 0, max));
@@ -64,7 +64,6 @@ function loadLiveTextEditResizeHarness() {
     },
   });
   const context = {
-    performance,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],
     obj,
@@ -87,7 +86,6 @@ function loadLiveTextEditResizeHarness() {
     histories: [],
     renders: [],
     animations: [],
-    flushes: 0,
 
     document: {
       activeElement: null,
@@ -110,7 +108,7 @@ function loadLiveTextEditResizeHarness() {
             },
           };
         }
-        const proxy = makeProxy(context);
+        const proxy = makeProxy();
         context.proxy = proxy;
         return proxy;
       },
@@ -132,7 +130,7 @@ function loadLiveTextEditResizeHarness() {
     beginTextEditHistoryAction() {},
     shouldCommitTextEditInputImmediately() { return false; },
     recordTextEditInputHistory() {},
-    flushEditHistoryCheckpoint() { context.flushes++; return false; },
+    flushEditHistoryCheckpoint() { return false; },
     markDirty(obj) { context.dirty.push(obj.id); },
     pushHistory(reason, dirty) { if (dirty) context.dirty.push(...dirty); context.histories.push(reason); },
     pushEditHistoryIfChanged() { return false; },

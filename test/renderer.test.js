@@ -135,8 +135,6 @@ test('image renderer crops untransformed images to the visible viewport', () => 
   });
 
   renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
-  drawImageCalls.length = 0;
-  renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
 
   assert.deepEqual(drawImageCalls, [[
     source,
@@ -150,13 +148,6 @@ test('image renderer crops untransformed images to the visible viewport', () => 
     20,
   ]]);
 
-  drawImageCalls.length = 0;
-
-  renderer.drawVisibleObjects(context, { x1: 0, y1: 25, x2: 60, y2: 45 });
-
-  renderer.drawVisibleObjects({
-    drawImage() {},
-  }, { x1: 0, y1: 25, x2: 60, y2: 45 });
 });
 
 test('image renderer overdraws image edges by one device pixel at the current view scale', () => {
@@ -182,8 +173,8 @@ test('image renderer overdraws image edges by one device pixel at the current vi
   assert.deepEqual(drawImageCalls, [[source, 9.75, 19.75, 40.5, 30.5]]);
 });
 
-test('image draws never toggle smoothing for motion or fallback', () => {
-  for (const mode of ['idle', 'motion', 'fallback']) {
+test('image draws never toggle smoothing for idle or motion', () => {
+  for (const mode of ['idle', 'motion']) {
     const api = loadRenderer({});
     const source = { width: 200, height: 100 };
     const obj = { type: 'image', x: 0, y: 0, w: 100, h: 50, data: { imgKey: 'img' } };
@@ -294,7 +285,7 @@ test('viewport navigation keeps culling and uses the canonical image draw path',
     panX: () => 0,
     panY: () => 0,
     selectImageSourceForDraw(key, selectedObj, fullSource, view, activeInput) {
-      selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
+      selectCalls.push({ view, activeInput });
       return source;
     },
     zoom: () => 1,
@@ -320,11 +311,9 @@ test('animated image motion keeps smoothing and prioritizes variant selection', 
       drawSmoothingEnabled.push(this.imageSmoothingEnabled);
       drawQualities.push(this.imageSmoothingQuality);
     },
-    globalAlpha: 1,
     save() { this.savedSmoothing = this.imageSmoothingEnabled; },
     restore() { this.imageSmoothingEnabled = this.savedSmoothing; },
     translate() {},
-    scale() {},
   };
   const source = {
     complete: true,
@@ -345,7 +334,7 @@ test('animated image motion keeps smoothing and prioritizes variant selection', 
     panX: () => 0,
     panY: () => 0,
     selectImageSourceForDraw(key, selectedObj, fullSource, view, activeInput) {
-      selectCalls.push({ key, selectedObj, fullSource, view, activeInput });
+      selectCalls.push({ activeInput });
       return source;
     },
     zoom: () => 1,
@@ -380,7 +369,6 @@ test('animated image motion draws an image that jiggles into the viewport', () =
     data: { imgKey: 'img-1' },
   };
   const context = {
-    globalAlpha: 1,
     imageSmoothingEnabled: true,
     drawImage(...args) {
       drawImageCalls.push(args);
@@ -419,7 +407,6 @@ test('animated image cropping inverse-maps translation and non-uniform scale', (
     data: { imgKey: 'img-1' },
   };
   const context = {
-    globalAlpha: 1,
     imageSmoothingEnabled: true,
     drawImage(...args) {
       drawImageCalls.push(args);
@@ -669,12 +656,10 @@ test('animated text keeps direct text rendering', () => {
   const drawnLines = [];
   const context = {
     fillStyle: '',
-    globalAlpha: 1,
     save() {},
     restore() {},
     textBaseline: '',
     translate() {},
-    scale() {},
   };
   const text = { id: 'text-1', type: 'text', x: 10, y: 20, w: 200, h: 80, data: { content: 'moving' } };
 
@@ -720,11 +705,9 @@ test('animated text draws source lines that jiggle down into the viewport', () =
   };
   const context = {
     fillStyle: '',
-    globalAlpha: 1,
     save() {},
     restore() {},
     translate() {},
-    scale() {},
   };
   const renderer = BoardfishRenderer.createBoardRenderer({
     canvasTextColor: () => '#fff',
@@ -755,7 +738,6 @@ test('renderer applies object motion translation and non-uniform scaling around 
   const BoardfishRenderer = loadRenderer();
   const calls = [];
   const context = {
-    globalAlpha: 1,
     save() { calls.push(['save']); },
     restore() { calls.push(['restore']); },
     transform(...args) { calls.push(['transform', ...args]); },
@@ -789,7 +771,6 @@ test('renderer applies motion scaling around the requested fractional object ori
   const BoardfishRenderer = loadRenderer();
   const calls = [];
   const context = {
-    globalAlpha: 1,
     save() { calls.push(['save']); },
     restore() { calls.push(['restore']); },
     transform(...args) { calls.push(['transform', ...args]); },

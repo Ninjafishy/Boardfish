@@ -60,7 +60,6 @@ function loadClipboardExportHarness(options = {}) {
   };
   const selectedObject = options.selectedObject || options.selectedObjects?.[0] || textObject;
   const selectedObjects = options.selectedObjects || [selectedObject];
-  let nowMs = 0;
   const calls = {
     canvasToPngBlob: 0,
     copiedImages: [],
@@ -115,12 +114,6 @@ function loadClipboardExportHarness(options = {}) {
     document: {
       addEventListener() {},
       visibilityState: 'visible',
-    },
-    performance: {
-      now() {
-        nowMs += 1;
-        return nowMs;
-      },
     },
     editingId: null,
     objects: [],
@@ -242,7 +235,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
       addEventListener() {},
       visibilityState: 'visible',
     },
-    performance: { now: () => 0 },
     calls,
     objects: [],
     jsClipboard: {
@@ -342,7 +334,6 @@ function loadTextEditCopyHarness(value, options = {}) {
     focus() {},
   };
   const context = {
-    performance,
     editingId: 'text-1',
     _editEl: editProxy,
     objectsMap: new Map([['text-1', { id: 'text-1', type: 'text', data: { content: value } }]]),

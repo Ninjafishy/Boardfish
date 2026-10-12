@@ -18,7 +18,6 @@ function loadTextLayout({
   const measured = [];
   const segmented = [];
   const context = {
-    performance,
     document: {
       fonts: {
         status: fontStatus,

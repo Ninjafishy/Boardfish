@@ -28,7 +28,6 @@ function loadTextEditorHelpers() {
 
 function loadTextEditorIntegrationHelpers() {
   const context = {
-    performance,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     document: {
       createElement() { return { getContext: createUnitTextContext }; },
@@ -43,7 +42,7 @@ function loadTextEditorIntegrationHelpers() {
       applyCopyFeedback(payload) { context.animations.push(payload); },
     },
     shouldCommitTextEditInputImmediately() { return false; },
-    flushEditHistoryCheckpoint() { context.flushedHistory = true; return false; },
+    flushEditHistoryCheckpoint() { return false; },
     invalidateOffscreen() {},
     markDirty(obj) { context.dirty.push(obj.id); },
     pushHistory(reason) { context.histories.push(reason); },
@@ -127,13 +126,12 @@ function loadExitEditHarness() {
     _editStartContent: '',
   };
   const context = {
-    performance,
     BoardfishWebLimits: { canReplaceText() { return true; } },
     objects: [obj],
     obj,
     objectsMap: new Map([[obj.id, obj]]),
     editingId: obj.id,
-    _editEl: { value: '', remove() { context.removedProxy = true; } },
+    _editEl: { value: '', remove() {} },
     _caretBlinkInterval: 7,
     _selChangeListener: null,
     _editHistoryTimer: null,
@@ -145,7 +143,6 @@ function loadExitEditHarness() {
     editHistoryPushes: [],
     animations: [],
     renders: [],
-    clearedIntervals: [],
     clearedTimeouts: [],
     document: {
       createElement() {
@@ -169,7 +166,7 @@ function loadExitEditHarness() {
     },
     window: {
       getSelection() {
-        return { removeAllRanges() { context.removedRanges = true; } };
+        return { removeAllRanges() {} };
       },
     },
     BoardfishMotion: {
@@ -178,13 +175,13 @@ function loadExitEditHarness() {
     BoardfishEditorState: {
       removeObjectsById() {},
     },
-    clearInterval(id) { context.clearedIntervals.push(id); },
+    clearInterval() {},
     clearTimeout(id) { context.clearedTimeouts.push(id); },
     markDirty(obj) { context.dirty.push(obj.id); },
     pushEditHistoryIfChanged(id) { context.editHistoryPushes.push(id); return false; },
     pushHistory(reason) { context.histories.push(reason); },
     scheduleRender(board, overlay) { context.renders.push({ board, overlay }); },
-    invalidateOffscreen() { context.invalidated = true; },
+    invalidateOffscreen() {},
   };
   vm.createContext(context);
   vm.runInContext(

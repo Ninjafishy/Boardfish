@@ -16,7 +16,6 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
   const source = readSource('src/js/object_commands.js');
   let idCounter = 1;
   const context = {
-    performance,
     document: {
       createElement() { return { getContext: createUnitTextContext }; },
     },
@@ -88,7 +87,6 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
   const source = readSource('src/js/clipboard_export_init.js');
   const calls = { addText: [] };
   const context = {
-    performance,
     Promise,
     calls,
     document: {

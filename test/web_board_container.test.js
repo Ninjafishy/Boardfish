@@ -607,10 +607,6 @@ test('image CRC mismatches preserve recoverable image bytes', async () => {
   const result = await WebContainer.readBoardContainer(new Blob([corrupt]));
 
   assert.equal(WebContainer.bytesForImageSource(result.board.imageStore['img-1'])[0], 254);
-
-  const unchecked = await WebContainer.readBoardContainer(new Blob([corrupt]), {});
-
-  assert.equal(WebContainer.bytesForImageSource(unchecked.board.imageStore['img-1'])[0], 254);
 });
 
 test('lazy image refs preserve recoverable image bytes', async () => {

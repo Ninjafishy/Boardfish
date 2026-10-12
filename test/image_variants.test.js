@@ -71,7 +71,6 @@ function installManualTimers(context) {
     if (timer) timer.cleared = true;
   };
   return {
-    timers,
     pending() {
       return timers.filter((timer) => !timer.cleared && !timer.fired);
     },

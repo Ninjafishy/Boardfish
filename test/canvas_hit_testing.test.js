@@ -36,7 +36,6 @@ function loadCanvasWheelHarness() {
     classList: { add() {}, remove() {} },
   });
   const context = {
-    performance: { now: () => 100 },
     window: {
       addEventListener(type, handler, options) {
         listeners.window.push({ type, handler, options });
@@ -159,7 +158,6 @@ function loadTextEditMenuHarness() {
 
   const calls = {
     clipboardReads: 0,
-    focuses: 0,
     opens: [],
   };
   const context = {
@@ -180,9 +178,7 @@ function loadTextEditMenuHarness() {
     getTextEditSelectionState() {
       return { hasSelection: false };
     },
-    focusTextEditProxy() {
-      calls.focuses++;
-    },
+    focusTextEditProxy() {},
     openExclusiveMenuAt(...args) {
       calls.opens.push(args);
     },
