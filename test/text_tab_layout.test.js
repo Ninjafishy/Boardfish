@@ -1,6 +1,6 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript, plain } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
@@ -8,12 +8,7 @@ const { createUnitTextContext } = require('../test-support/text_editor.js');
 
 function loadTextLayout() {
   const context = {
-    navigator: { userAgent: 'Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36' },
     document: {
-      fonts: {
-        status: 'loaded',
-        check: () => true,
-      },
       createElement() {
         const canvasContext = createUnitTextContext();
         return { getContext: () => canvasContext };
@@ -24,15 +19,13 @@ function loadTextLayout() {
 
     scheduleRender() {},
   };
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     readSource('src/js/text_layout.js'),
     context,
     { filename: 'text_layout.js' },
   );
   vm.runInContext(
     `globalThis.__testTextLayout = {
-      drawTextLineRange,
       getPrefixWidths,
       getTextLayout,
       layoutHitTestCaret,
@@ -83,29 +76,6 @@ test('text caret hit at wrapped line start records the visual line', () => {
     obj,
   );
 
-  assert.deepEqual(JSON.parse(JSON.stringify(secondLineHit)), { index: 3, lineStartIndex: 3 });
-  assert.deepEqual(JSON.parse(JSON.stringify(firstLineEndHit)), { index: 3, lineStartIndex: 0 });
-});
-
-test('text tab drawing leaves tab glyphs invisible and positions later chunks at tab stops', () => {
-  const textLayout = loadTextLayout();
-  const calls = [];
-  const context = {
-    fillText(text, x, y) {
-      calls.push({ text, x, y });
-    },
-  };
-  const obj = { x: 10, y: 0 };
-  const line = {
-    text: 'a\tbc',
-    textY: 20,
-    prefixWidths: textLayout.getPrefixWidths('a\tbc'),
-  };
-
-  textLayout.drawTextLineRange(context, line, obj);
-
-  assert.deepEqual(calls, [
-    { text: 'a', x: obj.x + textLayout.textPad, y: 20 },
-    { text: 'bc', x: obj.x + textLayout.textPad + 8, y: 20 },
-  ]);
+  assert.deepEqual(plain(secondLineHit), { index: 3, lineStartIndex: 3 });
+  assert.deepEqual(plain(firstLineEndHit), { index: 3, lineStartIndex: 0 });
 });

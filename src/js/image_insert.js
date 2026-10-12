@@ -20,12 +20,8 @@ function finishBulkImageInsert() {
   }
 }
 
-const webImageExtForFile = (file) => (
-  file?.type === 'image/jpeg' ? 'jpg' : 'png'
-);
-
 const createWebImageSourceFromBlob = async (file, imgKey) => {
-  const ext = webImageExtForFile(file);
+  const ext = file?.type === 'image/jpeg' ? 'jpg' : 'png';
   const mime = file.type;
   return BoardfishWebBoardContainer.createWebImageRef({
     path: `images/${imgKey}.${ext}`,
@@ -46,9 +42,7 @@ const rollbackImageInsertSource = (imgKey, source, hadPreviousSource = false, pr
       removeImageRuntimeCachesForKey(imgKey);
       delete imageStore[imgKey];
     }
-    return true;
   }
-  return false;
 };
 
 const createImageInsertSourceRollback = (imgKey, source) => {
@@ -56,9 +50,9 @@ const createImageInsertSourceRollback = (imgKey, source) => {
   const previousSource = hadPreviousSource ? imageStore[imgKey] : undefined;
   let rolledBack = false;
   return () => {
-    if (rolledBack) return false;
+    if (rolledBack) return;
     rolledBack = true;
-    return rollbackImageInsertSource(imgKey, source, hadPreviousSource, previousSource);
+    rollbackImageInsertSource(imgKey, source, hadPreviousSource, previousSource);
   };
 };
 
@@ -138,10 +132,7 @@ async function insertImageFiles(files, x, y) {
     }
     supportedFiles.push(file);
   }
-  if (!supportedFiles.length) {
-    return;
-  }
-  if (!BoardfishWebLimits.canAddObjects(supportedFiles.length)) {
+  if (!supportedFiles.length || !BoardfishWebLimits.canAddObjects(supportedFiles.length)) {
     return;
   }
   const limitOptions = { notifyUser: false, baseBytes: BoardfishWebLimits.currentContentBytes() };

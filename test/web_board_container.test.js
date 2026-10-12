@@ -149,17 +149,7 @@ function createDeflatedZipWithAdvertisedSize(name, data, advertisedSize) {
 }
 
 test('writes and reads Boardfish .bf containers in browser format', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    viewport: { panX: 1, panY: 2, zoom: 1 },
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard({ panX: 1, panY: 2, zoom: 1 });
   const imageStore = {
     'img-1': 'data:image/png;base64,AQIDBA==',
   };
@@ -326,17 +316,7 @@ test('oversized board JSON is rejected before any image Blob is read', async () 
 });
 
 test('reads Boardfish containers with lazy image refs for fast web opens', async () => {
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    viewport: { panX: 1, panY: 2, zoom: 1 },
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard({ panX: 1, panY: 2, zoom: 1 });
   const imageStore = {
     'img-1': 'data:image/png;base64,AQIDBA==',
   };
@@ -359,17 +339,7 @@ test('reads Boardfish containers with lazy image refs for fast web opens', async
 test('Blob lazy opens use range reads and preserve exact image bytes on re-save', async () => {
   const imageBytes = new Uint8Array(192 * 1024);
   for (let i = 0; i < imageBytes.length; i++) imageBytes[i] = i % 251;
-  const board = {
-    version: 3,
-    format: 'boardfish-container',
-    viewport: { panX: 0, panY: 0, zoom: 1 },
-    imageStore: {
-      'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
-    },
-    objects: [
-      { id: 'obj-1', type: 'image', x: 0, y: 0, w: 10, h: 10, z: 1, data: { imgKey: 'img-1' } },
-    ],
-  };
+  const board = singleImageBoard({ panX: 0, panY: 0, zoom: 1 });
   const payload = await WebContainer.createBoardContainerBlob(board, { 'img-1': imageBytes });
   const input = payload.blob;
   const originalSlice = input.slice.bind(input);

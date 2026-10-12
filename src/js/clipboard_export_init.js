@@ -5,7 +5,7 @@ const finishWebClipboardTokenWrite = (result, token) => {
 
 const writeWebClipboardTokenForJsClipboard = () => {
   if (globalThis.document?.visibilityState === 'hidden') {
-    return Promise.resolve({ boardfishTokenWritten: false });
+    return Promise.resolve();
   }
   const webToken = globalThis.getJsClipboardWebToken?.() || '';
   let clipboardWrite;
@@ -13,16 +13,13 @@ const writeWebClipboardTokenForJsClipboard = () => {
     // Start the protected browser write synchronously in the copy gesture.
     clipboardWrite = BoardfishClipboardIO.copyBoardfishTokenToClipboard(webToken);
   } catch {
-    return Promise.resolve({ boardfishTokenWritten: false });
+    return Promise.resolve();
   }
   return Promise.resolve(clipboardWrite)
     .then((result) => {
       finishWebClipboardTokenWrite(result, webToken);
-      return result;
     })
-    .catch(() => {
-      return { boardfishTokenWritten: false };
-    });
+    .catch(() => {});
 };
 
 const readWebClipboardTokenForPaste = async (clipboardData) => {
@@ -55,9 +52,11 @@ const webSourceClipboardMime = (source) => {
 };
 
 const createWebSourcePngClipboardBlob = (obj, source) => {
-  if (imageNeedsRendering(obj)) return null;
-  if (typeof Blob === 'undefined') return null;
-  if (webSourceClipboardMime(source) !== 'image/png') return null;
+  if (
+    imageNeedsRendering(obj) ||
+    typeof Blob === 'undefined' ||
+    webSourceClipboardMime(source) !== 'image/png'
+  ) return null;
 
   return readableImageSourceBlob(source).catch(() => {
     return null;
@@ -166,19 +165,18 @@ const copySelected = (options = {}) => {
 };
 
 const cutSelected = () => {
-  if (!hasSelection() || editingId) return false;
+  if (!hasSelection() || editingId) return;
   let copyResult;
   try {
     copyResult = copySelected({ animateCopy: false });
   } catch {
-    return false;
+    return;
   }
-  if (copyResult === false) return false;
+  if (copyResult === false) return;
   deleteSelected();
   if (copyResult && typeof copyResult.catch === 'function') {
     copyResult.catch(() => {});
   }
-  return true;
 };
 
 async function pasteAtPos(wx, wy, clipboardData = null) {

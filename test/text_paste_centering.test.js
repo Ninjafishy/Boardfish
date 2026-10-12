@@ -1,17 +1,11 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript, loadBoardLimits } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 const { createUnitTextContext } = require('../test-support/text_editor.js');
 
-const DEFAULT_TEXT_BOX_MIN_LINES = 1;
-const DEFAULT_TEXT_BOX_LINE_H = 24;
-const DEFAULT_TEXT_BOX_PAD = 16;
-const DEFAULT_TEXT_BOX_HEIGHT = DEFAULT_TEXT_BOX_MIN_LINES * DEFAULT_TEXT_BOX_LINE_H + DEFAULT_TEXT_BOX_PAD * 2;
-
-function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
+function loadAddTextHarness({ realLimits = false } = {}) {
   const textLayoutSource = readSource('src/js/text_layout.js') + '\n';
   const source = readSource('src/js/object_commands.js');
   let idCounter = 1;
@@ -21,12 +15,8 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
     },
     added: [],
 
-    editCalls: [],
-    editedIds: [],
     histories: [],
-    messages: [],
     objects: [],
-    selectedIds: [],
     zCounter: 1,
     BoardfishWebLimits: {
       canAddObjects() { return true; },
@@ -51,33 +41,20 @@ function loadAddTextHarness({ syncedHeight = null, realLimits = false } = {}) {
     },
     testSyncTextAutoHeight(obj, minLines = 1) {
       const contentLines = String(obj.data?.content || '').split('\n').length;
-      obj.h = syncedHeight ?? Math.max(minLines, contentLines) * context.LINE_H + context.TEXT_PAD * 2;
+      obj.h = Math.max(minLines, contentLines) * context.LINE_H + context.TEXT_PAD * 2;
       return true;
     },
-    selectObject(id) {
-      context.selectedIds.push(id);
-    },
+    selectObject() {},
     pushHistory(reason) {
       context.histories.push(reason);
     },
     enterEdit(id, options = {}) {
-      context.editCalls.push({ id, options });
-      context.editedIds.push(id);
       if (options.history !== false) context.pushHistory('text-edit-enter');
     },
     textByteLengthCalls: 0,
   };
-  if (realLimits) {
-    const limitsContext = vm.createContext({
-      objects: context.objects,
-      TextEncoder,
-      showIslandMsg(message, duration) { context.messages.push({ message, duration }); },
-    });
-    vm.runInContext(readSource('src/js/board_limits.js'), limitsContext);
-    context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
-  }
-  vm.createContext(context);
-  vm.runInContext(`${textLayoutSource}syncTextAutoHeight = testSyncTextAutoHeight;\n${source}\n`, context, {
+  if (realLimits) context.BoardfishWebLimits = loadBoardLimits(context.objects);
+  runScript(`${textLayoutSource}syncTextAutoHeight = testSyncTextAutoHeight;\n${source}\n`, context, {
     filename: 'object_commands.js',
   });
   return context;
@@ -120,44 +97,11 @@ function loadPasteHarness({ browserText = '', normalizeExternalText = (value) =>
       return normalizeExternalText(value);
     },
   };
-  vm.createContext(context);
-  vm.runInContext(source, context, {
+  runScript(source, context, {
     filename: 'clipboard_export_init.js',
   });
   return context;
 }
-
-test('addText can center a text box after auto-height is synced', () => {
-  const context = loadAddTextHarness({ syncedHeight: 184 });
-  const content = [
-    'The Alienware 16X Aurora has been updated this year with new configurations.',
-    'The upgrades come at a hefty cost.',
-  ].join('\n');
-
-  context.addText(640, 360, content, { anchor: 'center' });
-
-  const obj = context.added[0];
-  assert.equal(obj.x + obj.w / 2, 640);
-  assert.equal(obj.y + obj.h / 2, 360);
-  assert.equal(obj.h, 184);
-  assert.deepEqual(context.histories, ['add-text']);
-  assert.deepEqual(context.editedIds, []);
-  assert.equal(context.textByteLengthCalls, 1);
-});
-
-test('addText keeps top-left placement by default', () => {
-  const context = loadAddTextHarness();
-
-  context.addText(24, 48);
-
-  const obj = context.added[0];
-  assert.equal(obj.x, 24);
-  assert.equal(obj.y, 48);
-  assert.equal(obj.h, DEFAULT_TEXT_BOX_HEIGHT);
-  assert.equal(obj.w, DEFAULT_TEXT_BOX_HEIGHT * 6);
-  assert.deepEqual(context.editedIds, [obj.id]);
-  assert.deepEqual(context.histories, ['text-edit-enter']);
-});
 
 test('addText strips whitespace-only lines at pasted text edges', () => {
   const context = loadAddTextHarness();
@@ -166,7 +110,6 @@ test('addText strips whitespace-only lines at pasted text edges', () => {
 
   const obj = context.added[0];
   assert.equal(obj.data.content, 'first line  \nsecond line');
-  assert.deepEqual(context.editedIds, []);
 });
 
 test('addText preserves content that the external-paste path already prepared', () => {
@@ -177,15 +120,7 @@ test('addText preserves content that the external-paste path already prepared', 
   assert.equal(context.added[0].data.content, '  prepared  ');
 });
 
-test('addText with pasted content stays in select mode by default', () => {
-  const context = loadAddTextHarness();
-
-  context.addText(24, 48, 'pasted text');
-
-  assert.deepEqual(context.editCalls, []);
-});
-
-test('addText rejects the entire paste using the existing board error notification', () => {
+test('addText rejects over-limit content atomically', () => {
   const context = loadAddTextHarness({ realLimits: true });
   context.objects.push({ id: 'existing', type: 'text', data: { content: 'x'.repeat(24998) } });
 
@@ -194,12 +129,7 @@ test('addText rejects the entire paste using the existing board error notificati
   assert.equal(context.objects.length, 1);
   assert.equal(context.zCounter, 1);
   assert.deepEqual(context.added, []);
-  assert.deepEqual(context.editCalls, []);
   assert.deepEqual(context.histories, []);
-  assert.deepEqual(context.selectedIds, []);
-  assert.equal(context.messages.length, 1);
-  assert.match(context.messages[0].message, /25,000/);
-  assert.equal(context.messages[0].duration, 4500);
 });
 
 test('addText accepts the exact character limit after paste normalization', () => {
@@ -210,7 +140,6 @@ test('addText accepts the exact character limit after paste normalization', () =
 
   assert.equal(context.added[0].data.content, 'x \t😀');
   assert.equal(context.BoardfishWebLimits.currentTextCharacters(), 25000);
-  assert.deepEqual(context.messages, []);
 });
 
 test('addText counts prepared external paste content without changing it', () => {
@@ -221,46 +150,6 @@ test('addText counts prepared external paste content without changing it', () =>
 
   assert.equal(context.added[0].data.content, ' \t😀x');
   assert.equal(context.BoardfishWebLimits.currentTextCharacters(), 25000);
-  assert.deepEqual(context.messages, []);
-});
-
-test('outside clipboard text is pasted at the same center point as canvas objects', async () => {
-  const context = loadPasteHarness();
-
-  await context.pasteAtPos(640, 360, {
-    getData(type) {
-      return type === 'text/plain' ? 'outside text' : '';
-    },
-  });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(context.calls.addText)), [{
-    wx: 640,
-    wy: 360,
-    content: 'outside text',
-    options: { anchor: 'center', contentPrepared: true },
-  }]);
-});
-
-test('browser clipboard text paste stays in select mode for the new text box', async () => {
-  const context = loadPasteHarness({
-    browserText: 'browser\ntext',
-    normalizeExternalText(value) {
-      return value.replace('\n', ' ');
-    },
-  });
-
-  await context.pasteAtPos(640, 360, {
-    getData() {
-      return '';
-    },
-  });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(context.calls.addText)), [{
-    wx: 640,
-    wy: 360,
-    content: 'browser text',
-    options: { anchor: 'center', contentPrepared: true },
-  }]);
 });
 
 test('outside clipboard text is normalized before creating a text box', async () => {

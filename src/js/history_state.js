@@ -182,10 +182,7 @@ function restoreSnapshot(s, editStateOverride) {
 
   scheduleRender(true, true);
 
-  if (!editState || !editState.id) {
-    return;
-  }
-  if (!obj || obj.type !== 'text') {
+  if (!editState || !editState.id || !obj || obj.type !== 'text') {
     return;
   }
 
@@ -196,7 +193,6 @@ function restoreSnapshot(s, editStateOverride) {
     obj._editStartContent = obj.data.content;
     setTextEditMinLinesForSession(obj, true);
     _editHistoryLastContent = obj.data.content;
-    _editHistoryActionStartState = null;
   } else {
     enterEdit(obj.id, {
       history: false,

@@ -2,13 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { readJson, plain } = require('../test-support/source.js');
 const BoardSchema = require('../src/js/board_schema.js');
-
-function readFixture(name) {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8'));
-}
 
 function imageObject(id, imgKey, z = 1) {
   return { id, type: 'image', x: 0, y: 0, w: 10, h: 10, z, data: { imgKey } };
@@ -44,7 +39,7 @@ test('rejects excessive combined textbox characters, including whitespace before
 });
 
 test('normalizes valid board data from shared v3 fixture', () => {
-  const board = BoardSchema.normalizeBoardData(readFixture('valid_v3_board.json'));
+  const board = BoardSchema.normalizeBoardData(readJson('test/fixtures/valid_v3_board.json'));
 
   assert.equal(board.viewport.zoom, 2);
   assert.equal(board.objects[1].data.rotation, 270);
@@ -133,7 +128,7 @@ test('prunes unused sources and invisible empty text through round trips', () =>
 
   assert.deepEqual(Object.keys(board.imageStore), ['img-1', 'img-2']);
   assert.deepEqual(board.objects.map((obj) => obj.data.imgKey), ['img-1', 'img-2', 'img-1']);
-  assert.deepEqual(BoardSchema.normalizeBoardData(JSON.parse(JSON.stringify(board))), board);
+  assert.deepEqual(BoardSchema.normalizeBoardData(plain(board)), board);
 });
 
 test('rejects unsupported versions and formats', () => {

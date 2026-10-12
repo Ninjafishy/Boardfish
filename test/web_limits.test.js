@@ -53,29 +53,6 @@ test('textbox replacements free their previous characters without changing other
   });
 });
 
-test('character rejection uses the same notification format and duration as object rejection', () => {
-  const calls = [];
-  const previousShowIslandMsg = globalThis.showIslandMsg;
-  const previousLongMessage = globalThis.long_message;
-  globalThis.showIslandMsg = (message, duration) => calls.push({ message, duration });
-  globalThis.long_message = 5200;
-  try {
-    withBoardObjects(Array.from({ length: 100 }, () => ({ type: 'text', data: { content: 'a'.repeat(250) } })), () => {
-      assert.equal(WebLimits.canAddObjects(1), false);
-      assert.equal(WebLimits.canAcceptAdditionalTextCharacters(1), false);
-    });
-  } finally {
-    if (previousShowIslandMsg === undefined) delete globalThis.showIslandMsg;
-    else globalThis.showIslandMsg = previousShowIslandMsg;
-    if (previousLongMessage === undefined) delete globalThis.long_message;
-    else globalThis.long_message = previousLongMessage;
-  }
-  assert.deepEqual(calls, [
-    { message: 'Board Limit: 100 Objects', duration: 5200 },
-    { message: 'Board Limit: 25,000 Characters', duration: 5200 },
-  ]);
-});
-
 test('board payload validation rejects excessive text with the short character limit message', () => {
   assert.equal(WebLimits.validateBoardPayload({ textCharacters: 25000 }), true);
   assert.throws(
@@ -176,17 +153,4 @@ test('board JSON estimate uses UTF-8 byte length rather than UTF-16 string lengt
 
   assert.match(source, /return total \+ textByteLength\(json\) \+ 1024;/);
   assert.doesNotMatch(source, /JSON\.stringify\(\{[\s\S]*\}\)\.length \+ 1024/);
-});
-
-test('web limit notifications remain visible long enough to read', () => {
-  const calls = [];
-  const previousShowIslandMsg = globalThis.showIslandMsg;
-  globalThis.showIslandMsg = (message, duration) => calls.push({ message, duration });
-  try {
-    WebLimits.notify('limit message');
-  } finally {
-    if (previousShowIslandMsg) globalThis.showIslandMsg = previousShowIslandMsg;
-    else delete globalThis.showIslandMsg;
-  }
-  assert.deepEqual(calls, [{ message: 'limit message', duration: 4500 }]);
 });

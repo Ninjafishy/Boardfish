@@ -33,8 +33,8 @@ var finishFailedOpen;
       _boardOpening = true;
       beginOpeningFreeze();
       showIslandMsg('Opening');
-      const data = await invokeReadBoard(filePath);
-      applyBoardData(data);
+      const { board } = await BoardfishRuntime.readBoard(filePath);
+      applyBoardData(board);
       currentFileRef = filePath;
       await finishOpenedBoard();
     } catch (err) {

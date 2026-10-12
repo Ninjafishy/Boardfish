@@ -33,7 +33,6 @@
       root.removeEventListener?.('blur', onCancel);
       root.removeEventListener?.('pagehide', onCancel);
       document.removeEventListener('visibilitychange', onVisibilityChange, true);
-      document.removeEventListener('pointercancel', onCancel, true);
       up(event);
     };
     const onCancel = (event) => cleanup({
@@ -52,7 +51,6 @@
     root.addEventListener?.('blur', onCancel);
     root.addEventListener?.('pagehide', onCancel);
     document.addEventListener('visibilitychange', onVisibilityChange, true);
-    document.addEventListener('pointercancel', onCancel, true);
     return cleanup;
   }
 

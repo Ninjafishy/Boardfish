@@ -34,8 +34,8 @@ function renderImageToCanvas(obj, sourceImg = null) {
   const transform = obj.data;
 
   const img = sourceImg || imageBitmapCache[obj.data.imgKey];
-  const sourceW = img?.naturalWidth || img?.width || 0;
-  const sourceH = img?.naturalHeight || img?.height || 0;
+  const sourceW = img?.width || 0;
+  const sourceH = img?.height || 0;
   if (!img || !sourceW || !sourceH) {
     return null;
   }

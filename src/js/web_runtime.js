@@ -40,7 +40,6 @@
 
   function describeFileRef(ref) {
     if (!ref) return '';
-    if (typeof ref === 'string') return ref;
     return ref.name || ref.handle?.name || ref.file?.name || '';
   }
 
@@ -114,7 +113,6 @@
     }
     const wrapped = new Error(err?.message || String(err || 'Save Failed'));
     wrapped.name = err?.name || 'Error';
-    wrapped.cause = err;
     wrapped.boardfishSaveTargetUncertain = true;
     return wrapped;
   }
@@ -212,7 +210,6 @@
   async function fileFromRef(ref) {
     if (ref?.kind === 'web-file') return ref.file;
     if (ref?.kind === 'web-file-handle') return ref.handle.getFile();
-    if (ref instanceof File) return ref;
     throw new Error('File Unavailable');
   }
 

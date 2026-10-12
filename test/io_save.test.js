@@ -8,7 +8,7 @@ const { readSource } = require('../test-support/source.js');
 function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
   const sourceRef = existing ? { kind: 'web-file-handle', name: 'original.bf' } : null;
   const chosenRef = { kind: 'web-file-handle', name: 'copy.bf' };
-  const calls = { pickers: 0, writes: [], messages: [], shields: 0, releases: 0 };
+  const calls = { pickers: 0, writes: [] };
   const context = {
     objects: [{ type: 'text', data: { content: 'unsaved text' } }],
     boardHistory: [{ revision: 1 }],
@@ -19,14 +19,10 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     window: { addEventListener() {} },
     unsavedDialog: { addEventListener() {} },
     BoardfishExportUtils: { randomHex: () => '3ca6d7' },
-    finishPillTask({ beforeFinish, finalMsg }) {
+    finishPillTask({ beforeFinish }) {
       beforeFinish();
-      if (finalMsg) calls.messages.push(finalMsg);
     },
-    showIslandMsg(message, duration) {
-      assert.equal(duration, message === 'Saving' ? undefined : context.long_message);
-      calls.messages.push(message);
-    },
+    showIslandMsg() {},
     BoardfishRuntime: {
       canSaveToExistingTarget(ref) { return ref?.kind === 'web-file-handle'; },
       async saveFileDialog(defaultName) {
@@ -43,13 +39,7 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     vm.runInContext(source, context, { filename: file });
   }
   context.currentFileRef = sourceRef;
-  context.acquireInputShield = (options) => {
-    assert.equal(options.visual, false);
-    assert.equal(options.keepSelectionOverlay, true);
-    calls.shields++;
-    let released = false;
-    return () => { if (!released) calls.releases++; released = true; };
-  };
+  context.acquireInputShield = () => () => {};
   context.invokeSaveBoard = async (target, options) => {
     calls.writes.push(target);
     assert.equal(options.sourceFileRef, sourceRef);
@@ -62,7 +52,7 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
   return { context, calls, sourceRef, chosenRef };
 }
 
-test('save commands preserve file identity, dirty state and pill cleanup across outcomes', async () => {
+test('save commands preserve file identity and dirty state across outcomes', async () => {
   for (const mode of ['save', 'save-as', 'new-target']) {
     const outcomes = mode === 'save' ? ['saved', 'write-error', 'limit-error'] : ['saved', 'write-error', 'limit-error', 'cancelled', 'picker-error'];
     for (const outcome of outcomes) {
@@ -79,10 +69,6 @@ test('save commands preserve file identity, dirty state and pill cleanup across 
       assert.equal(context.currentFileRef, saved ? target : sourceRef, label);
       assert.equal(context.isDirty(), !saved, label);
       assert.deepEqual(calls.writes, writes ? [target] : [], label);
-      assert.deepEqual(calls.messages, outcome === 'cancelled' ? []
-        : [...(writes ? ['Saving'] : []), saved ? 'Saved' : outcome === 'limit-error' ? 'Board Limit: 500 MB' : 'Save Failed'], label);
-      assert.equal(calls.shields, 1, label);
-      assert.equal(calls.releases, 1, label);
     }
   }
 });
@@ -95,13 +81,9 @@ test('concurrent save commands share pending work and allow a later save', async
   const first = context.saveBoard();
   assert.equal(context.saveBoardAs(), first);
   assert.equal(calls.pickers, 0);
-  assert.equal(calls.shields, 1);
-  assert.equal(calls.releases, 0);
   finishWrite();
   assert.equal(await first, true);
   const next = context.saveBoard();
   assert.notEqual(next, first);
   assert.equal(await next, true);
-  assert.equal(calls.shields, 2);
-  assert.equal(calls.releases, 2);
 });

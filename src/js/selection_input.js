@@ -96,14 +96,6 @@ function scheduleTextMinWidthWarm(obj) {
 
 var _dialogResolve = null;
 
-function isUnsavedDialogOpen() {
-  return _dialogResolve !== null;
-}
-
-function isEventInsideUnsavedDialog(e) {
-  return !!unsavedDialog && e.target instanceof Node && unsavedDialog.contains(e.target);
-}
-
 const _inputEventPointElementCache = new WeakMap();
 
 function pointedElementForInputEvent(e) {
@@ -138,13 +130,8 @@ const isEventInsideVisibleContextMenu = (e) => {
   );
 };
 
-const isEventInsideViewportWheelSurface = (e) => {
-  return (e.target instanceof Node && canvas.contains(e.target)) ||
-    isEventInsideVisibleContextMenu(e) || isEventInsideVisibleSurface(e, island);
-};
-
 function isShieldInputAllowed(e) {
-  if (isUnsavedDialogOpen()) return isEventInsideUnsavedDialog(e);
+  if (_dialogResolve !== null) return !!unsavedDialog && e.target instanceof Node && unsavedDialog.contains(e.target);
   if (isEventInsideVisibleContextMenu(e)) return true;
   return !_boardOpening && _rubberBandDragActive &&
     _inputShieldStack.length === 1 &&
@@ -169,7 +156,7 @@ function blockShieldInput(e) {
   e.stopPropagation();
 }
 var INPUT_SHIELD_EVENT_OPTIONS = { capture: true, passive: false };
-for (const type of ['pointerdown', 'pointermove', 'pointerup', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'auxclick', 'contextmenu', 'wheel', 'keydown', 'keyup', 'beforeinput', 'input', 'paste', 'drop', 'dragover']) {
+for (const type of ['mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'auxclick', 'contextmenu', 'wheel', 'keydown', 'keyup', 'beforeinput', 'input', 'paste', 'drop', 'dragover']) {
   document.addEventListener(type, blockShieldInput, INPUT_SHIELD_EVENT_OPTIONS);
 }
 
@@ -237,7 +224,7 @@ function updateSelectionOverlay() {
   const screenX2 = bounds.x2 * zoom + panX, screenY2 = bounds.y2 * zoom + panY;
   if (!(screenX1 < width && screenX2 > 0 && screenY1 < height && screenY2 > 0)) return hideSelectionOverlay();
 
-  const multiSelected = isMultiSelected();
+  const multiSelected = selectedIds.size > 1;
   let imageEdgePad = firstSelectedObj.type === 'image' ? SELECTION_IMAGE_EDGE_OVERDRAW_DEVICE_PX : 0;
   if (!multiSelected) {
     multiSelOverlay.classList.toggle('visible', false);
@@ -290,7 +277,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
       const obj = objectsMap.get(selectedId);
 
       // ── Images and multi-select: scale non-text objects proportionally within the bounding box ──
-      if (isMultiSelected() || obj?.type !== 'text') {
+      if (selectedIds.size > 1 || obj?.type !== 'text') {
         const bounds = selectedBounds();
         const handlePoint = boundsCornerPoint(bounds, dir);
         const anchorPoint = boundsCornerPoint(bounds, oppositeSelectionDir(dir));
@@ -304,17 +291,15 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
         const snapshots = [];
         for (const id of selectedIds) {
           const o = objectsMap.get(id);
-          if (!o || o.type === 'text') continue;
           if (
+            !o || o.type === 'text' ||
             !Number.isFinite(o.x) ||
             !Number.isFinite(o.y) ||
             !Number.isFinite(o.w) ||
             !Number.isFinite(o.h) ||
             o.w <= 0 ||
             o.h <= 0
-          ) {
-            continue;
-          }
+          ) continue;
           snapshots.push({
             obj: o,
             x: o.x,
@@ -372,7 +357,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
 
         if (render) {
           resetTextEditPreservedMinLines(obj);
-          syncTextAutoHeight(obj, getTextMinLines(obj));
+          syncTextAutoHeight(obj, obj && obj.id === editingId ? (obj._editMinLines || 1) : 1);
         }
 
         if (render) drawBoard(), updateSelectionOverlay();
@@ -420,10 +405,6 @@ function selectAllObjects() {
   for (let i = 0; i < objects.length; i++) ids[i] = objects[i].id;
   BoardfishEditorState.setSelection(ids);
   scheduleRender(false, true);
-}
-
-function hideMenus() {
-  closeOpenMenusExcept('');
 }
 
 // ─── Edit mode ────────────────────────────────────────────────────────────────

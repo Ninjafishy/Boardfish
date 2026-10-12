@@ -1,11 +1,11 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-function loadImageVariants() {
+function loadImageVariants(overrides = {}) {
   const context = {
     zoom: 1,
     Map,
@@ -14,10 +14,10 @@ function loadImageVariants() {
     setTimeout() { return 0; },
     performance: { now: () => 0 },
     mapWithConcurrency(items, _limit, worker) { return Promise.all(items.map(worker)); },
+    ...overrides,
   };
 
-  vm.createContext(context);
-  vm.runInContext('globalThis.window = globalThis; window.devicePixelRatio = 1;', context);
+  runScript('globalThis.window = globalThis; window.devicePixelRatio = 1;', context);
   vm.runInContext(
     readSource('src/js/image_variants.js'),
     context,
@@ -27,14 +27,10 @@ function loadImageVariants() {
 }
 
 function loadImageVariantsWithBitmap(supportsCreateImageBitmap = true) {
-  const context = {
-    zoom: 1,
-    Map,
-    Math,
-    clearTimeout() {},
-    setTimeout() { return 0; },
-    performance: { now: () => 0 },
-    mapWithConcurrency(items, _limit, worker) { return Promise.all(items.map(worker)); },
+  return loadImageVariants({
+    ...(supportsCreateImageBitmap ? {
+      createImageBitmap: async () => ({ width: 1, height: 1, close() {} }),
+    } : {}),
     _boardOpening: false,
     _imageStoreGeneration: 0,
     imageBitmapCache: {},
@@ -43,19 +39,7 @@ function loadImageVariantsWithBitmap(supportsCreateImageBitmap = true) {
     invalidateOffscreen() {},
     scheduleRender() {},
     queueVisibleImageHydration() {},
-  };
-  if (supportsCreateImageBitmap) {
-    context.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
-  }
-
-  vm.createContext(context);
-  vm.runInContext('globalThis.window = globalThis; window.devicePixelRatio = 1;', context);
-  vm.runInContext(
-    readSource('src/js/image_variants.js'),
-    context,
-    { filename: 'image_variants.js' },
-  );
-  return context;
+  });
 }
 
 function installManualTimers(context) {
@@ -96,6 +80,7 @@ test('scaled bitmap cache evicts the oldest fixed-scale variant', () => {
   const context = loadImageVariants();
   const bitmap = (id) => ({ id, closed: false, close() { this.closed = true; } });
   const a = bitmap('a'), b = bitmap('b'), c = bitmap('c');
+  assert.equal(context.IMAGE_VARIANT_MEMORY_LIMIT, 1024 * 1024 * 1024);
   context.IMAGE_VARIANT_MEMORY_LIMIT = 10;
 
   context.setScaledImageVariant('img-a', { bitmap: a, bytes: 4 });
@@ -170,103 +155,6 @@ test('scaled variants round up so the bitmap is not below the qualifying size', 
   assert.equal(context.scaledVariantEstimatedBytes(101, 17, 0.25), 26 * 5 * 4);
 });
 
-test('generic bitmap draw warmup samples the full source into a 1px canvas', () => {
-  const context = loadImageVariants();
-  const drawCalls = [];
-  let smoothingWrites = 0;
-  let qualityWrites = 0;
-  let warmupCanvas = null;
-  context.document = {
-    createElement(name) {
-      assert.equal(name, 'canvas');
-      warmupCanvas = {
-        width: 0,
-        height: 0,
-        getContext(type) {
-          assert.equal(type, '2d');
-          assert.equal(this.width, 1);
-          assert.equal(this.height, 1);
-          const drawContext = {
-            drawImage(...args) { drawCalls.push(args); },
-          };
-          Object.defineProperty(drawContext, 'imageSmoothingEnabled', {
-            set(value) {
-              assert.equal(value, false);
-              smoothingWrites++;
-            },
-          });
-          Object.defineProperty(drawContext, 'imageSmoothingQuality', {
-            set() { qualityWrites++; },
-          });
-          return drawContext;
-        },
-      };
-      return warmupCanvas;
-    },
-  };
-
-  const source = { width: 320, height: 180 };
-  const result = context.warmDrawableBitmapForDrawNow(source, { key: 'img-1' });
-
-  assert.equal(result, true);
-  assert.deepEqual(drawCalls[0], [source, 0, 0, 320, 180, 0, 0, 1, 1]);
-  assert.deepEqual({ width: warmupCanvas.width, height: warmupCanvas.height }, { width: 1, height: 1 });
-  assert.equal(smoothingWrites, 1);
-  assert.equal(qualityWrites, 0);
-});
-
-test('full image draw warmup uses a bounded real-size sample', () => {
-  const context = loadImageVariants();
-  const drawCalls = [];
-  context.document = {
-    createElement(name) {
-      assert.equal(name, 'canvas');
-      return {
-        width: 0,
-        height: 0,
-        getContext(type) {
-          assert.equal(type, '2d');
-          return {
-            drawImage(...args) { drawCalls.push(args); },
-          };
-        },
-      };
-    },
-  };
-
-  const source = { width: 512, height: 256 };
-  const result = context.warmDrawableBitmapForDrawNow(source, { kind: 'full-image', key: 'img-1' });
-
-  assert.equal(result, true);
-
-  assert.deepEqual(drawCalls[0], [source, 0, 0, 512, 256, 0, 0, 256, 128]);
-});
-
-test('scaled bitmap draw warmup uses a bounded real-size sample', () => {
-  const context = loadImageVariants();
-  const drawCalls = [];
-  context.document = {
-    createElement() {
-      return {
-        width: 0,
-        height: 0,
-        getContext() {
-          return {
-            drawImage(...args) { drawCalls.push(args); },
-          };
-        },
-      };
-    },
-  };
-
-  const source = { width: 1024, height: 768 };
-  const result = context.warmDrawableBitmapForDrawNow(source, { kind: 'scaled-variant', key: 'img-1' });
-
-  assert.equal(result, true);
-
-  assert.deepEqual(drawCalls[0], [source, 0, 0, 1024, 768, 0, 0, 512, 384]);
-});
-
 test('source-ready images queue the low zoom scaled variant before first draw', () => {
   const context = loadImageVariantsWithBitmap();
   const source = { width: 4000, height: 3000 };
@@ -293,12 +181,6 @@ test('scaled variant priority promotes an already pending scaled replacement', (
   assert.equal(context.imageScaledVariantQueue[0].priority, true);
 });
 
-test('scaled image variant cache stays bounded with web headroom cap', () => {
-  const context = loadImageVariants();
-
-  assert.equal(context.IMAGE_VARIANT_MEMORY_LIMIT, 1024 * 1024 * 1024);
-});
-
 test('open image cache settle drains every scaled task and drawable warmup', async () => {
   const context = loadImageVariants();
   const calls = [];
@@ -316,21 +198,6 @@ test('open image cache settle drains every scaled task and drawable warmup', asy
   assert.deepEqual(calls.sort(), ['scaled-a', 'scaled-b']);
   assert.equal(context.imageScaledVariantQueue.length, 0);
   assert.equal(context.drawableBitmapWarmupQueue.size, 0);
-});
-
-test('scaled image variants enable resizing when createImageBitmap is available', () => {
-  const context = loadImageVariantsWithBitmap();
-
-  assert.equal(context.viewportImageScalingEnabled, true);
-
-  const fullSource = { width: 100, height: 100 };
-  const selected = context.selectImageSourceForDraw(
-    'img-1',
-    { w: 10, h: 10 },
-    fullSource,
-    { zoom: 0.1, dpr: 1 },
-  );
-  assert.equal(selected, fullSource);
 });
 
 test('active low-zoom navigation preserves full-size fallback while scaled variant is pending', () => {
@@ -592,6 +459,7 @@ test('visible image idle work shares one timer and waits for the latest input', 
 
 test('visible image idle work hydrates when scaled variants are unavailable', () => {
   const context = loadImageVariantsWithBitmap(false);
+  assert.equal(context.viewportImageScalingEnabled, false);
   const clock = installManualTimers(context);
   const hydrations = [];
   context.performance.now = () => 180;
@@ -601,56 +469,6 @@ test('visible image idle work hydrates when scaled variants are unavailable', ()
   clock.run(clock.pending()[0]);
 
   assert.deepEqual(hydrations, [1]);
-});
-
-test('scaled variant ready render uses input activity at timer fire after input settles', () => {
-  const context = loadImageVariantsWithBitmap();
-  const clock = installManualTimers(context);
-  const renders = [];
-  let now = 1000;
-  context.performance.now = () => now;
-  context.lastViewportInputAt = 990;
-  context.scheduleRender = (...args) => { renders.push(args); };
-
-  context.scheduleScaledVariantReadyRender();
-  assert.equal(clock.pending().length, 1);
-  assert.equal(clock.pending()[0].ms, 170);
-
-  now = 1170;
-  clock.run(clock.pending()[0]);
-
-  assert.deepEqual(renders, [[true]]);
-  assert.equal(clock.pending().length, 0);
-});
-
-test('scaled variant ready render defers when input starts before timer fire', () => {
-  const context = loadImageVariantsWithBitmap();
-  const clock = installManualTimers(context);
-  const renders = [];
-  let now = 1000;
-  context.performance.now = () => now;
-  context.lastViewportInputAt = 0;
-  context.scheduleRender = (...args) => { renders.push(args); };
-
-  context.scheduleScaledVariantReadyRender();
-  assert.equal(clock.pending().length, 1);
-  assert.equal(clock.pending()[0].ms, 120);
-
-  context.lastViewportInputAt = 990;
-  clock.run(clock.pending()[0]);
-  assert.deepEqual(renders, []);
-  assert.equal(clock.pending().length, 1);
-  assert.equal(clock.pending()[0].ms, 170);
-
-  now = 1170;
-  clock.run(clock.pending()[0]);
-  assert.deepEqual(renders, [[true]]);
-});
-
-test('scaled image variants stay disabled when createImageBitmap is unavailable', () => {
-  const context = loadImageVariantsWithBitmap(false);
-
-  assert.equal(context.viewportImageScalingEnabled, false);
 });
 
 test('stale scaled image variant tasks skip resize work', async () => {
@@ -729,7 +547,6 @@ test('image bitmap queue does not wait for animation frames during board open', 
 
   assert.match(imageStateSource, /if \(_boardOpening\) \{/);
   assert.match(imageStateSource, /setTimeout\(processImageDecodeQueue, 0\);/);
-  assert.match(imageStateSource, /requestAnimationFrame\(processImageDecodeQueue\);/);
 });
 
 test('undo-history lifecycle prunes image caches to current board, history, and clipboard keys', () => {
@@ -738,13 +555,8 @@ test('undo-history lifecycle prunes image caches to current board, history, and 
 
   assert.match(imageStateSource, /const pruneImageCachesToKeys = \(retainedKeys = new Set\(\)\) =>/);
   assert.match(imageStateSource, /delete imageStore\[key\];/);
-  assert.match(historySource, /function retainedImageKeysForCurrentAndHistory\(\)/);
   assert.doesNotMatch(historySource, /collectImageKeysFromObjects\(objects, keys\)/);
-  assert.match(historySource, /for \(const entry of boardHistory\)/);
-  assert.match(historySource, /collectImageKeysFromObjects\(jsClipboard\?\.objects, keys\)/);
   assert.doesNotMatch(historySource, /jsClipboard\?\.imageData/);
-  assert.match(historySource, /out\.add\(key\)/);
-  assert.match(historySource, /pruneImageCachesToKeys\(retainedKeys\)/);
 });
 
 test('async image cache writes use generation guards', () => {

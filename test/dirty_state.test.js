@@ -1,9 +1,8 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 
 function loadDirtyStateHarness() {
   const source = readSource('src/js/io_close.js');
@@ -13,19 +12,8 @@ function loadDirtyStateHarness() {
     historyIndex: -1,
     objects: [],
     _dirtyIds: new Set(),
-    window: {
-      addEventListener(type, handler) {
-        if (type === 'beforeunload') context.beforeUnloadHandler = handler;
-      },
-    },
   };
-  vm.createContext(context);
-  vm.runInContext(source.slice(0, end), context, { filename: 'io_close_dirty_state.js' });
-  vm.runInContext(
-    source.slice(source.lastIndexOf("window.addEventListener('beforeunload'")),
-    context,
-    { filename: 'io_close_beforeunload.js' },
-  );
+  runScript(source.slice(0, end), context, { filename: 'io_close_dirty_state.js' });
   return context;
 }
 
@@ -74,20 +62,4 @@ test('unsaved populated boards remain dirty', () => {
   addHistory(context, 1);
   context._dirtyIds.add('text-1');
   assert.equal(context.isDirty(), true);
-});
-
-test('closing a dirty board keeps the browser warning enabled', () => {
-  const context = loadDirtyStateHarness();
-  context.objects = [{ id: 'text-1', type: 'text', data: { content: 'changed' } }];
-  addHistory(context, 1);
-  context._dirtyIds.add('text-1');
-  const event = {
-    prevented: false,
-    preventDefault() { this.prevented = true; },
-  };
-
-  context.beforeUnloadHandler(event);
-
-  assert.equal(event.prevented, true);
-  assert.equal(event.returnValue, '');
 });

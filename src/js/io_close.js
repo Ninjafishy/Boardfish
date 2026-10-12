@@ -91,23 +91,14 @@ const endOpeningFreeze = () => {
 
 // ─── Save / Open ─────────────────────────────────────────────────────────────
 
-function boardDataForSave() {
-  return BoardfishBoardDocument.createBoardDataForSave({
+async function invokeSaveBoard(fileRef, options = {}) {
+  flushEditHistoryCheckpoint();
+  const data = BoardfishBoardDocument.createBoardDataForSave({
     viewport: { panX, panY, zoom },
     imageStore,
     objects,
   }, { schema: BoardSchema, guessImageExtFromDataUrl: BoardfishExportUtils.guessImageExtFromDataUrl });
-}
-
-async function invokeSaveBoard(fileRef, options = {}) {
-  flushEditHistoryCheckpoint();
-  const data = boardDataForSave();
   return BoardfishRuntime.saveBoard(fileRef, data, { imageStore, ...options });
-}
-
-async function invokeReadBoard(fileRef) {
-  const result = await BoardfishRuntime.readBoard(fileRef);
-  return result?.board || result;
 }
 
 const isOpenHydratableImageSource = (source) => {
@@ -242,7 +233,7 @@ async function hydrateTextDrawCachesForOpen() {
 
     const layout = getTextLayout(obj);
     for (const line of layout) {
-      prepareTextLineForDraw(line);
+      line._textDrawPlanCache ||= createTextDrawPlan(line, line.text, 0, line.text.length);
 
       warmOpenTextLineForDraw(warmupTarget, obj, line);
       if (performance.now() - batchStartedAt >= 8) {

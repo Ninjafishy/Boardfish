@@ -30,7 +30,6 @@ export const WEB_SCRIPTS = Object.freeze([
   'object_commands.js',
   'canvas_input.js',
   'context_menu.js',
-  'touch_input.js',
   'image_insert.js',
   'io_close.js',
   'image_export.js',

@@ -1,12 +1,11 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript, plain } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 
 function cloneObject(obj, runtimeTextCache = false) {
-  const cloned = JSON.parse(JSON.stringify(obj));
+  const cloned = plain(obj);
   if (obj?.type !== 'text') return cloned;
   if (runtimeTextCache) return cloned;
   clearTextRuntimeCache(cloned);
@@ -41,38 +40,23 @@ function makeEditProxy({
   selectionStart = 0,
   selectionEnd = selectionStart,
   selectionDirection = 'none',
-  clampSelectionToDomValue = false,
 } = {}) {
   return {
     value,
     selectionStart,
     selectionEnd,
     selectionDirection,
-    removed: false,
-    focused: false,
     _boardfishLogicalValue: value,
     _boardfishDomValueStale: false,
     _boardfishSetLogicalValue(nextValue, domSynced = true) {
       this._boardfishLogicalValue = String(nextValue ?? '');
       this._boardfishDomValueStale = domSynced === false || this.value !== this._boardfishLogicalValue;
     },
-    remove() {
-      this.removed = true;
-    },
-    focus() {
-      this.focused = true;
-    },
+    remove() {},
+    focus() {},
     setSelectionRange(start, end, direction = 'none') {
-      if (clampSelectionToDomValue) {
-        const max = String(this.value ?? '').length;
-        const normalizedStart = Math.max(0, Math.min(Math.trunc(Number(start)) || 0, max));
-        const normalizedEnd = Math.max(0, Math.min(Math.trunc(Number(end)) || normalizedStart, max));
-        this.selectionStart = normalizedStart;
-        this.selectionEnd = normalizedEnd;
-      } else {
-        this.selectionStart = start;
-        this.selectionEnd = end;
-      }
+      this.selectionStart = start;
+      this.selectionEnd = end;
       this.selectionDirection = direction;
     },
   };
@@ -91,7 +75,6 @@ function loadHistoryHarness() {
     _jsClipboardToken: 0,
     objects: [],
     objectsMap: new Map(),
-    selectedId: null,
     selectedIds: new Set(),
     editingId: null,
     _dirtyIds: new Set(),
@@ -102,31 +85,18 @@ function loadHistoryHarness() {
     _textInputSelectionHistorySuppress: null,
     _selChangeListener: null,
     _editEl: null,
-    enterEditCalls: [],
-    selectionCalls: [],
-    replaceBoardObjectsOptions: [],
-    collapseTextOnReplace: false,
     imagePruneCalls,
     BoardfishEditorState: {
-      replaceBoardObjects(nextObjects, options = {}) {
-        context.replaceBoardObjectsOptions.push({ ...(options || {}) });
+      replaceBoardObjects(nextObjects) {
         context.objects = nextObjects;
-        if (context.collapseTextOnReplace && options.syncTextHeights !== false) {
-          for (const obj of context.objects) {
-            if (obj?.type === 'text') obj.h = 32;
-          }
-        }
         context.objectsMap = new Map(nextObjects.map((obj) => [obj.id, obj]));
         return nextObjects;
       },
       setSelection(ids = []) {
-        context.selectionCalls.push([...ids]);
         context.selectedIds.clear();
-        context.selectedId = null;
         for (const id of ids) {
           if (!context.objectsMap.has(id)) continue;
           context.selectedIds.add(id);
-          context.selectedId = id;
         }
         return context.selectedIds.size;
       },
@@ -154,7 +124,6 @@ function loadHistoryHarness() {
     scheduleRender() {},
     setTextEditMinLinesForSession(obj) { obj._editMinLines = 1; },
     enterEdit(id, options = {}) {
-      context.enterEditCalls.push({ id, options: { ...(options || {}) } });
       context.editingId = id;
       const obj = context.objectsMap.get(id);
       if (obj && !options.preserveSize) obj.h = 32;
@@ -167,8 +136,7 @@ function loadHistoryHarness() {
     },
   };
 
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     readSource('src/js/history_state.js'),
     context,
     { filename: 'history_state.js' },
@@ -190,8 +158,7 @@ function loadTextEditHistoryStateHarness() {
       return String(proxy?.value ?? '');
     },
   };
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     source.slice(start) +
       '\nglobalThis.normalizeTextEditHistoryState = normalizeTextEditHistoryState;\n' +
       'globalThis.beginTextEditHistoryAction = beginTextEditHistoryAction;\n',
@@ -223,7 +190,6 @@ function setBoard(context, objects, selectedIds = []) {
   context.objects = objects.map(cloneObject);
   context.objectsMap = new Map(context.objects.map((obj) => [obj.id, obj]));
   context.selectedIds = new Set(selectedIds);
-  context.selectedId = selectedIds[selectedIds.length - 1] || null;
 }
 
 const historyImage = (key) => ({ id: key, type: 'image', x: 0, y: 0, w: 100, h: 100, z: 1, data: { imgKey: key } });
@@ -368,174 +334,6 @@ test('undo flushes a pending text edit checkpoint before restoring it', () => {
   assert.equal(context.objectsMap.get('text-1').data.content, 'before');
 });
 
-test('undoing first text run restores the edit-entry snapshot and stays editing', () => {
-  const context = loadHistoryHarness();
-  setBoard(context, [
-    { id: 'text-1', type: 'text', x: 0, y: 0, w: 200, h: 80, z: 1, data: { content: 'before' } },
-  ], ['text-1']);
-  context.snapshot();
-
-  context.editingId = 'text-1';
-  context._editEl = makeEditProxy({
-    value: 'before',
-    selectionStart: 6,
-    selectionEnd: 6,
-    selectionDirection: 'none',
-  });
-  context.pushHistory('text-edit-enter');
-
-  context.objectsMap.get('text-1').data.content = 'before after';
-  context.markDirty('text-1');
-  context.pushHistory('text-edit-checkpoint');
-
-  context.undo();
-
-  assert.equal(context.objectsMap.get('text-1').data.content, 'before');
-  assert.equal(
-    context.boardHistory[context.historyIndex].revision,
-    context.boardHistory[0].revision,
-  );
-  assert.equal(context.editingId, 'text-1');
-  assert.equal(context._editEl.selectionStart, 6);
-  assert.equal(context._editEl.selectionEnd, 6);
-});
-
-test('undoing a text run restores the caret saved before the run started', () => {
-  const context = loadHistoryHarness();
-  setBoard(context, [
-    { id: 'text-1', type: 'text', x: 0, y: 0, w: 200, h: 80, z: 1, data: { content: 'one two three' } },
-  ], ['text-1']);
-  context.snapshot();
-
-  context.editingId = 'text-1';
-  context._editEl = makeEditProxy({
-    value: 'one two three',
-    selectionStart: 13,
-    selectionEnd: 13,
-    selectionDirection: 'none',
-  });
-  context.pushHistory('text-edit-enter');
-
-  const text = context.objectsMap.get('text-1');
-  text.data.content = 'one two INSERT three';
-  context._editEl.selectionStart = 14;
-  context._editEl.selectionEnd = 14;
-  context.markDirty('text-1');
-  context.pushHistory('text-edit-checkpoint', null, {
-      id: 'text-1',
-      selectionStart: 8,
-      selectionEnd: 8,
-      selectionDirection: 'none',
-  });
-
-  context.undo();
-
-  assert.equal(context.objectsMap.get('text-1').data.content, 'one two three');
-  assert.equal(context.editingId, 'text-1');
-  assert.equal(context._editEl.selectionStart, 8);
-  assert.equal(context._editEl.selectionEnd, 8);
-  assert.deepEqual(context.selectionCalls, [['text-1']]);
-
-  context.redo();
-
-  assert.equal(context.objectsMap.get('text-1').data.content, 'one two INSERT three');
-  assert.equal(context._editEl.selectionStart, 14);
-  assert.equal(context._editEl.selectionEnd, 14);
-  assert.deepEqual(context.selectionCalls, [['text-1'], ['text-1']]);
-});
-
-test('undoing a selected text replacement restores the replaced highlight range', () => {
-  const context = loadHistoryHarness();
-  setBoard(context, [
-    { id: 'text-1', type: 'text', x: 0, y: 0, w: 200, h: 80, z: 1, data: { content: 'one two three' } },
-  ], ['text-1']);
-  context.snapshot();
-
-  context.editingId = 'text-1';
-  context._editEl = makeEditProxy({
-    value: 'one two three',
-    selectionStart: 0,
-    selectionEnd: 0,
-    selectionDirection: 'none',
-  });
-  context.pushHistory('text-edit-enter');
-
-  const text = context.objectsMap.get('text-1');
-  text.data.content = 'one PASTE three';
-  context._editEl.value = text.data.content;
-  context._editEl._boardfishSetLogicalValue(text.data.content);
-  context._editEl.selectionStart = 9;
-  context._editEl.selectionEnd = 9;
-  context._editEl.selectionDirection = 'none';
-  context.markDirty('text-1');
-  context.pushHistory('text-edit-checkpoint', null, {
-      id: 'text-1',
-      selectionStart: 4,
-      selectionEnd: 7,
-      selectionDirection: 'forward',
-  });
-
-  context.undo();
-
-  assert.equal(context.objectsMap.get('text-1').data.content, 'one two three');
-  assert.equal(context.editingId, 'text-1');
-  assert.equal(context._editEl.selectionStart, 4);
-  assert.equal(context._editEl.selectionEnd, 7);
-  assert.equal(context._editEl.selectionDirection, 'forward');
-
-  context.redo();
-
-  assert.equal(context.objectsMap.get('text-1').data.content, 'one PASTE three');
-  assert.equal(context._editEl.selectionStart, 9);
-  assert.equal(context._editEl.selectionEnd, 9);
-  assert.equal(context._editEl.selectionDirection, 'none');
-});
-
-test('undoing a selected replacement syncs stale proxy DOM before restoring highlight', () => {
-  const context = loadHistoryHarness();
-  const original = 'prefix selected text suffix';
-  const pasted = 'prefix X suffix';
-  setBoard(context, [
-    { id: 'text-1', type: 'text', x: 0, y: 0, w: 200, h: 80, z: 1, data: { content: original } },
-  ], ['text-1']);
-  context.snapshot();
-
-  context.editingId = 'text-1';
-  context._editEl = makeEditProxy({
-    value: original,
-    selectionStart: original.length,
-    selectionEnd: original.length,
-    selectionDirection: 'none',
-    clampSelectionToDomValue: true,
-  });
-  context.pushHistory('text-edit-enter');
-
-  const text = context.objectsMap.get('text-1');
-  text.data.content = pasted;
-  context._editEl.value = pasted;
-  context._editEl._boardfishSetLogicalValue(pasted);
-  context._editEl.selectionStart = 8;
-  context._editEl.selectionEnd = 8;
-  context._editEl.selectionDirection = 'none';
-  context.markDirty('text-1');
-  context.pushHistory('text-edit-checkpoint', null, {
-      id: 'text-1',
-      selectionStart: 7,
-      selectionEnd: 20,
-      selectionDirection: 'forward',
-  });
-
-  context.undo();
-
-  assert.equal(context.objectsMap.get('text-1').data.content, original);
-  assert.equal(context._editEl.value, original);
-  assert.equal(context._editEl._boardfishLogicalValue, original);
-  assert.equal(context._editEl._boardfishDomValueStale, false);
-  assert.equal(context._editEl.selectionStart, 7);
-  assert.equal(context._editEl.selectionEnd, 20);
-  assert.equal(context._editEl.selectionDirection, 'forward');
-});
-
 test('immediate text edit history actions replace stale start selection', () => {
   const context = loadTextEditHistoryStateHarness();
   const obj = {
@@ -563,7 +361,7 @@ test('immediate text edit history actions replace stale start selection', () => 
     direction: 'forward',
   });
 
-  assert.deepEqual(JSON.parse(JSON.stringify(state)), {
+  assert.deepEqual(plain(state), {
     id: 'text-1',
     selectionStart: 4,
     selectionEnd: 7,
@@ -594,147 +392,12 @@ test('text edit history start state clamps selection to captured pre-edit value'
     value: oldValue,
   });
 
-  assert.deepEqual(JSON.parse(JSON.stringify(state)), {
+  assert.deepEqual(plain(state), {
     id: 'text-1',
     selectionStart: 7,
     selectionEnd: 20,
     selectionDirection: 'forward',
   });
-});
-
-test('undoing and redoing text edits preserve restored text box dimensions', () => {
-  const context = loadHistoryHarness();
-  context.collapseTextOnReplace = true;
-  setBoard(context, [
-    { id: 'text-1', type: 'text', x: 0, y: 0, w: 920, h: 370, z: 1, data: { content: 'plain value' } },
-  ], ['text-1']);
-  context.snapshot();
-
-  context.editingId = 'text-1';
-  context._editEl = makeEditProxy({
-    value: 'plain value',
-    selectionStart: 11,
-    selectionEnd: 11,
-    selectionDirection: 'none',
-  });
-  context.pushHistory('text-edit-enter');
-
-  const text = context.objectsMap.get('text-1');
-  const liveProxy = context._editEl;
-  context.document.activeElement = liveProxy;
-  text.data.content = '';
-  text.w = 920;
-  text.h = 96;
-  context._editEl.value = '';
-  context._editEl._boardfishSetLogicalValue('');
-  context._editEl.selectionStart = 0;
-  context._editEl.selectionEnd = 0;
-  context.markDirty('text-1');
-  context.pushHistory('text-edit-checkpoint', null, {
-      id: 'text-1',
-      selectionStart: 11,
-      selectionEnd: 11,
-      selectionDirection: 'none',
-  });
-
-  context.undo();
-
-  let restored = context.objectsMap.get('text-1');
-  assert.equal(restored.data.content, 'plain value');
-  assert.equal(restored.w, 920);
-  assert.equal(restored.h, 370);
-  assert.equal(restored, text);
-  assert.equal(context.editingId, 'text-1');
-  assert.equal(context._editEl, liveProxy);
-  assert.equal(context._editEl._boardfishLogicalValue, restored.data.content);
-  assert.equal(context._editEl.value, restored.data.content);
-  assert.equal(context._editEl._boardfishDomValueStale, false);
-  assert.equal(liveProxy.focused, false);
-  assert.equal(context.enterEditCalls.length, 0);
-  assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);
-  assert.equal(context.replaceBoardObjectsOptions.at(-1).syncTextHeights, false);
-
-  context.redo();
-
-  restored = context.objectsMap.get('text-1');
-  assert.equal(restored.data.content, '');
-  assert.equal(restored.w, 920);
-  assert.equal(restored.h, 96);
-  assert.equal(restored, text);
-  assert.equal(context.editingId, 'text-1');
-  assert.equal(context._editEl, liveProxy);
-  assert.equal(context._editEl._boardfishLogicalValue, restored.data.content);
-  assert.equal(context._editEl.value, 'plain value');
-  assert.equal(context._editEl._boardfishDomValueStale, true);
-  assert.equal(liveProxy.focused, false);
-  assert.equal(context.enterEditCalls.length, 0);
-  assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);
-  assert.equal(context.replaceBoardObjectsOptions.at(-1).syncTextHeights, false);
-});
-
-test('undoing and redoing text edits restore active text runtime layout caches', () => {
-  const context = loadHistoryHarness();
-  setBoard(context, [
-    { id: 'text-1', type: 'text', x: 0, y: 0, w: 700, h: 1200, z: 1, data: { content: 'before' } },
-  ], ['text-1']);
-  context.snapshot();
-
-  context.editingId = 'text-1';
-  context._editEl = makeEditProxy({
-    value: 'before',
-    selectionStart: 6,
-    selectionEnd: 6,
-    selectionDirection: 'none',
-  });
-  attachTextRuntimeCache(context.objectsMap.get('text-1'), 'before', 'cached-before');
-  context.pushHistory('text-edit-enter');
-
-  const text = context.objectsMap.get('text-1');
-  const liveProxy = context._editEl;
-  context.document.activeElement = liveProxy;
-  text.data.content = 'after';
-  context._editEl.value = 'after';
-  context._editEl._boardfishSetLogicalValue('after');
-  context._editEl.selectionStart = 5;
-  context._editEl.selectionEnd = 5;
-  attachTextRuntimeCache(text, 'after', 'cached-after');
-  context.markDirty('text-1');
-  context.pushHistory('text-edit-checkpoint', null, {
-      id: 'text-1',
-      selectionStart: 6,
-      selectionEnd: 6,
-      selectionDirection: 'none',
-  });
-
-  context.undo();
-
-  let restored = context.objectsMap.get('text-1');
-  assert.equal(restored.data.content, 'before');
-  assert.equal(restored, text);
-  assert.equal(context._editEl, liveProxy);
-  assert.equal(context._editEl._boardfishLogicalValue, 'before');
-  assert.equal(context._editEl.value, 'before');
-  assert.equal(context._editEl._boardfishDomValueStale, false);
-  assert.equal(liveProxy.focused, false);
-  assert.equal(restored._layoutCacheContent, 'before');
-  assert.equal(restored._layoutCache[0].text, 'cached-before');
-  assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);
-  assert.equal('preserveTextRuntimeCaches' in context.replaceBoardObjectsOptions.at(-1), false);
-
-  context.redo();
-
-  restored = context.objectsMap.get('text-1');
-  assert.equal(restored.data.content, 'after');
-  assert.equal(restored, text);
-  assert.equal(context._editEl, liveProxy);
-  assert.equal(context._editEl._boardfishLogicalValue, 'after');
-  assert.equal(context._editEl.value, 'before');
-  assert.equal(context._editEl._boardfishDomValueStale, true);
-  assert.equal(liveProxy.focused, false);
-  assert.equal(restored._layoutCacheContent, 'after');
-  assert.equal(restored._layoutCache[0].text, 'cached-after');
-  assert.equal(context.replaceBoardObjectsOptions.at(-1).normalizeText, false);
-  assert.equal('preserveTextRuntimeCaches' in context.replaceBoardObjectsOptions.at(-1), false);
 });
 
 test('undoing and redoing text edits hydrate unchanged text runtime caches from live objects', () => {

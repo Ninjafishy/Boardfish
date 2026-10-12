@@ -152,7 +152,7 @@
     for (const obj of (Array.isArray(items) ? items : [])) {
       if (obj?.id) ranked.push(obj);
     }
-    if (!ranked.length) return false;
+    if (!ranked.length) return;
     if (ranked.length > 1) ranked.sort(compareObjectGeometry);
     const startedAt = now();
     const cohortKey = JSON.stringify(ranked.map(obj => obj.id));
@@ -166,7 +166,6 @@
       );
     }
     requestMotionFrame();
-    return true;
   };
 
   const noteTextSelection = (spec) => {
@@ -236,12 +235,12 @@
   };
 
   const applyCopyFeedback = (payload = {}) => {
-    if (prefersReducedMotion()) return false;
+    if (prefersReducedMotion()) return;
     if (payload.textSelection) {
       noteTextSelection(payload.textSelection);
-      return true;
+      return;
     }
-    return noteObjects(payload.objects);
+    noteObjects(payload.objects);
   };
 
   root.BoardfishMotion = Object.freeze({

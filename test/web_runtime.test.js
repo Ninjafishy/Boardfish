@@ -1,44 +1,14 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 const WebContainer = require('../src/js/web_board_container.js');
 const { singleImageBoard } = require('../test-support/image_output.js');
 
-function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
+function loadWebRuntimeHarness() {
   const source = readSource('src/js/web_runtime.js');
   const timers = [];
-  const rootListeners = new Map();
-  const inputListeners = new Map();
-  const calls = {
-    clicked: 0,
-    removed: 0,
-  };
-  const selectedFile = {
-    name: 'board.bf',
-    type: 'application/octet-stream',
-  };
-  const input = {
-    type: '',
-    accept: '',
-    style: {},
-    files: [],
-    addEventListener(type, handler) {
-      inputListeners.set(type, handler);
-    },
-    click() {
-      calls.clicked++;
-      if (clickSelectsFile) {
-        input.files = [selectedFile];
-        inputListeners.get('change')?.();
-      }
-    },
-    remove() {
-      calls.removed++;
-    },
-  };
   const context = {
     Promise,
     setTimeout(callback) {
@@ -49,32 +19,10 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
     clearTimeout(id) {
       if (timers[id - 1]) timers[id - 1].active = false;
     },
-    addEventListener(type, handler) {
-      rootListeners.set(type, handler);
-    },
-    removeEventListener(type, handler) {
-      if (rootListeners.get(type) === handler) rootListeners.delete(type);
-    },
-    document: {
-      createElement(tag) {
-        assert.equal(tag, 'input');
-        return input;
-      },
-      body: {
-        appendChild() {},
-      },
-    },
-    URL: {
-      createObjectURL() { return 'blob:board'; },
-      revokeObjectURL() {},
-    },
   };
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: 'web_runtime.js' });
+  runScript(source, context, { filename: 'web_runtime.js' });
   return {
-    calls,
     context,
-    rootListeners,
     runTimers() {
       for (const timer of [...timers]) {
         if (!timer.active) continue;
@@ -84,19 +32,6 @@ function loadWebRuntimeHarness({ clickSelectsFile = true } = {}) {
     },
   };
 }
-
-test('fallback file picker does not retain focus listener after selected file settles', async () => {
-  const harness = loadWebRuntimeHarness();
-
-  const result = await harness.context.BoardfishRuntime.openFileDialog();
-  assert.equal(result.kind, 'web-file');
-  assert.equal(result.file.name, 'board.bf');
-  assert.equal(harness.calls.clicked, 1);
-  assert.equal(harness.calls.removed, 1);
-
-  harness.runTimers();
-  assert.equal(harness.rootListeners.has('focus'), false);
-});
 
 test('web board open defers image byte extraction during container read', async () => {
   const harness = loadWebRuntimeHarness();

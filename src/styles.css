@@ -20,25 +20,17 @@
   --menu-secondary-color: #70707a;
   --menu-shortcut-color: #b8b8bc;
   --firefox-menu-bg: #42414d;
-  --firefox-menu-border: var(--menu-secondary-color);
-  --firefox-menu-text: var(--white_font);
   --menu_hover_bg: #5e5d69;
   --menu_pressed_bg: #7b7a84;
-  --firefox-menu-hover-bg: var(--menu_hover_bg);
-  --firefox-menu-active-bg: var(--menu_pressed_bg);
-  --firefox-menu-separator: var(--menu-secondary-color);
   --firefox-menu-shadow:
     0 8px 24px rgba(0,0,0,0.1),
     0 0 0 1px rgba(0,0,0,0.3);
   --ui-radius: 25px;
   --pill-radius: 999px;
-  --menu-shell-radius: var(--ui-radius);
   --menu-shell-padding: 8px;
   --menu-item-height: 32px;
   --menu-item-padding: 0 8px;
-  --menu-item-radius: var(--pill-radius);
   --menu-item-font-size: 13px;
-  --menu-item-letter-spacing: var(--text-letter-spacing);
   --menu-item-line-height: 32px;
   --context-menu-width: 192px;
   --pill-text-line-height: 18px;
@@ -52,14 +44,9 @@
   --danger-bg: rgba(255, 69, 58, 0.18);
   --danger-hover-bg: rgba(255, 69, 58, 0.26);
   --danger-active-bg: rgba(255, 69, 58, 0.34);
-  --menu-active-bg: var(--firefox-menu-active-bg);
   --smooth-slide-duration: 220ms;
   --smooth-slide-ease: cubic-bezier(0.18, 0.9, 0.24, 1.18);
   --highlight-nudge-x: 2px;
-  --safe-area-top: env(safe-area-inset-top, 0px);
-  --safe-area-right: env(safe-area-inset-right, 0px);
-  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-left: env(safe-area-inset-left, 0px);
 }
 
 body[data-theme="dark"] {
@@ -89,18 +76,15 @@ html {
   width: 100%;
   height: 100%;
   overscroll-behavior: none;
-  touch-action: none;
 }
 
 body {
   width: 100%;
   height: 100vh;
-  height: 100dvh;
   overflow: hidden;
   background: var(--canvas-bg);
   user-select: none;
   overscroll-behavior: none;
-  touch-action: none;
   font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
   font-kerning: var(--text-font-kerning);
   font-stretch: var(--text-font-stretch);
@@ -119,9 +103,6 @@ body {
   contain: paint;
   background: var(--canvas-bg);
   overscroll-behavior: none;
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-tap-highlight-color: transparent;
 }
 
 #canvas.panning, #canvas.panning .s-handle { cursor: grabbing !important; }
@@ -132,7 +113,6 @@ body {
   width: 100%; height: 100%;
   display: block;
   z-index: 0;
-  touch-action: none;
 }
 
 #file-input {
@@ -141,18 +121,17 @@ body {
 
 /* ── Selection overlay ── */
 #sel-overlay {
-  --text-edit-outline: var(--selection-outline);
   position: absolute;
   top: 0; left: 0;
   display: none;
   border: 0;
-  box-shadow: inset 0 0 0 1px var(--text-edit-outline);
+  box-shadow: inset 0 0 0 1px var(--selection-outline);
   pointer-events: none;
   z-index: 99998;
 }
 #sel-overlay.visible { display: block; }
 #sel-overlay.multi {
-  border: 1px dashed var(--text-edit-outline);
+  border: 1px dashed var(--selection-outline);
   box-shadow: none;
 }
 #sel-overlay.editing {
@@ -203,10 +182,10 @@ body {
 #dialog,
 #island {
   background: var(--firefox-menu-bg);
-  border: 1px solid var(--firefox-menu-border);
-  border-radius: var(--menu-shell-radius);
+  border: 1px solid var(--menu-secondary-color);
+  border-radius: var(--ui-radius);
   box-shadow: var(--firefox-menu-shadow);
-  color: var(--firefox-menu-text);
+  color: var(--white_font);
   padding: var(--menu-shell-padding);
   overflow: hidden;
   user-select: none;
@@ -222,20 +201,16 @@ body {
   display: none;
   isolation: isolate;
   transform: translateZ(0);
-  max-width: calc(100vw - var(--safe-area-left) - var(--safe-area-right) - 16px);
+  max-width: calc(100vw - 16px);
 }
 
 #ctx-menu,
 #obj-ctx-menu,
 #text-ctx-menu {
   max-height: calc(100vh - 16px);
-  max-height: calc(100dvh - var(--safe-area-top) - var(--safe-area-bottom) - 16px);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  -webkit-tap-highlight-color: transparent;
   width: var(--context-menu-width);
 }
 
@@ -270,35 +245,33 @@ body {
   --ui-highlight-nudge-transform: translateX(var(--highlight-nudge-x));
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .ctx-action-item:hover, .ctx-item:hover, #island:hover #isl-zoom { background: var(--firefox-menu-hover-bg); }
-  #dlg-discard:hover { background: var(--danger-hover-bg); }
-  :where(.ctx-item:hover, .ui-highlight-nudge:hover, #island:hover .ui-highlight-nudge) {
-    --ui-highlight-nudge-transform: translateX(var(--highlight-nudge-x));
-  }
+.ctx-action-item:hover, .ctx-item:hover, #island:hover #isl-zoom { background: var(--menu_hover_bg); }
+#dlg-discard:hover { background: var(--danger-hover-bg); }
+:where(.ctx-item:hover, .ui-highlight-nudge:hover, #island:hover .ui-highlight-nudge) {
+  --ui-highlight-nudge-transform: translateX(var(--highlight-nudge-x));
 }
 
 .ctx-action-item,
 .ctx-item,
 .ctx-shortcut,
 #isl-zoom {
-  font: var(--text-font-style) var(--regular_text) var(--menu-item-font-size) var(--text-font-family);
+  font: inherit;
+  font-kerning: auto;
 }
 
 .ctx-action-item,
 .ctx-item,
 #isl-zoom {
   align-items: center;
-  color: var(--firefox-menu-text);
+  color: var(--white_font);
   background: transparent;
-  letter-spacing: var(--menu-item-letter-spacing);
   transform: var(--ui-highlight-nudge-transform);
 }
 
 .ctx-action-item,
 .ctx-item {
   line-height: var(--menu-item-line-height);
-  border-radius: var(--menu-item-radius);
+  border-radius: var(--pill-radius);
   text-align: left;
   cursor: default;
   box-shadow: none;
@@ -320,9 +293,9 @@ body {
   text-decoration: none;
   transition: transform var(--smooth-slide-duration) var(--smooth-slide-ease);
 }
-.ctx-action-item:focus-visible { background: var(--firefox-menu-hover-bg); }
+.ctx-action-item:focus-visible, .ctx-item:focus-visible { background: var(--menu_hover_bg); }
 .ctx-action-item.hotspot-active,
-.ctx-action-item[aria-pressed="true"] { background: var(--menu-active-bg); }
+.ctx-action-item[aria-pressed="true"] { background: var(--menu_pressed_bg); }
 .ctx-action-icon svg {
   position: relative;
   z-index: 1;
@@ -358,23 +331,14 @@ body {
   justify-self: end;
   white-space: nowrap;
 }
-.ctx-item:focus-visible {
-  background: var(--firefox-menu-hover-bg);
-}
-@media (hover: none), (pointer: coarse) {
-  .ctx-item:focus-visible {
-    --ui-highlight-nudge-transform: translateX(0);
-    background: transparent;
-  }
-}
 .ctx-item.menu-pressed {
-  background: var(--menu-active-bg);
+  background: var(--menu_pressed_bg);
   transition-duration: 0ms;
 }
 .ctx-sep {
   height: 1px;
   /* Borders keep a consistent device-pixel width at fractional display scales. */
-  border-top: 1px solid var(--firefox-menu-separator);
+  border-top: 1px solid var(--menu-secondary-color);
   margin: 8px 0;
   pointer-events: none;
   user-select: none;
@@ -384,7 +348,7 @@ body {
 /* ── Island ── */
 #island {
   position: fixed;
-  bottom: max(5%, calc(var(--safe-area-bottom) + 12px));
+  bottom: 5%;
   left: 50%;
   translate: -50% 0;
   display: none;
@@ -393,7 +357,6 @@ body {
   pointer-events: auto;
   cursor: pointer;
   overscroll-behavior: none;
-  touch-action: none;
   border-radius: var(--pill-radius);
   max-width: calc(100vw - 32px);
 }
@@ -406,7 +369,6 @@ body {
 #island * {
   user-select: none;
   -webkit-user-select: none;
-  -webkit-touch-callout: none;
   pointer-events: none;
 }
 
@@ -415,7 +377,7 @@ body {
 }
 
 #island:active #isl-zoom {
-  background: var(--menu-active-bg);
+  background: var(--menu_pressed_bg);
   transition-duration: 0ms;
 }
 

@@ -3,11 +3,7 @@
 var FONT_SIZE = 16;
 var LINE_H    = 24;
 var TEXT_PAD  = 16;
-const regular_text = 400;
-const TEXT_FONT_STYLE = 'normal';
-const TEXT_FONT_FAMILY = "'Geist Sans', system-ui";
-const textFontForSize = (size) => `${TEXT_FONT_STYLE} ${regular_text} ${size}px ${TEXT_FONT_FAMILY}`;
-var FONT      = textFontForSize(FONT_SIZE);
+var FONT = "normal 400 16px 'Geist Sans', system-ui";
 const TEXT_CANVAS_FONT_KERNING = 'none';
 const TEXT_GLYPH_MIN_GAP = 0.5;
 const TEXT_GLYPH_MIN_INK_WIDTH = 0.01;
@@ -19,7 +15,7 @@ const TEXT_DRAW_BATCH_MAX_UNITS = 2;
 const TEXT_DRAW_BATCHABLE_ASCII_RE = /^[A-EG-Za-eg-z0-9]$/;
 var TEXT_BASELINE_Y_OFFSET;
 var _textDrawBatchingEngineVerified = null;
-var _textDrawBatchingVerifiedFonts = new Set();
+var _textDrawBatchingFontReady = false;
 
 function normalizeTextContent(value) {
   const text = String(value ?? '');
@@ -73,8 +69,7 @@ const externalTextBoundaryLooksContinuous = (previousLine, nextLine) => {
 };
 
 const shouldUnwrapExternalTextBlock = (lines) => {
-  if (!Array.isArray(lines) || lines.length < 3) return false;
-  if (lines.some(externalTextLineLooksStructured)) return false;
+  if (!Array.isArray(lines) || lines.length < 3 || lines.some(externalTextLineLooksStructured)) return false;
   let uppercaseLines = 0;
   let pipeTableLines = 0;
   const bodyWidths = lines.map((line) => {
@@ -92,9 +87,11 @@ const shouldUnwrapExternalTextBlock = (lines) => {
     ? bodyWidths[middle]
     : (bodyWidths[middle - 1] + bodyWidths[middle]) / 2;
   const referenceWidth = bodyWidths[bodyWidths.length - 1];
-  if (median < EXTERNAL_TEXT_SOFT_WRAP_MIN_MEDIAN_CHARS) return false;
-  if (bodyWidths[0] < referenceWidth * 0.55) return false;
-  if (bodyWidths[Math.floor(bodyWidths.length * 0.25)] < referenceWidth * 0.7) return false;
+  if (
+    median < EXTERNAL_TEXT_SOFT_WRAP_MIN_MEDIAN_CHARS ||
+    bodyWidths[0] < referenceWidth * 0.55 ||
+    bodyWidths[Math.floor(bodyWidths.length * 0.25)] < referenceWidth * 0.7
+  ) return false;
 
   let continuousBoundaries = 0;
   for (let index = 1; index < lines.length; index++) {
@@ -925,10 +922,6 @@ function syncTextAutoHeight(obj, minLines = 1) {
   return true;
 }
 
-function getTextMinLines(obj) {
-  return obj && obj.id === editingId ? (obj._editMinLines || 1) : 1;
-}
-
 function syncAllTextAutoHeights() {
   for (const obj of objects) {
     if (syncTextAutoHeight(obj)) {
@@ -1132,17 +1125,13 @@ function getTextLayoutForViewport(obj, viewportRect) {
   return getTextLayoutForLineRange(obj, first, last);
 }
 
-function lineBaseX(obj) {
-  return obj.x + TEXT_PAD;
-}
-
 function lineXAtOffset(line, obj, offset) {
-  return lineBaseX(obj) + line.prefixWidths[Math.max(0, Math.min(offset, line.text.length))];
+  return obj.x + TEXT_PAD + line.prefixWidths[Math.max(0, Math.min(offset, line.text.length))];
 }
 
 function lineHitOffsetForX(line, wx, obj) {
   const pw = line.prefixWidths;
-  const target = wx - lineBaseX(obj);
+  const target = wx - (obj.x + TEXT_PAD);
   let lo = 0, hi = line.text.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
@@ -1165,7 +1154,7 @@ function lineCaretXAtOffset(line, obj, offset) {
     : lineStart + text.length;
   const maxOffset = Math.max(text.length, caretEnd - lineStart);
   const clamped = Math.max(0, Math.min(Math.trunc(Number(offset)) || 0, maxOffset));
-  const baseX = lineBaseX(obj);
+  const baseX = obj.x + TEXT_PAD;
   const logicalX = baseX + (clamped <= text.length
     ? line.prefixWidths[clamped]
     : getPrefixWidths(content.slice(lineStart, lineStart + clamped))[clamped] || 0);
@@ -1192,20 +1181,17 @@ function lineCaretXAtOffset(line, obj, offset) {
   return (previousInkRight + nextInkLeft) / 2;
 }
 
-function isTextDrawBatchingFontReady(font) {
+function isTextDrawBatchingFontReady() {
   if (_textDrawBatchingEngineVerified == null) {
     const userAgent = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
     _textDrawBatchingEngineVerified = /\b(?:Chrome|Chromium)\/\d+/.test(userAgent);
   }
   if (!_textDrawBatchingEngineVerified) return false;
-  const requestedFont = font || FONT;
-  if (_textDrawBatchingVerifiedFonts.has(requestedFont)) return true;
+  if (_textDrawBatchingFontReady) return true;
   const fontSet = typeof document !== 'undefined' ? document.fonts : null;
   if (!fontSet || fontSet.status !== 'loaded' || typeof fontSet.check !== 'function') return false;
   try {
-    const ready = fontSet.check(requestedFont, 'Boardfish');
-    if (ready) _textDrawBatchingVerifiedFonts.add(requestedFont);
-    return ready;
+    return _textDrawBatchingFontReady = fontSet.check(FONT, 'Boardfish');
   } catch {
     return false;
   }
@@ -1226,7 +1212,7 @@ function createTextDrawPlan(line, text, start, end) {
       j++;
     }
     const runStart = draws.length;
-    batchingFontReady ??= isTextDrawBatchingFontReady(FONT);
+    batchingFontReady ??= isTextDrawBatchingFontReady();
 
     forEachTextSpacingUnit(text, (unit, unitStart) => {
       if (unit === ' ' || unit === '\u00a0') {
@@ -1258,16 +1244,14 @@ function createTextDrawPlan(line, text, start, end) {
   return draws;
 }
 
-function prepareTextLineForDraw(line) {
-  return line._textDrawPlanCache ||= createTextDrawPlan(line, line.text, 0, line.text.length);
-}
-
 const drawTextLineRange = (context, line, obj, start = 0, end = line.text.length) => {
   const text = line.text;
   const cacheable = start === 0 && end === text.length;
 
-  const plan = cacheable ? prepareTextLineForDraw(line) : createTextDrawPlan(line, text, start, end);
-  const baseX = lineBaseX(obj);
+  const plan = cacheable
+    ? (line._textDrawPlanCache ||= createTextDrawPlan(line, text, 0, text.length))
+    : createTextDrawPlan(line, text, start, end);
+  const baseX = obj.x + TEXT_PAD;
   for (const draw of plan) {
     context.fillText(draw.text, baseX + draw.x, line.textY);
   }

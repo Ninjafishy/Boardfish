@@ -1,11 +1,8 @@
 // ─── Context menu ─────────────────────────────────────────────────────────────
 var _lastBoardCursorClientX = null;
 var _lastBoardCursorClientY = null;
-const HAS_POINTER_EVENTS = 'PointerEvent' in window;
 const BOARD_CURSOR_CLIENT_EVENT_TYPES = Object.freeze([
-  ...(HAS_POINTER_EVENTS
-    ? ['pointerover', 'pointerenter', 'pointermove', 'pointerdown', 'pointerup']
-    : ['mouseover', 'mouseenter', 'mousemove', 'mousedown', 'mouseup']),
+  'mouseover', 'mouseenter', 'mousemove', 'mousedown', 'mouseup',
   'click', 'dblclick', 'auxclick', 'contextmenu', 'dragenter', 'dragover', 'drop',
 ]);
 
@@ -38,43 +35,16 @@ function addTextAtMenuCommandPoint(event = null) {
   addText(point.x, point.y, '', { anchor: 'center' });
 }
 
-function menuViewportBounds() {
-  const viewport = window.visualViewport;
-  const left = Number(viewport?.offsetLeft) || 0;
-  const top = Number(viewport?.offsetTop) || 0;
-  const width = Number(viewport?.width) || Number(window.innerWidth) || 0;
-  const height = Number(viewport?.height) || Number(window.innerHeight) || 0;
-  const style = getComputedStyle(document.body);
-  const inset = (name) => {
-    const value = parseFloat(style.getPropertyValue(`--safe-area-${name}`));
-    return Number.isFinite(value) ? Math.max(0, value) : 0;
-  };
-  const gap = parseFloat(style.getPropertyValue('--menu-shell-padding'));
-  return {
-    left: left + inset('left'),
-    top: top + inset('top'),
-    right: left + width - inset('right'),
-    bottom: top + height - inset('bottom'),
-    gap: Number.isFinite(gap) ? gap : 8,
-  };
-}
-
-function clampMenuCoord(value, size, start, end) {
-  const min = start + MENU_VIEWPORT_EDGE_MARGIN;
-  return Math.max(min, Math.min(end - size - MENU_VIEWPORT_EDGE_MARGIN, value));
+function clampMenuCoord(value, size, extent) {
+  return Math.max(MENU_VIEWPORT_EDGE_MARGIN, Math.min(extent - size - MENU_VIEWPORT_EDGE_MARGIN, value));
 }
 
 function openMenuAt(menu, x, y) {
   menu.classList.add('visible');
   const rect = menu.getBoundingClientRect();
-  const bounds = menuViewportBounds();
-  menu.style.left = `${Math.round(clampMenuCoord(x, rect.width, bounds.left, bounds.right))}px`;
-  menu.style.top = `${Math.round(clampMenuCoord(y, rect.height, bounds.top, bounds.bottom))}px`;
+  menu.style.left = `${Math.round(clampMenuCoord(x, rect.width, window.innerWidth))}px`;
+  menu.style.top = `${Math.round(clampMenuCoord(y, rect.height, window.innerHeight))}px`;
 }
-
-const closeFloatingSurface = (surface) => {
-  surface.classList.remove('visible');
-};
 
 var ctxActionItems = ctxActions.getElementsByClassName('ctx-action-item');
 
@@ -87,13 +57,14 @@ function openCtxMenuAt(x, y) {
   updateCtxActionStates();
   ctxMenu.classList.add('visible');
   ctxActions.classList.add('visible');
-  const { gap, left, right, top, bottom } = menuViewportBounds();
+  const padding = parseFloat(getComputedStyle(document.body).getPropertyValue('--menu-shell-padding'));
+  const gap = Number.isFinite(padding) ? padding : 8;
   const { width: menuWidth, height: menuHeight } = ctxMenu.getBoundingClientRect();
   const actionWidth = ctxActions.offsetWidth;
-  const minActionLeft = left + gap;
-  const maxActionRight = right - gap;
+  const minActionLeft = gap;
+  const maxActionRight = window.innerWidth - gap;
   const maxActionLeft = Math.max(minActionLeft, maxActionRight - actionWidth);
-  let menuLeft = Math.round(clampMenuCoord(x, menuWidth, left, right));
+  let menuLeft = Math.round(clampMenuCoord(x, menuWidth, window.innerWidth));
   let actionLeft = menuLeft + menuWidth + gap;
 
   if (actionLeft + actionWidth > maxActionRight) {
@@ -107,25 +78,25 @@ function openCtxMenuAt(x, y) {
   }
 
   ctxMenu.style.left = `${Math.round(menuLeft)}px`;
-  ctxMenu.style.top = `${Math.round(clampMenuCoord(y, menuHeight, top, bottom))}px`;
+  ctxMenu.style.top = `${Math.round(clampMenuCoord(y, menuHeight, window.innerHeight))}px`;
   ctxActions.style.left = `${Math.round(actionLeft)}px`;
   ctxActions.style.top = ctxMenu.style.top;
 }
 
 function closeCtxMenu() {
   clearMenuCommandPressState();
-  closeFloatingSurface(ctxMenu);
-  closeFloatingSurface(ctxActions);
+  ctxMenu.classList.remove('visible');
+  ctxActions.classList.remove('visible');
 }
 
 function closeObjCtxMenu() {
   clearMenuCommandPressState();
-  closeFloatingSurface(objCtxMenu);
+  objCtxMenu.classList.remove('visible');
 }
 
 const closeTextCtxMenu = () => {
   clearMenuCommandPressState();
-  closeFloatingSurface(textCtxMenu);
+  textCtxMenu.classList.remove('visible');
 };
 
 function closeOpenMenusExcept(activeMenuId = '') {
@@ -138,11 +109,11 @@ function openExclusiveMenuAt(menu, menuId, x, y) {
   closeOpenMenusExcept(menuId);
   openMenuAt(menu, x, y);
 }
-var _menuPointerCommand = null;
+var _menuMouseCommand = null;
 
 function clearMenuCommandPressState() {
-  _menuPointerCommand?.classList.remove('menu-pressed');
-  _menuPointerCommand = null;
+  _menuMouseCommand?.classList.remove('menu-pressed');
+  _menuMouseCommand = null;
 }
 
 var MENU_COMMANDS = {
@@ -193,15 +164,15 @@ const readTextClipboardForEditMenu = async () => {
 
 const replaceTextEditSelection = (text, { inputType }) => {
   const selection = getTextEditSelectionState();
-  if (!selection || !_editEl) return false;
+  if (!selection || !_editEl) return;
   const inputTypeValue = inputType.toLowerCase();
   const replacementText = inputTypeValue.includes('paste')
     ? textForTextObjectPaste(text)
     : normalizeTextContent(text);
-  if (inputTypeValue.includes('paste') && !replacementText) return false;
+  if (inputTypeValue.includes('paste') && !replacementText) return;
   const oldValue = textEditProxyValue(_editEl);
   if (!BoardfishWebLimits.canReplaceText(objectsMap.get(editingId),
-    oldValue.slice(0, selection.start) + replacementText + oldValue.slice(selection.end))) return false;
+    oldValue.slice(0, selection.start) + replacementText + oldValue.slice(selection.end))) return;
   const replacementState = {
     ...selection,
     value: oldValue,
@@ -225,7 +196,6 @@ const replaceTextEditSelection = (text, { inputType }) => {
   _editEl.dispatchEvent(new Event('input', { bubbles: true }));
 
   focusTextEditProxy();
-  return true;
 };
 
 const copyTextEditSelection = async () => {
@@ -245,7 +215,7 @@ const deleteTextEditSelection = () => {
 };
 
 const pasteTextIntoEditSelection = async () => {
-  const hasBoardfishTextPayload = !!currentBoardfishTextSelectionClipboardPayload();
+  const hasBoardfishTextPayload = !!textSelectionPayloadFromBoardfishClipboardValue(jsClipboard);
   const pasteOptions = {};
   const pendingBoardfishPaste = hasBoardfishTextPayload ? pasteBoardfishTextSelectionIntoEditSelection(pasteOptions) : null;
   const pendingExternalText = !hasBoardfishTextPayload || _jsClipboardWebMaybeStale ? readTextClipboardForEditMenu() : null;
@@ -262,13 +232,9 @@ const pasteTextIntoEditSelection = async () => {
   replaceTextEditSelection(text, { inputType: 'insertFromPaste' });
 };
 
-function menuCommandFromButton(button) {
-  return button?.id ? MENU_COMMANDS[button.id] || null : null;
-}
-
 function runMenuCommand(button, source, commandEvent = null) {
   if (source === 'click' && commandEvent?.detail !== 0) return true;
-  const run = menuCommandFromButton(button);
+  const run = button?.id ? MENU_COMMANDS[button.id] || null : null;
   if (!run) {
     return false;
   }
@@ -291,13 +257,6 @@ function hasOpenContextMenu() {
     objCtxMenu.classList.contains('visible') ||
     textCtxMenu.classList.contains('visible')
   );
-}
-
-function isVisibleMenuCommandButton(button) {
-  return !!button &&
-    !button.hidden &&
-    button.style.display !== 'none' &&
-    button.getAttribute('aria-hidden') !== 'true';
 }
 
 var SHORTCUT_MENU_COMMANDS = {
@@ -332,7 +291,8 @@ function runVisibleMenuCommandForShortcut(shortcutName) {
     const menu = contextMenuSurfaceById(menuId);
     if (!menu?.classList.contains('visible')) continue;
     const button = document.getElementById(buttonId);
-    if (!isVisibleMenuCommandButton(button)) continue;
+    if (!button || button.hidden || button.style.display === 'none' ||
+        button.getAttribute('aria-hidden') === 'true') continue;
     return runMenuCommand(button, 'shortcut');
   }
   return false;
@@ -387,39 +347,31 @@ const suppressZoomPillContextMenu = (e) => {
 island?.addEventListener('click', resetZoomFromPill);
 island?.addEventListener('contextmenu', suppressZoomPillContextMenu);
 
-const MENU_COMMAND_DOWN_EVENT = HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown';
-const MENU_COMMAND_UP_EVENT = HAS_POINTER_EVENTS ? 'pointerup' : 'mouseup';
-const MENU_COMMAND_CANCEL_EVENTS = HAS_POINTER_EVENTS
-  ? ['pointercancel', 'pointerleave', 'lostpointercapture']
-  : ['mouseleave'];
-
-function onMenuPointerDown(e) {
+function onMenuMouseDown(e) {
   const button = e.target.closest?.('.ctx-item');
   if (!button || e.button !== 0) return;
-  if (HAS_POINTER_EVENTS) e.stopPropagation();
   clearMenuCommandPressState();
-  _menuPointerCommand = button;
+  _menuMouseCommand = button;
   button.classList.add('menu-pressed');
 }
 
-function onMenuPointerUp(e) {
-  if (!_menuPointerCommand || e.button !== 0) return;
+function onMenuMouseUp(e) {
+  if (!_menuMouseCommand || e.button !== 0) return;
   const button = e.target.closest?.('.ctx-item');
-  const started = _menuPointerCommand;
+  const started = _menuMouseCommand;
   clearMenuCommandPressState();
-  if (e.pointerType === 'touch') started.blur?.();
   if (button !== started) {
     return;
   }
   e.preventDefault();
   e.stopPropagation();
-  runMenuCommand(button, MENU_COMMAND_UP_EVENT, e);
+  runMenuCommand(button, 'mouseup', e);
 }
 
 for (const menu of [ctxMenu, objCtxMenu, textCtxMenu]) {
-  menu.addEventListener(MENU_COMMAND_DOWN_EVENT, onMenuPointerDown);
-  menu.addEventListener(MENU_COMMAND_UP_EVENT, onMenuPointerUp);
-  for (const type of MENU_COMMAND_CANCEL_EVENTS) menu.addEventListener(type, clearMenuCommandPressState);
+  menu.addEventListener('mousedown', onMenuMouseDown);
+  menu.addEventListener('mouseup', onMenuMouseUp);
+  menu.addEventListener('mouseleave', clearMenuCommandPressState);
 }
 const contextMenuStopSurfaces = [ctxMenu, objCtxMenu, textCtxMenu, ctxActions];
 function suppressContextMenuSurface(e) {
@@ -446,9 +398,7 @@ const showTextEditContextMenuAt = (clientX, clientY) => {
   focusTextEditProxy();
   const hasSelection = !!getTextEditSelectionState()?.hasSelection;
   textCopyBtn.style.display = hasSelection ? '' : 'none';
-  // Clipboard contents cannot be probed just to build a menu: mobile browsers
-  // may gate that read behind their own Paste control. Keep the action
-  // available and defer the protected read until the user invokes it.
+  // Read the clipboard only when the user invokes Paste.
   textDeleteSep.style.display = hasSelection ? 'block' : 'none';
   textDeleteBtn.style.display = hasSelection ? '' : 'none';
   if (!editingId) return;
@@ -461,7 +411,7 @@ function showCanvasContextMenuAt(clientX, clientY) {
   }
   const wp = toWorld(clientX, clientY);
 
-  const obj = BoardObjectGeometry.topObjectAtWorldPoint(wp);
+  const obj = BoardfishObjectGeometry.topObjectAtWorldPoint(wp, objects);
 
   if (editingId && obj?.id === editingId) {
     showTextEditContextMenuAt(clientX, clientY);
@@ -470,8 +420,8 @@ function showCanvasContextMenuAt(clientX, clientY) {
 
   // Multi-select: right-click anywhere inside the selected bounding box shows
   // the group menu.
-  if (isMultiSelected()) {
-    if (rectContainsPoint(selectedBounds(), wp) && (!obj || isSelected(obj.id))) {
+  if (selectedIds.size > 1) {
+    if (rectContainsPoint(selectedBounds(), wp) && (!obj || selectedIds.has(obj.id))) {
       updateObjMenuActions();
       openExclusiveMenuAt(objCtxMenu, 'obj-ctx-menu', clientX, clientY);
 
@@ -480,7 +430,7 @@ function showCanvasContextMenuAt(clientX, clientY) {
   }
 
   if (obj) {
-    if (!isSelected(obj.id)) selectObject(obj.id);
+    if (!selectedIds.has(obj.id)) selectObject(obj.id);
     updateObjMenuActions();
     openExclusiveMenuAt(objCtxMenu, 'obj-ctx-menu', clientX, clientY);
 
@@ -504,7 +454,7 @@ for (const id of Object.keys(MENU_COMMANDS)) {
   document.getElementById(id)?.addEventListener('click', onMenuClick);
 }
 
-document.addEventListener(HAS_POINTER_EVENTS ? 'pointerdown' : 'mousedown', (e) => {
+document.addEventListener('mousedown', (e) => {
   if (!hasOpenContextMenu()) return;
   if (isEventInsideVisibleContextMenu(e)) {
     return;
@@ -518,14 +468,14 @@ function clearCtxActionHotspotState() {
   }
 }
 
-ctxActions.addEventListener('pointerdown', (e) => {
+ctxActions.addEventListener('mousedown', (e) => {
   const button = e.target.closest?.('.ctx-action-item');
   if (!button) return;
   clearCtxActionHotspotState();
   button.classList.add('hotspot-active');
 });
-ctxActions.addEventListener('pointerup', clearCtxActionHotspotState);
-ctxActions.addEventListener('pointerleave', clearCtxActionHotspotState);
+ctxActions.addEventListener('mouseup', clearCtxActionHotspotState);
+ctxActions.addEventListener('mouseleave', clearCtxActionHotspotState);
 
 darkModeMenuBtn.addEventListener('click', (e) => {
   e.preventDefault();

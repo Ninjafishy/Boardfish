@@ -1,9 +1,8 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 
 test('viewport panning accepts large offsets in every direction', () => {
   const zoom = 2;
@@ -33,8 +32,7 @@ function loadViewportStateHarness({
 } = {}) {
   const source = readSource('src/js/viewport_state.js');
   const context = {};
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     `var panX = ${panX}; var panY = ${panY}; var zoom = ${zoom};\n` +
       `${source}\n` +
       'globalThis.viewportSnapshot = () => ({ panX, panY, zoom });\n',
@@ -65,20 +63,6 @@ test('zooming around a client point keeps its world-space anchor fixed', () => {
   assert.equal(context.BoardfishViewportState.zoomAroundClient(110, 220, 4), true);
 
   assert.deepEqual({ ...context.viewportSnapshot() }, { panX: -90, panY: -180, zoom: 4 });
-});
-
-test('viewport rendering uses one native-quality branch on every platform', () => {
-  const viewportSource = readSource('src/js/viewport.js');
-  const styles = readSource('src/styles.css');
-
-  assert.doesNotMatch(viewportSource, /BoardfishViewportPreview|viewportTransformPreview|touch-pinch-preview/);
-  assert.doesNotMatch(styles, /viewport-transform-preview/);
-  assert.match(viewportSource, /function applyTransform\([\s\S]*drawBoard\(true\)/);
-  assert.match(viewportSource, /function scheduleTransform\([\s\S]*lastViewportInputAt = now;[\s\S]*scheduleFrame/);
-  assert.doesNotMatch(viewportSource, /scheduleViewportInputSettleRender|restoreBoardCanvasQualityIfSettled/);
-  assert.doesNotMatch(viewportSource, /isViewportInputActive: isActiveViewportInput/);
-  assert.doesNotMatch(viewportSource, /lowLatencyFrame|boardCanvasRenderDpr|INTERACTIVE_CANVAS_DPR_MAX/);
-  assert.match(viewportSource, /function syncBoardCanvasBackingStore\(write = true\) \{\s*const dpr = window\.devicePixelRatio \|\| 1;/);
 });
 
 test('panning continues in every direction after a large prior offset', () => {

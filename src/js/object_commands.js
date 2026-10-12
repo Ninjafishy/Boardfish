@@ -42,7 +42,7 @@ function addText(wx, wy, content = '', options = {}) {
 var _inputShieldStack = [];
 
 function updateInputShieldVisual() {
-  openingShield.classList.toggle('active', !isUnsavedDialogOpen() &&
+  openingShield.classList.toggle('active', _dialogResolve === null &&
     (_boardOpening || _inputShieldStack.some((token) => token.visual !== false)));
 }
 
@@ -133,9 +133,11 @@ function duplicateSelected(anchorPoint = null) {
     maxX = Math.max(maxX, obj.x + obj.w);
     maxY = Math.max(maxY, obj.y + obj.h);
   }
-  if (!selectedObjects.length) return;
-  if (!BoardfishWebLimits.canAcceptAdditionalTextCharacters(additionalTextCharacters)) return;
-  if (!BoardfishWebLimits.canAcceptAdditionalContentBytes(additionalTextBytes, selectedObjects.length)) return;
+  if (
+    !selectedObjects.length ||
+    !BoardfishWebLimits.canAcceptAdditionalTextCharacters(additionalTextCharacters) ||
+    !BoardfishWebLimits.canAcceptAdditionalContentBytes(additionalTextBytes, selectedObjects.length)
+  ) return;
   const center = (
     anchorPoint &&
     Number.isFinite(Number(anchorPoint.x)) &&

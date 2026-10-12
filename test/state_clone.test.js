@@ -1,11 +1,8 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript, plain } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
-
-const plain = (value) => JSON.parse(JSON.stringify(value));
 
 function loadStateCloneHarness() {
   const context = {
@@ -13,8 +10,7 @@ function loadStateCloneHarness() {
       target._runtimeCopiedFrom = source.id;
     },
   };
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     `${readSource('src/js/state.js')}\n` +
       'globalThis.__stateClone = { cloneObject, newId };\n',
     context,
@@ -23,7 +19,7 @@ function loadStateCloneHarness() {
   return context;
 }
 
-test('text clone copies canonical content without normalization', () => {
+test('text clone preserves canonical content and drops retired alignment metadata', () => {
   const context = loadStateCloneHarness();
   const clone = context.__stateClone.cloneObject({
     id: 'text-1',
@@ -33,7 +29,7 @@ test('text clone copies canonical content without normalization', () => {
     w: 3,
     h: 4,
     z: 5,
-    data: { content: 'hello\nworld' },
+    data: { content: 'hello\nworld', lineAlign: ['center'] },
   });
 
   assert.deepEqual(plain(clone), {
@@ -45,28 +41,6 @@ test('text clone copies canonical content without normalization', () => {
     h: 4,
     z: 5,
     data: { content: 'hello\nworld' },
-  });
-});
-
-test('text clone drops retired line alignment metadata', () => {
-  const context = loadStateCloneHarness();
-  const source = {
-    id: 'text-1',
-    type: 'text',
-    x: 1,
-    y: 2,
-    w: 3,
-    h: 4,
-    z: 5,
-    data: {
-      content: 'hello',
-      lineAlign: ['center'],
-    },
-  };
-  const clone = context.__stateClone.cloneObject(source);
-
-  assert.deepEqual(plain(clone.data), {
-    content: 'hello',
   });
 });
 

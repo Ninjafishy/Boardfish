@@ -1,9 +1,8 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 
 function loadImageState(createImageBitmap) {
   const rafs = [];
@@ -14,9 +13,7 @@ function loadImageState(createImageBitmap) {
     Promise,
     Error,
     Object,
-    Number,
     Math,
-    String,
     Blob,
     performance: { now: () => ++now },
     setTimeout() {},
@@ -38,8 +35,7 @@ function loadImageState(createImageBitmap) {
     createImageBitmap,
   };
 
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     `${readSource('src/js/image_state.js')}\n` +
       'globalThis.removeImageRuntimeCachesForKey = removeImageRuntimeCachesForKey;\n' +
       'globalThis.bitmapSourceFromImageSource = bitmapSourceFromImageSource;\n',
@@ -48,27 +44,6 @@ function loadImageState(createImageBitmap) {
   );
   return { context, rafs };
 }
-
-test('image readiness throttles board frames and skips work during board opening', () => {
-  const { context } = loadImageState(() => Promise.resolve({ close() {} }));
-  const renders = [];
-  let invalidations = 0;
-  let now = 1000;
-  context.performance.now = () => now;
-  context.invalidateOffscreen = () => { invalidations++; };
-  context.scheduleRender = (...args) => { renders.push(args); };
-
-  context.scheduleImageReadyRender();
-  now = 1050;
-  context.scheduleImageReadyRender();
-
-  assert.equal(invalidations, 2);
-  assert.deepEqual(renders, [[true]]);
-
-  context._boardOpening = true;
-  context.scheduleImageReadyRender();
-  assert.deepEqual([invalidations, renders.length], [2, 1]);
-});
 
 test('Blob-backed web refs decode directly without a display URL', async () => {
   const bytes = new Uint8Array([1, 2, 3, 4]);

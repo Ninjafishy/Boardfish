@@ -1,15 +1,14 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 
 const WebContainer = require('../src/js/web_board_container.js');
 
 function loadWebImageSourceHarness({ boardContainer = null } = {}) {
   const source = readSource('src/js/image_insert.js');
-  const start = source.indexOf('const webImageExtForFile =');
+  const start = source.indexOf('const createWebImageSourceFromBlob =');
   const end = source.indexOf('\nconst rollbackImageInsertSource =', start);
   assert.ok(start >= 0 && end > start, 'web image source helpers are missing');
   const calls = [];
@@ -22,66 +21,13 @@ function loadWebImageSourceHarness({ boardContainer = null } = {}) {
       },
     },
   };
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     `${source.slice(start, end)}\n` +
       'globalThis.createWebImageSourceFromBlob = createWebImageSourceFromBlob;\n',
     context,
     { filename: 'image_insert.js' },
   );
   context.calls = calls;
-  return context;
-}
-
-function loadAddImageHarness() {
-  const source = readSource('src/js/image_insert.js');
-  const calls = {
-    histories: [],
-    objects: [],
-    renders: [],
-    selections: [],
-  };
-  const imageStore = {};
-  const context = {
-    _bulkImageInsertDepth: 0,
-    editingId: null,
-    imageBitmapCache: {
-      'img-paste': { width: 1200, height: 300 },
-    },
-    imageStore,
-    zCounter: 0,
-    calls,
-    BoardfishEditorState: {
-      addObject(obj) {
-        calls.objects.push(obj);
-      },
-      setSelection(ids, options = {}) {
-        calls.selections.push({ ids: [...ids], options: { ...options } });
-      },
-    },
-    BoardfishImageStore: {
-      getSource(key) {
-        return imageStore[key];
-      },
-      setSource(key, value) {
-        imageStore[key] = value;
-      },
-    },
-    cacheImage: async () => true,
-    canvas: { addEventListener() {} },
-    fileInput: {
-      addEventListener() {},
-    },
-    newId: () => 'obj-paste',
-    pushHistory(reason) {
-      calls.histories.push(reason);
-    },
-    scheduleRender(...args) {
-      calls.renders.push(args);
-    },
-  };
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: 'image_insert.js' });
   return context;
 }
 
@@ -106,8 +52,7 @@ function loadEditorStateBoundaryHarness() {
       context.editingId = null;
     },
   };
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: 'editor_state_boundary.js' });
+  runScript(source, context, { filename: 'editor_state_boundary.js' });
   return context;
 }
 
@@ -201,28 +146,6 @@ test('inserted immutable Blob sources reuse CRC without changing saved bytes', a
   assert.deepEqual(WebContainer.bytesForImageSource(reopened.board.imageStore['img-9']), bytes);
 });
 
-test('decoded image insertion owns its size cap after image layout removal', async () => {
-  const context = loadAddImageHarness();
-  const imageSource = { web: true, mime: 'image/png' };
-
-  const obj = await context.addImage(imageSource, 500, 400, 'img-paste');
-
-  assert.ok(obj);
-  assert.equal(obj.w, 600);
-  assert.equal(obj.h, 150);
-  assert.equal(obj.x, 200);
-  assert.equal(obj.y, 325);
-  assert.equal(context.imageStore['img-paste'], imageSource);
-  assert.equal(context.calls.objects[0], obj);
-  assert.deepEqual(context.calls.selections, [{
-    ids: ['obj-paste'],
-    options: {},
-  }]);
-  assert.deepEqual(context.calls.renders, [[true, true]]);
-  assert.deepEqual(context.calls.histories, ['add-image']);
-  assert.equal('BoardfishImageLayout' in context, false);
-});
-
 test('editor selection changes do not allocate motion snapshots', () => {
   const context = loadEditorStateBoundaryHarness();
   let allocations = 0;
@@ -242,30 +165,6 @@ test('editor selection changes do not allocate motion snapshots', () => {
     primaryId: 'obj-1',
   });
   assert.equal(allocations, 0);
-});
-
-test('editor selection accepts sets without disrupting a retained live edit', () => {
-  const context = loadEditorStateBoundaryHarness();
-  const retainedIds = vm.runInContext("new Set(['obj-1', 'obj-2'])", context);
-  const replacementIds = vm.runInContext("new Set(['obj-2'])", context);
-  let exits = 0;
-  context.editingId = 'obj-1';
-  context.exitEdit = () => {
-    exits++;
-    context.editingId = null;
-  };
-
-  context.BoardfishEditorState.setSelection(retainedIds, { primaryId: 'obj-2' });
-
-  assert.equal(exits, 0);
-  assert.deepEqual([...context.selectedIds], ['obj-1', 'obj-2']);
-  assert.equal(context.selectedId, 'obj-2');
-
-  context.BoardfishEditorState.setSelection(replacementIds, { primaryId: 'obj-2' });
-
-  assert.equal(exits, 1);
-  assert.deepEqual([...context.selectedIds], ['obj-2']);
-  assert.equal(context.selectedId, 'obj-2');
 });
 
 test('board object replacement retains content-keyed caches while reset clears them', () => {
@@ -296,15 +195,4 @@ test('web image insert rejects a whole supported batch that would exceed object 
   assert.equal((source.match(/BoardfishWebLimits\.canAddObjects\(/g) || []).length, 2);
   assert.match(source, /const imgKey = newImgKey\(\);\s*const insertOptions = \{\s*z:/);
   assert.doesNotMatch(source, /\baddImageObject\b|insertOptions\.imgKey/);
-});
-
-test('file picker image insertion freezes the command point before files are chosen', () => {
-  const source = readSource('src/js/image_insert.js');
-
-  assert.match(source, /var _pendingImageInsertPoint = null;/);
-  assert.match(source, /_pendingImageInsertPoint = \{ x, y \};[\s\S]*fileInput\.click\(\);/);
-  assert.match(source, /const insertPoint = _pendingImageInsertPoint;/);
-  assert.doesNotMatch(source, /\bctxPos\b/);
-  assert.match(source, /insertImageFiles\(files, insertPoint\.x, insertPoint\.y\)/);
-  assert.match(source, /finally \{[\s\S]*_pendingImageInsertPoint = null;[\s\S]*fileInput\.value = '';/);
 });

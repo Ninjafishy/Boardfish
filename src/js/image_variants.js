@@ -29,18 +29,14 @@ var drawableBitmapWarmupQueue = new Map();
 var drawableBitmapWarmupScheduled = false;
 var drawableBitmapWarmupReady = new WeakSet();
 
-function bitmapByteSize(bitmap) {
-  return (bitmap?.width || 0) * (bitmap?.height || 0) * 4;
-}
-
 function isImageVariantDrawableSource(source) {
   if (!source) return false;
-  return !!(source.complete && source.naturalWidth > 0) || !!(source.width > 0 && source.height > 0);
+  return !!(source.width > 0 && source.height > 0);
 }
 
 function drawableBitmapWarmupTargetSize(source, meta = {}) {
-  const sourceW = source?.width || source?.naturalWidth || 0;
-  const sourceH = source?.height || source?.naturalHeight || 0;
+  const sourceW = source?.width || 0;
+  const sourceH = source?.height || 0;
   if (!(sourceW > 0 && sourceH > 0)) return { sourceW, sourceH, width: 1, height: 1 };
   const maxEdge = meta.kind === 'scaled-variant' ? 512 : meta.kind === 'full-image' ? 256 : 1;
   const scale = Math.min(1, maxEdge / Math.max(sourceW, sourceH));
@@ -79,26 +75,22 @@ function drawableBitmapWarmup2dContext(width, height) {
 
 function warmDrawableBitmapForDrawNow(source, meta = {}) {
   if (!isImageVariantDrawableSource(source)) {
-    return (false);
+    return;
   }
   if (drawableBitmapWarmupReady.has(source)) {
-    return (false);
+    return;
   }
   const target = drawableBitmapWarmupTargetSize(source, meta);
   const ctx = drawableBitmapWarmup2dContext(target.width, target.height);
   if (!ctx) {
-    return false;
+    return;
   }
 
   try {
     try { ctx.imageSmoothingEnabled = false; } catch {}
     ctx.drawImage(source, 0, 0, target.sourceW, target.sourceH, 0, 0, target.width, target.height);
     drawableBitmapWarmupReady.add(source);
-
-    return true;
-  } catch {
-    return false;
-  }
+  } catch {}
 }
 
 function runDrawableBitmapWarmupQueue() {
@@ -257,10 +249,6 @@ function prioritizeScaledVariantQueue(key) {
   return true;
 }
 
-function shouldBuildScaledImageVariant(key, generation) {
-  return generation === _imageStoreGeneration && imageScaledBitmapPending.has(key);
-}
-
 async function createScaledImageVariantBitmap(source, sourceW, sourceH, scale) {
   const w = Math.max(1, Math.ceil(sourceW * scale));
   const h = Math.max(1, Math.ceil(sourceH * scale));
@@ -314,8 +302,8 @@ function scheduleScaledVariantQueue() {
 }
 
 function chooseImageScaleForDraw(obj, source, view = { zoom, dpr: window.devicePixelRatio || 1 }, activeOverscale = false) {
-  const sourceW = source?.width || source?.naturalWidth || 0;
-  const sourceH = source?.height || source?.naturalHeight || 0;
+  const sourceW = source?.width || 0;
+  const sourceH = source?.height || 0;
   if (!sourceW || !sourceH) return 1;
   const viewZoom = view.zoom;
   const dpr = view.dpr;
@@ -338,8 +326,8 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
     if (priority === true) prioritizeScaledVariantQueue(key);
     return (false);
   }
-  const sourceW = source?.width || source?.naturalWidth || 0;
-  const sourceH = source?.height || source?.naturalHeight || 0;
+  const sourceW = source?.width || 0;
+  const sourceH = source?.height || 0;
   if (!sourceW || !sourceH) {
     return (false);
   }
@@ -350,7 +338,7 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
   addPendingScaledVariantBytes(key, estimatedBytes);
   const generation = _imageStoreGeneration;
   const task = async () => {
-    if (!shouldBuildScaledImageVariant(key, generation)) {
+    if (generation !== _imageStoreGeneration || !imageScaledBitmapPending.has(key)) {
       removePendingScaledVariantBytes(key);
       return;
     }
@@ -358,11 +346,11 @@ function queueScaledImageVariant(key, source, scale, priority = false) {
     let bitmap = null;
     try {
       bitmap = await createScaledImageVariantBitmap(source, sourceW, sourceH, scale);
-      if (!shouldBuildScaledImageVariant(key, generation)) {
+      if (generation !== _imageStoreGeneration || !imageScaledBitmapPending.has(key)) {
         bitmap.close?.();
         return;
       }
-      const bytes = bitmapByteSize(bitmap);
+      const bytes = (bitmap?.width || 0) * (bitmap?.height || 0) * 4;
       setScaledImageVariant(key, { bitmap, bytes });
       const warmupMeta = { kind: 'scaled-variant', key };
 

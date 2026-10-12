@@ -16,13 +16,13 @@ function selectionSetsEqual(a, b) {
 }
 
 function focusTextEditProxyNow(proxy) {
-  if (!proxy || (typeof document !== 'undefined' && document.activeElement === proxy)) return false;
+  if (!proxy || (typeof document !== 'undefined' && document.activeElement === proxy)) return;
   proxy.focus({ preventScroll: true });
-  return true;
 }
 
 function handleViewportWheel(e) {
-  if (!e.ctrlKey && !e.metaKey && !isEventInsideViewportWheelSurface(e)) return;
+  if (!e.ctrlKey && !e.metaKey && !((e.target instanceof Node && canvas.contains(e.target)) ||
+    isEventInsideVisibleContextMenu(e) || isEventInsideVisibleSurface(e, island))) return;
 
     e.preventDefault();
     if (_rubberBandDragActive) {
@@ -96,15 +96,14 @@ function createSelectionDragSession(startClientX, startClientY) {
   let grpMoved = false;
   let finished = false;
   function move(clientX, clientY) {
-    if (finished || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return false;
+    if (finished || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
     const dx = clientX - startClientX;
     const dy = clientY - startClientY;
     if (!grpMoved && dx*dx + dy*dy > 9) grpMoved = true;
-    if (!grpMoved) return false;
+    if (!grpMoved) return;
     const worldDx = dx / dragZoom, worldDy = dy / dragZoom;
     for (const item of grpItems) { item.obj.x = item.startX + worldDx; item.obj.y = item.startY + worldDy; }
     scheduleRender(true, true);
-    return true;
   }
   function finish() {
     if (finished) return false;
@@ -123,11 +122,6 @@ function startGroupDrag(e) {
     move: (ev) => drag.move(ev.clientX, ev.clientY),
     up: drag.finish,
   });
-}
-
-function startSelectedRegionDrag(e) {
-  if (editingId || !rectContainsPoint(selectedBounds(), toWorld(e.clientX, e.clientY))) return false;
-  return createSelectionDragSession(e.clientX, e.clientY);
 }
 
 hideRubberBandSelectionVisual = () => {
@@ -185,7 +179,7 @@ function startRubberBandSelection(e, additive) {
 
 function toggleAdditiveSelection(obj) {
   const nextSelection = new Set(selectedIds);
-  const selecting = !isSelected(obj.id);
+  const selecting = !selectedIds.has(obj.id);
   if (selecting) nextSelection.add(obj.id); else nextSelection.delete(obj.id);
   BoardfishEditorState.setSelection(nextSelection);
   if (selecting) bringObjectToFront(obj);
@@ -243,7 +237,7 @@ function startTextSelectionDrag(obj, wp) {
 }
 
 function startObjectDrag(e, obj) {
-  const wasSelected = isSelected(obj.id);
+  const wasSelected = selectedIds.has(obj.id);
   const canClickToEditText = obj.type === 'text' && wasSelected && selectedIds.size === 1;
   if (!wasSelected) selectObject(obj.id);
   const startX = e.clientX, startY = e.clientY;
@@ -251,7 +245,7 @@ function startObjectDrag(e, obj) {
 
   function onUp(ev) {
     if (!drag.finish()) {
-      if (!isSelected(obj.id)) selectObject(obj.id);
+      if (!selectedIds.has(obj.id)) selectObject(obj.id);
       if (canClickToEditText) {
         enterEdit(obj.id, { placeInitialCaret: false });
 
@@ -263,9 +257,7 @@ function startObjectDrag(e, obj) {
           applyTextEditCaretHit(obj, _editEl, clickHit);
 
           _caretVisible = true;
-          if (ev?.isTrusted) {
-            focusTextEditProxyNow(_editEl);
-          }
+          focusTextEditProxyNow(_editEl);
         }
       }
     }
@@ -290,11 +282,11 @@ canvas.addEventListener('mousedown', (e) => {
   const wp = toWorld(e.clientX, e.clientY);
 
   const additive = e.metaKey || e.ctrlKey;
-  const canGroupDrag = isMultiSelected() && !additive;
+  const canGroupDrag = selectedIds.size > 1 && !additive;
   const groupDragFromBounds = canGroupDrag && rectContainsPoint(selectedBounds(), wp);
 
-  const obj = groupDragFromBounds ? null : BoardObjectGeometry.topObjectAtWorldPoint(wp);
-  const groupDrag = groupDragFromBounds || (canGroupDrag && isSelected(obj?.id));
+  const obj = groupDragFromBounds ? null : BoardfishObjectGeometry.topObjectAtWorldPoint(wp, objects);
+  const groupDrag = groupDragFromBounds || (canGroupDrag && selectedIds.has(obj?.id));
 
   // Multi-select: drag from its bounds or a rotated selected object extending beyond them.
   if (groupDrag) { startGroupDrag(e); return; }

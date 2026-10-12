@@ -1,28 +1,19 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript, plain } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-const plain = (value) => JSON.parse(JSON.stringify(value));
-
 function loadTextLayout({
   measureWidth = (text) => String(text).length,
   measureTextMetrics = null,
-  fontStatus = 'loaded',
-  fontCheck = () => true,
-  userAgent = 'Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36',
   trackSegmenter = false,
 } = {}) {
   const measured = [];
   const segmented = [];
   const context = {
     document: {
-      fonts: {
-        status: fontStatus,
-        check: fontCheck,
-      },
       createElement() {
         return {
           getContext() {
@@ -48,7 +39,6 @@ function loadTextLayout({
         };
       },
     },
-    navigator: { userAgent },
     objects: [],
 
     scheduleRender() {},
@@ -68,8 +58,7 @@ function loadTextLayout({
       },
     };
   }
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     readSource('src/js/text_layout.js'),
     context,
     { filename: 'text_layout.js' },
@@ -90,8 +79,6 @@ function loadTextLayout({
       patchTextObjectLayoutAfterInput,
       clearTextLayoutCaches,
       clearTextObjectLayoutRuntime,
-      prepareTextLineForDraw,
-      drawTextLineRange,
       lineCaretXAtOffset,
       lineXAtOffset,
       spacingUnits(value, start = 0, end = null) {
@@ -351,193 +338,6 @@ test('text measurement uses single-glyph advances for consistent spacing', () =>
   assert.ok(!measured.slice(initialMeasures).includes('YY'));
   assert.ok(!measured.slice(initialMeasures).includes('XY'));
   assert.ok(!measured.slice(initialMeasures).includes('XX'));
-});
-
-test('text layout adds a small advance when neighboring glyph ink would touch', () => {
-  const { context } = loadTextLayout({
-    measureWidth(text) {
-      return String(text).length * 10;
-    },
-    measureTextMetrics(text, { width }) {
-      if (text === 'Y') {
-        return {
-          actualBoundingBoxLeft: 0,
-          actualBoundingBoxRight: width,
-        };
-      }
-      return {};
-    },
-  });
-  const textLayout = context.__testTextLayout;
-  const obj = {
-    id: 'text-1',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 200,
-    h: 40,
-    data: { content: 'YY' },
-  };
-  const [line] = textLayout.getTextLayout(obj);
-  const calls = [];
-
-  assert.equal(textLayout.measureRawTextW('YY'), 20.5);
-  assert.equal(textLayout.lineXAtOffset(line, obj, 1), 26.5);
-  assert.equal(textLayout.lineXAtOffset(line, obj, 2), 36.5);
-
-  textLayout.drawTextLineRange({
-    font: '',
-    fillText(text, x, y) {
-      calls.push({ text, x, y });
-    },
-  }, line, obj);
-
-  assert.deepEqual(calls.map((call) => call.text), ['Y', 'Y']);
-  assert.deepEqual(calls.map((call) => call.x), [context.TEXT_PAD, context.TEXT_PAD + 10.5]);
-});
-
-test('text drawing places each glyph at measured prefix positions', () => {
-  const { context } = loadTextLayout();
-  const textLayout = context.__testTextLayout;
-  const obj = {
-    id: 'text-1',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 200,
-    h: 40,
-    data: { content: 'a->b c<-d' },
-  };
-  const [line] = textLayout.getTextLayout(obj);
-  const calls = [];
-
-  textLayout.drawTextLineRange({
-    font: '',
-    fillText(text, x, y) {
-      calls.push({ text, x, y });
-    },
-  }, line, obj);
-
-  assert.deepEqual(calls.map((call) => call.text), ['a', '-', '>', 'b', 'c', '<', '-', 'd']);
-  assert.deepEqual(
-    calls.map((call) => call.x),
-    [0, 1, 2, 3, 5, 6, 7, 8].map((offset) => obj.x + context.TEXT_PAD + line.prefixWidths[offset]),
-  );
-
-  calls.length = 0;
-  textLayout.drawTextLineRange({
-    font: '',
-    fillText(text, x, y) {
-      calls.push({ text, x, y });
-    },
-  }, line, obj);
-
-  assert.deepEqual(calls.map((call) => call.text), ['a', '-', '>', 'b', 'c', '<', '-', 'd']);
-});
-
-test('opening hydration can prepare every text draw plan before the first canvas draw', () => {
-  const { context } = loadTextLayout();
-  const textLayout = context.__testTextLayout;
-  const obj = {
-    id: 'text-hydrate',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 200,
-    h: 80,
-    data: { content: 'first line\nsecond line' },
-  };
-  const layout = textLayout.getTextLayout(obj);
-
-  assert.equal(layout.length, 2);
-  for (const line of layout) textLayout.prepareTextLineForDraw(line);
-
-  for (const line of layout) {
-    textLayout.drawTextLineRange({ fillText() {} }, line, obj);
-  }
-});
-
-test('text drawing batches pixel-equivalent plain ASCII spans only', () => {
-  const { context } = loadTextLayout();
-  const textLayout = context.__testTextLayout;
-  const obj = {
-    id: 'text-batched-ascii',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 240,
-    h: 40,
-    data: { content: 'Boardfish 123 café' },
-  };
-  const [line] = textLayout.getTextLayout(obj);
-  const calls = [];
-
-  textLayout.drawTextLineRange({
-    font: '',
-    fillText(text, x, y) {
-      calls.push({ text, x, y });
-    },
-  }, line, obj);
-
-  assert.deepEqual(calls.map((call) => call.text), ['Bo', 'ar', 'd', 'f', 'is', 'h', '12', '3', 'ca', 'f', 'é']);
-  assert.deepEqual(
-    calls.map((call) => call.x),
-    [0, 2, 4, 5, 6, 8, 10, 12, 14, 16, 17].map((offset) => obj.x + context.TEXT_PAD + line.prefixWidths[offset]),
-  );
-});
-
-test('text drawing splits the Geist contextual tt pair', () => {
-  const { context } = loadTextLayout();
-  const textLayout = context.__testTextLayout;
-  const obj = {
-    id: 'text-tt-ligature',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 120,
-    h: 40,
-    data: { content: 'letter' },
-  };
-  const [line] = textLayout.getTextLayout(obj);
-  const calls = [];
-
-  textLayout.drawTextLineRange({
-    font: '',
-    fillText(text) {
-      calls.push(text);
-    },
-  }, line, obj);
-
-  assert.deepEqual(calls, ['le', 't', 'te', 'r']);
-});
-
-test('text drawing keeps the exact per-grapheme path for fallback fonts and unverified engines', () => {
-  for (const options of [
-    { fontStatus: 'loading' },
-    { fontCheck: () => false },
-    { userAgent: 'Mozilla/5.0 Firefox/142.0' },
-  ]) {
-    const { context } = loadTextLayout(options);
-    const textLayout = context.__testTextLayout;
-    const obj = {
-      id: 'text-unverified-font',
-      type: 'text',
-      x: 0,
-      y: 0,
-      w: 120,
-      h: 40,
-      data: { content: 'Board' },
-    };
-    const [line] = textLayout.getTextLayout(obj);
-    const calls = [];
-
-    textLayout.drawTextLineRange({
-      font: '',
-      fillText(text) { calls.push(text); },
-    }, line, obj);
-
-    assert.deepEqual(calls, ['B', 'o', 'a', 'r', 'd']);
-  }
 });
 
 test('text minimum width uses the widest rendered word, not character count', () => {
@@ -819,24 +619,26 @@ test('text lines always start at the left padding', () => {
   assert.equal(Object.hasOwn(line, 'align'), false);
 });
 
-test('text caret x centers between neighboring glyph ink bounds', () => {
-  const { context } = loadTextLayout({
-    measureWidth(text) {
-      return String(text).length * 10;
-    },
-    measureTextMetrics(text, { width }) {
-      if (text === 'X') {
-        return {
-          actualBoundingBoxLeft: -4,
-          actualBoundingBoxRight: 9,
-        };
-      }
+const caretInkMetrics = {
+  measureWidth(text) {
+    return String(text).length * 10;
+  },
+  measureTextMetrics(text, { width }) {
+    if (text === 'X') {
       return {
-        actualBoundingBoxLeft: 0,
-        actualBoundingBoxRight: width,
+        actualBoundingBoxLeft: -4,
+        actualBoundingBoxRight: 9,
       };
-    },
-  });
+    }
+    return {
+      actualBoundingBoxLeft: 0,
+      actualBoundingBoxRight: width,
+    };
+  },
+};
+
+test('text caret x centers between neighboring glyph ink bounds', () => {
+  const { context } = loadTextLayout(caretInkMetrics);
   const textLayout = context.__testTextLayout;
   const obj = {
     id: 'text-1',
@@ -857,23 +659,7 @@ test('text caret x centers between neighboring glyph ink bounds', () => {
 });
 
 test('text caret x keeps logical positions next to whitespace', () => {
-  const { context } = loadTextLayout({
-    measureWidth(text) {
-      return String(text).length * 10;
-    },
-    measureTextMetrics(text, { width }) {
-      if (text === 'X') {
-        return {
-          actualBoundingBoxLeft: -4,
-          actualBoundingBoxRight: 9,
-        };
-      }
-      return {
-        actualBoundingBoxLeft: 0,
-        actualBoundingBoxRight: width,
-      };
-    },
-  });
+  const { context } = loadTextLayout(caretInkMetrics);
   const textLayout = context.__testTextLayout;
   const obj = {
     id: 'text-1',

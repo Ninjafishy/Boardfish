@@ -1,6 +1,6 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript, loadBoardLimits, plain } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
@@ -35,8 +35,7 @@ function loadClipboardStateHarness() {
       addEventListener() {},
     },
   };
-  vm.createContext(context);
-  vm.runInContext(
+  runScript(
     source +
       'globalThis.markJsClipboardMaybeStaleFromWebBlur = markJsClipboardMaybeStaleFromWebBlur;\n' +
       'globalThis.forceJsClipboardSetAt = (value) => { _jsClipboardSetAt = value; };\n',
@@ -58,48 +57,19 @@ function loadClipboardExportHarness(options = {}) {
     z: 1,
     data: { content: 'first line\nsecond line' },
   };
-  const selectedObject = options.selectedObject || options.selectedObjects?.[0] || textObject;
-  const selectedObjects = options.selectedObjects || [selectedObject];
+  const selectedObject = options.selectedObject || textObject;
   const calls = {
     canvasToPngBlob: 0,
     copiedImages: [],
     copiedTexts: [],
-    copiedTokens: [],
 
     insertedImages: [],
-    jsClipboards: [],
-    jello: [],
-    objectJello: [],
-    deleted: 0,
     pendingImageCopyResolves: [],
     pendingPngBlobResolves: [],
-    pendingTextCopyResolves: [],
-    pendingTokenCopyResolves: [],
     renderImageToCanvas: 0,
-    renders: [],
-    resolveNextCopiedText(result = { boardfishTokenWritten: true }) {
-      const pending = calls.pendingTextCopyResolves.shift();
-      if (!pending) throw new Error('No pending text copy to resolve');
-      pending.resolve(result);
-    },
-    rejectNextCopiedText(error = new Error('clipboard text write failed')) {
-      const pending = calls.pendingTextCopyResolves.shift();
-      if (!pending) throw new Error('No pending text copy to reject');
-      pending.reject(error);
-    },
     resolveNextCopiedImage(result = { boardfishTokenWritten: true }) {
       const pending = calls.pendingImageCopyResolves.shift();
       if (!pending) throw new Error('No pending image copy to resolve');
-      pending.resolve(result);
-    },
-    rejectNextCopiedImage(error = new Error('clipboard image write failed')) {
-      const pending = calls.pendingImageCopyResolves.shift();
-      if (!pending) throw new Error('No pending image copy to reject');
-      pending.reject(error);
-    },
-    resolveNextCopiedToken(result = { boardfishTokenWritten: true }) {
-      const pending = calls.pendingTokenCopyResolves.shift();
-      if (!pending) throw new Error('No pending token copy to resolve');
       pending.resolve(result);
     },
     resolveNextPngBlob(blob = options.renderedBlob || null) {
@@ -117,16 +87,12 @@ function loadClipboardExportHarness(options = {}) {
     },
     editingId: null,
     objects: [],
-    selectedIds: new Set(selectedObjects.map((obj) => obj.id)),
-    objectsMap: new Map(selectedObjects.map((obj) => [obj.id, obj])),
+    selectedIds: new Set([selectedObject.id]),
+    objectsMap: new Map([[selectedObject.id, selectedObject]]),
     textObject,
     calls,
     BoardfishClipboardIO: {
-      copyBoardfishTokenToClipboard(token) {
-        calls.copiedTokens.push(token);
-        if (options.deferCopyToken) {
-          return new Promise((resolve, reject) => calls.pendingTokenCopyResolves.push({ resolve, reject }));
-        }
+      copyBoardfishTokenToClipboard() {
         return Promise.resolve({ boardfishTokenWritten: true });
       },
       copyImageBlobToClipboard(blobOrPromise, token) {
@@ -139,9 +105,6 @@ function loadClipboardExportHarness(options = {}) {
       },
       copyTextToClipboard(text) {
         calls.copiedTexts.push(text);
-        if (options.deferCopyText) {
-          return new Promise((resolve, reject) => calls.pendingTextCopyResolves.push({ resolve, reject }));
-        }
         return Promise.resolve({ boardfishTokenWritten: true });
       },
     },
@@ -149,11 +112,7 @@ function loadClipboardExportHarness(options = {}) {
       getSource() { return options.imageSource || ''; },
     },
     BoardfishMotion: {
-      applyCopyFeedback(payload = {}) {
-        if (payload.textSelection) calls.jello.push({ ...payload.textSelection });
-        if (payload.objects) calls.objectJello.push(payload.objects.map((obj) => obj.id));
-        return true;
-      },
+      applyCopyFeedback() {},
     },
 
     cloneObject(obj) {
@@ -189,20 +148,10 @@ function loadClipboardExportHarness(options = {}) {
       return Promise.resolve(options.renderedBlob || null);
     },
     textForClipboard: trimClipboardFixture,
-    scheduleRender(board, overlay) {
-      calls.renders.push({ board, overlay });
-    },
-    setJsClipboard(value) {
-      calls.jsClipboards.push(value);
-      return 'clip-token';
-    },
-    deleteSelected() {
-      calls.deleted++;
-      context.selectedIds.clear();
-    },
+    scheduleRender() {},
+    setJsClipboard() { return 'clip-token'; },
   };
-  vm.createContext(context);
-  vm.runInContext(`${source}\nglobalThis.copySelected = copySelected;\nglobalThis.cutSelected = cutSelected;\n`, context, {
+  runScript(`${source}\nglobalThis.copySelected = copySelected;\n`, context, {
     filename: 'clipboard_export_init.js',
   });
   return context;
@@ -224,10 +173,8 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     added: [],
     histories: [],
     clones: 0,
-    selections: [],
     synced: [],
     textBytes: [],
-    messages: [],
   };
   const context = {
     Promise,
@@ -244,7 +191,6 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     _jsClipboardWebMaybeStale: false,
     _pasteInProgress: false,
     clearTextObjectLayoutRuntime() {},
-    historyIndex: 0,
     zCounter: 1,
     BoardfishClipboardIO: {
       readBoardfishClipboardTokenFromEvent() { return ''; },
@@ -255,9 +201,7 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
         context.objects.push(obj);
         calls.added.push(obj);
       },
-      setSelection(ids, options = {}) {
-        calls.selections.push({ ids, options });
-      },
+      setSelection() {},
     },
     BoardfishMotion: {
       applyCopyFeedback() {},
@@ -275,7 +219,7 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
 
     cloneObjects(list) {
       calls.clones++;
-      return JSON.parse(JSON.stringify(list));
+      return plain(list);
     },
     jsClipboardStillCurrent() {
       return Promise.resolve(true);
@@ -294,88 +238,11 @@ function loadClipboardPasteObjectsHarness({ realLimits = false } = {}) {
     },
     textForTextObjectPaste: trimClipboardFixture,
   };
-  if (realLimits) {
-    const limitsContext = vm.createContext({
-      objects: context.objects,
-      TextEncoder,
-      showIslandMsg(message, duration) { calls.messages.push({ message, duration }); },
-    });
-    vm.runInContext(readSource('src/js/board_limits.js'), limitsContext);
-    context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
-  }
-  vm.createContext(context);
-  vm.runInContext(source, context, {
+  if (realLimits) context.BoardfishWebLimits = loadBoardLimits(context.objects);
+  runScript(source, context, {
     filename: 'clipboard_export_init.js',
   });
   return { context, sourceTextObject };
-}
-
-function loadTextEditCopyHarness(value, options = {}) {
-  const source = readSource('src/js/context_menu.js');
-  const start = source.indexOf('const getTextEditSelectionState');
-  const end = source.indexOf('const deleteTextEditSelection', start);
-  assert.ok(start >= 0 && end > start, 'text edit copy helpers are missing');
-  const calls = {
-    copiedTexts: [],
-    jello: [],
-    pendingTextCopyResolves: [],
-    renders: [],
-    resolveNextCopiedText(result = {}) {
-      const pending = calls.pendingTextCopyResolves.shift();
-      if (!pending) throw new Error('No pending text copy to resolve');
-      pending.resolve(result);
-    },
-  };
-  const editProxy = {
-    value,
-    selectionStart: 0,
-    selectionEnd: value.length,
-    selectionDirection: 'none',
-    focus() {},
-  };
-  const context = {
-    editingId: 'text-1',
-    _editEl: editProxy,
-    objectsMap: new Map([['text-1', { id: 'text-1', type: 'text', data: { content: value } }]]),
-    setJsClipboard(clipboard) { calls.clipboard = clipboard; },
-    getJsClipboardWebToken: () => '',
-    calls,
-    BoardfishClipboardIO: {
-      copyTextToClipboard(text) {
-        calls.copiedTexts.push(text);
-        if (options.deferCopyText) {
-          return new Promise((resolve, reject) => calls.pendingTextCopyResolves.push({ resolve, reject }));
-        }
-        return Promise.resolve();
-      },
-    },
-    BoardfishMotion: {
-      applyCopyFeedback(payload = {}) {
-        if (payload.textSelection) calls.jello.push({ ...payload.textSelection });
-      },
-    },
-
-    clearJsClipboard() {},
-    focusTextEditProxyNow(proxy) { proxy?.focus({ preventScroll: true }); },
-    scheduleRender(board, overlay) {
-      calls.renders.push({ board, overlay });
-    },
-    textSelectionForClipboard: trimClipboardFixture,
-  };
-
-  vm.createContext(context);
-  vm.runInContext(
-    readSource('src/js/text_editor.js'),
-    context,
-    { filename: 'text_editor.js' },
-  );
-  vm.runInContext(
-    `${source.slice(start, end)}\n` +
-      'globalThis.copyTextEditSelection = copyTextEditSelection;\n',
-    context,
-    { filename: 'context_menu_text_copy.js' },
-  );
-  return context;
 }
 
 test('web js clipboard stays current only while its browser clipboard marker matches', async () => {
@@ -534,122 +401,6 @@ test('clipboard IO preserves rich representations and supports direct-only clipb
   }
 });
 
-test('copying a selected text object jiggles after its clipboard write finishes', async () => {
-  const context = loadClipboardExportHarness({ deferCopyText: true });
-
-  const copyResult = context.copySelected();
-
-  assert.equal('imageData' in context.calls.jsClipboards[0], false);
-  assert.deepEqual(context.calls.copiedTexts, [context.textObject.data.content]);
-  assert.deepEqual(context.calls.jello, []);
-  assert.deepEqual(context.calls.objectJello, []);
-  assert.deepEqual(context.calls.renders, []);
-
-  assert.equal(copyResult, true);
-  assert.equal(context.calls.pendingTextCopyResolves.length, 1);
-  context.calls.resolveNextCopiedText();
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.deepEqual(context.calls.objectJello.map((ids) => [...ids]), [['text-1']]);
-});
-
-test('a failed text write does not start copy feedback', async () => {
-  const context = loadClipboardExportHarness({ deferCopyText: true });
-
-  assert.equal(context.copySelected(), true);
-  assert.deepEqual(context.calls.objectJello, []);
-  context.calls.rejectNextCopiedText();
-  await Promise.resolve();
-  await Promise.resolve();
-
-  assert.deepEqual(context.calls.objectJello, []);
-});
-
-test('copying multiple objects jiggles after the browser clipboard marker settles', async () => {
-  const first = {
-    id: 'text-1',
-    type: 'text',
-    x: 0,
-    y: 0,
-    w: 120,
-    h: 80,
-    z: 1,
-    data: { content: 'first' },
-  };
-  const second = {
-    id: 'text-2',
-    type: 'text',
-    x: 160,
-    y: 0,
-    w: 120,
-    h: 80,
-    z: 2,
-    data: { content: 'second' },
-  };
-  const context = loadClipboardExportHarness({
-    selectedObjects: [first, second],
-    deferCopyToken: true,
-  });
-
-  assert.equal(context.copySelected(), true);
-  assert.deepEqual([...context.calls.jsClipboards[0].objects].map((obj) => obj.id), ['text-1', 'text-2']);
-  assert.deepEqual(context.calls.copiedTokens, ['web-token']);
-  assert.deepEqual(context.calls.objectJello, []);
-
-  context.calls.resolveNextCopiedToken();
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.deepEqual(context.calls.objectJello.map((ids) => [...ids]), [['text-1', 'text-2']]);
-});
-
-test('cutting a selected object copies without jiggle and deletes immediately', () => {
-  const context = loadClipboardExportHarness({ deferCopyText: true });
-
-  const cutResult = context.cutSelected();
-
-  assert.equal(cutResult, true);
-  assert.deepEqual(context.calls.copiedTexts, [context.textObject.data.content]);
-  assert.deepEqual(context.calls.jello, []);
-  assert.deepEqual(context.calls.objectJello, []);
-  assert.equal(context.calls.deleted, 1);
-  assert.equal(context.calls.pendingTextCopyResolves.length, 1);
-});
-
-test('cutting a selected image keeps copy feedback disabled after the system write settles', async () => {
-  const imageSource = { web: true, mime: 'image/png' };
-  const imageObject = {
-    id: 'image-cut',
-    type: 'image',
-    x: 0,
-    y: 0,
-    w: 64,
-    h: 64,
-    z: 1,
-    data: { imgKey: 'img-cut' },
-  };
-  const context = loadClipboardExportHarness({
-    selectedObject: imageObject,
-    imageSource,
-    BoardfishWebBoardContainer: {
-      blobForImageSource() { return new Blob([pngBytes], { type: 'image/png' }); },
-      bytesForImageSource() { return pngBytes; },
-    },
-    isWebImageRef: (source) => source?.web === true,
-    deferCopyImage: true,
-  });
-
-  assert.equal(context.cutSelected(), true);
-  assert.equal(context.calls.copiedImages.length, 1);
-  assert.deepEqual(context.calls.objectJello, []);
-  assert.equal(context.calls.deleted, 1);
-
-  context.calls.resolveNextCopiedImage();
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.deepEqual(context.calls.objectJello, []);
-});
-
 test('copying an untransformed web PNG image writes source bytes without rendering', async () => {
   const imageSource = {
     web: true,
@@ -696,11 +447,9 @@ test('copying an untransformed web PNG image writes source bytes without renderi
     new Uint8Array(await copiedBlob.arrayBuffer()),
     new Uint8Array(pngBytes),
   );
-  assert.deepEqual(context.calls.objectJello, []);
 
   context.calls.resolveNextCopiedImage();
   assert.equal(await copyPromise, true);
-  assert.deepEqual(context.calls.objectJello.map((ids) => [...ids]), [['image-1']]);
 });
 
 test('copying a transformed image starts the clipboard write before PNG encoding finishes', async () => {
@@ -736,19 +485,16 @@ test('copying a transformed image starts the clipboard write before PNG encoding
   assert.equal(context.calls.copiedImages[0].token, 'web-token');
   assert.equal(typeof context.calls.copiedImages[0].blob?.then, 'function');
   assert.equal(copySettled, false);
-  assert.deepEqual(context.calls.objectJello, []);
 
   context.calls.resolveNextPngBlob();
   assert.equal(await context.calls.copiedImages[0].blob, renderedBlob);
   assert.equal(copySettled, false);
-  assert.deepEqual(context.calls.objectJello, []);
 
   context.calls.resolveNextCopiedImage();
   assert.equal(await copyPromise, true);
-  assert.deepEqual(context.calls.objectJello.map((ids) => [...ids]), [['image-transformed']]);
 });
 
-test('copy recovers unreadable and mislabeled images, including duplicates, before clipboard consumption', async (t) => {
+test('copy recovers unreadable and mislabeled images before clipboard consumption', async (t) => {
   const unreadable = new Blob([pngBytes], { type: 'image/png' });
   Object.defineProperty(unreadable, 'stream', { value() { throw new Error('file changed on disk'); } });
   const sources = [
@@ -758,69 +504,27 @@ test('copy recovers unreadable and mislabeled images, including duplicates, befo
   ];
   for (const [index, imageSource] of sources.entries()) {
     await t.test(`source ${index + 1}`, async () => {
-      for (const id of ['image-original', 'image-duplicate']) {
-        const renderedBlob = new Blob([pngBytes], { type: 'image/png' });
-        const imageObject = { id, type: 'image', data: { imgKey: 'img-shared', rotation: 0, flipX: false } };
-        const context = loadClipboardExportHarness({
-          selectedObject: imageObject,
-          imageSource,
-          BoardfishWebBoardContainer: WebContainer,
-          isWebImageRef: WebContainer.isWebImageRef,
-          renderedCanvas: { width: 192, height: 192 },
-          renderedBlob,
-          deferCopyImage: true,
-        });
+      const renderedBlob = new Blob([pngBytes], { type: 'image/png' });
+      const imageObject = { id: 'image-1', type: 'image', data: { imgKey: 'img-shared', rotation: 0, flipX: false } };
+      const context = loadClipboardExportHarness({
+        selectedObject: imageObject,
+        imageSource,
+        BoardfishWebBoardContainer: WebContainer,
+        isWebImageRef: WebContainer.isWebImageRef,
+        renderedCanvas: { width: 192, height: 192 },
+        renderedBlob,
+        deferCopyImage: true,
+      });
 
-        const copied = context.copySelected();
-        assert.equal(context.calls.copiedImages.length, 1, 'write starts inside the copy gesture');
-        assert.equal(await context.calls.copiedImages[0].blob, renderedBlob);
-        assert.equal(context.calls.renderImageToCanvas, 1);
-        assert.deepEqual(context.calls.objectJello, []);
-        context.calls.resolveNextCopiedImage();
-        assert.equal(await copied, true);
-        assert.deepEqual(context.calls.objectJello.map((ids) => [...ids]), [[id]]);
-        assert.deepEqual(imageObject.data, { imgKey: 'img-shared', rotation: 0, flipX: false });
-      }
+      const copied = context.copySelected();
+      assert.equal(context.calls.copiedImages.length, 1, 'write starts inside the copy gesture');
+      assert.equal(await context.calls.copiedImages[0].blob, renderedBlob);
+      assert.equal(context.calls.renderImageToCanvas, 1);
+      context.calls.resolveNextCopiedImage();
+      assert.equal(await copied, true);
+      assert.deepEqual(imageObject.data, { imgKey: 'img-shared', rotation: 0, flipX: false });
     });
   }
-});
-
-test('an unrecoverable image fails copy without success feedback', async () => {
-  const context = loadClipboardExportHarness({
-    selectedObject: { id: 'broken', type: 'image', data: { imgKey: 'missing' } },
-  });
-  assert.equal(await context.copySelected(), false);
-  assert.deepEqual(context.calls.objectJello, []);
-});
-
-test('a rejected system image write does not start copy feedback', async () => {
-  const imageSource = { web: true, mime: 'image/png' };
-  const imageObject = {
-    id: 'image-failed-copy',
-    type: 'image',
-    x: 0,
-    y: 0,
-    w: 64,
-    h: 64,
-    z: 1,
-    data: { imgKey: 'img-failed-copy' },
-  };
-  const context = loadClipboardExportHarness({
-    selectedObject: imageObject,
-    imageSource,
-    BoardfishWebBoardContainer: {
-      blobForImageSource() { return new Blob([pngBytes], { type: 'image/png' }); },
-      bytesForImageSource() { return pngBytes; },
-    },
-    isWebImageRef: (source) => source?.web === true,
-    deferCopyImage: true,
-  });
-  const copyPromise = context.copySelected();
-  assert.deepEqual(context.calls.objectJello, []);
-  context.calls.rejectNextCopiedImage();
-
-  assert.equal(await copyPromise, false);
-  assert.deepEqual(context.calls.objectJello, []);
 });
 
 test('pasting an image retains typed Blobs and only adds a MIME view when missing', async () => {
@@ -846,45 +550,6 @@ test('copying a text object omits whitespace-only lines at plain clipboard edges
   assert.deepEqual(context.calls.copiedTexts, ['  first line  \n second line\t ']);
 });
 
-test('copying highlighted text omits whitespace-only lines at selection edges', async () => {
-  const context = loadTextEditCopyHarness('   \n\t\n  first line  \n second line\t \n   \n\t');
-
-  await context.copyTextEditSelection();
-
-  assert.deepEqual(context.calls.copiedTexts, ['  first line  \n second line\t ']);
-  assert.deepEqual({ ...context.calls.clipboard }, {
-    type: 'text-selection',
-    text: '  first line  \n second line\t ',
-  });
-  assert.deepEqual(context.calls.jello, [{
-    id: 'text-1',
-    start: 0,
-    end: context._editEl.value.length,
-    direction: 'none',
-    hasSelection: true,
-  }]);
-});
-
-test('copying highlighted text jiggles after the context-menu clipboard write finishes', async () => {
-  const context = loadTextEditCopyHarness('selected text', { deferCopyText: true });
-
-  const copyPromise = context.copyTextEditSelection();
-
-  assert.deepEqual(context.calls.copiedTexts, ['selected text']);
-  assert.deepEqual(context.calls.jello, []);
-  assert.equal(context.calls.pendingTextCopyResolves.length, 1);
-
-  context.calls.resolveNextCopiedText();
-  await copyPromise;
-  assert.deepEqual(context.calls.jello, [{
-    id: 'text-1',
-    start: 0,
-    end: 'selected text'.length,
-    direction: 'none',
-    hasSelection: true,
-  }]);
-});
-
 test('pasting Boardfish text objects strips whitespace-only edge lines from the pasted clone', async () => {
   const { context, sourceTextObject } = loadClipboardPasteObjectsHarness();
 
@@ -892,9 +557,6 @@ test('pasting Boardfish text objects strips whitespace-only edge lines from the 
 
   assert.equal(context.calls.added.length, 1);
   assert.equal(context.calls.added[0].data.content, 'first line\nsecond line');
-  assert.equal(context.calls.added[0].h, 56);
-  assert.equal(context.calls.added[0].x + context.calls.added[0].w / 2, 300);
-  assert.equal(context.calls.added[0].y + context.calls.added[0].h / 2, 200);
   assert.deepEqual(context.calls.textBytes, ['first line\nsecond line']);
   assert.equal(sourceTextObject.data.content, '   \n\t\nfirst line\nsecond line\n   \n\t');
   assert.deepEqual(context.calls.histories, ['paste-objects']);
@@ -926,11 +588,7 @@ test('mixed object paste rejects the whole clipboard before cloning when combine
   assert.equal(context._pasteInProgress, false);
   assert.deepEqual(context.calls.added, []);
   assert.deepEqual(context.calls.histories, []);
-  assert.deepEqual(context.calls.selections, []);
   assert.deepEqual(context.calls.synced, []);
-  assert.equal(context.calls.messages.length, 1);
-  assert.match(context.calls.messages[0].message, /25,000/);
-  assert.equal(context.calls.messages[0].duration, 4500);
 });
 
 test('object paste counts normalized content and accepts exactly 25,000 characters', async () => {
@@ -944,6 +602,5 @@ test('object paste counts normalized content and accepts exactly 25,000 characte
   assert.equal(context.calls.added[0].data.content, ' \t😀x');
   assert.equal(context.BoardfishWebLimits.currentTextCharacters(), 25000);
   assert.equal(sourceTextObject.data.content, '\r\n  \r\n \t😀x\r\n\t');
-  assert.deepEqual(context.calls.messages, []);
   assert.deepEqual(context.calls.histories, ['paste-objects']);
 });

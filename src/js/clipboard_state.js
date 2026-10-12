@@ -18,8 +18,6 @@ const markJsClipboardWebTokenWritten = (token = _jsClipboardWebToken) => {
     _jsClipboardWebTokenWritten = true;
     _jsClipboardWebMaybeStale = false;
   }
-
-  return accepted;
 };
 
 const markJsClipboardMaybeStaleFromWebBlur = () => {

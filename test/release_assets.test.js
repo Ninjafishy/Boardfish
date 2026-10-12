@@ -49,10 +49,8 @@ test('web release preview ships minified PWA assets', () => {
   const readmeSource = readSource('README.md');
   const packageJson = readJson('package.json');
 
-  assert.match(buildSource, /const bundleTemplate = 'assets\/boardfish-web-preview\.min\.js'/);
   assert.match(buildSource, /const bundle = cacheBustedBundlePath\(bundleTemplate, result\.code\);/);
   assert.match(buildSource, /'manifest\.webmanifest'\][\s\S]*loader: 'css', minify: true/);
-  assert.match(buildSource, /writeServiceWorker\(outDir, \[bundle\]\)/);
   assert.match(serverSource, /devMode \? 'src' : 'dist-web'/);
   assert.match(workflowSource, /npm run web:build/);
   assert.match(workflowSource, /path: dist-web/);

@@ -24,10 +24,6 @@ const hasSelectedImagesForKeyboardAction = () => {
   return false;
 };
 
-const canTransformSelectedImagesFromKeyboard = () => {
-  return !editingId && !isBoardInputBlocked() && hasSelectedImagesForKeyboardAction();
-};
-
 const enterSelectedTextEditFromKeyboard = (e) => {
   if (
     editingId ||
@@ -35,11 +31,12 @@ const enterSelectedTextEditFromKeyboard = (e) => {
     e.isComposing ||
     isBoardInputBlocked() ||
     isEditableTextShortcutTarget(e.target) ||
-    (typeof document !== 'undefined' && isEditableTextShortcutTarget(document.activeElement))
+    (typeof document !== 'undefined' && isEditableTextShortcutTarget(document.activeElement)) ||
+    selectedIds?.size !== 1 ||
+    !objectsMap?.get
   ) {
     return false;
   }
-  if (selectedIds?.size !== 1 || !objectsMap?.get) return false;
   const [id] = selectedIds, obj = objectsMap.get(id);
   if (obj?.type !== 'text') return false;
   enterEdit(obj.id, { placeInitialCaret: true });
@@ -51,14 +48,9 @@ function consumeShortcutEvent(e) {
   e.stopPropagation();
 }
 
-function closeMenusForShortcut() {
-  if (!hasOpenContextMenu()) return;
-  closeOpenMenusExcept('');
-}
-
 function runShortcutCommand(shortcutName, fallback) {
   if (runVisibleMenuCommandForShortcut(shortcutName)) return;
-  closeMenusForShortcut();
+  if (hasOpenContextMenu()) closeOpenMenusExcept('');
   fallback();
 }
 
@@ -84,7 +76,7 @@ document.addEventListener('keydown', (e) => {
   const noShortcutModifiers = !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
   if (((e.ctrlKey || e.metaKey) && (isShortcutKey(e, 'f') || (isShortcutKey(e, 'g') && !e.altKey))) || e.key === 'F3' || e.code === 'F3') {
     const commandFind = commandOnly && isShortcutKey(e, 'f');
-    if (!commandFind || canTransformSelectedImagesFromKeyboard()) {
+    if (!commandFind || (!editingId && !isBoardInputBlocked() && hasSelectedImagesForKeyboardAction())) {
       consumeShortcutEvent(e);
       if (commandFind) runShortcutCommand('flip-image', flipSelectedImages);
     }
@@ -117,7 +109,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (commandOnly && isShortcutKey(e, 'r')) {
-    if (!canTransformSelectedImagesFromKeyboard()) return;
+    if (editingId || isBoardInputBlocked() || !hasSelectedImagesForKeyboardAction()) return;
     consumeShortcutEvent(e);
     runShortcutCommand('rotate-image', rotateSelectedImages);
     return;
@@ -144,7 +136,7 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape') {
     consumeShortcutEvent(e);
-    hideMenus();
+    closeOpenMenusExcept('');
     deselectAll();
     return;
   }

@@ -86,11 +86,10 @@
 
   function commitMutation(reason, mutate, options = {}) {
     const result = mutate();
-    if (!result) return result;
+    if (!result) return;
     if (options.invalidate) invalidateOffscreen();
     scheduleRender(true, true);
     pushHistory(reason);
-    return result;
   }
 
   root.BoardfishEditorState = Object.freeze({

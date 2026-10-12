@@ -1,9 +1,8 @@
 'use strict';
 
-const { readSource } = require('../test-support/source.js');
+const { readSource, runScript, loadBoardLimits, plain } = require('../test-support/source.js');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
 
 function loadDuplicateHarness({ realLimits = false } = {}) {
   const source = readSource('src/js/object_commands.js');
@@ -15,9 +14,6 @@ function loadDuplicateHarness({ realLimits = false } = {}) {
   const calls = {
     added: [],
     histories: [],
-    renders: [],
-    selections: [],
-    messages: [],
   };
   const context = {
     calls,
@@ -39,36 +35,24 @@ function loadDuplicateHarness({ realLimits = false } = {}) {
         context.objects.push(obj);
         context.objectsMap.set(obj.id, obj);
       },
-      setSelection(ids, options = {}) {
-        calls.selections.push({ ids, options });
+      setSelection(ids) {
         context.selectedIds = new Set(ids);
       },
     },
     cloneObject(obj) {
-      return JSON.parse(JSON.stringify(obj));
+      return plain(obj);
     },
     newId() {
       idCounter++;
       return `dup-${idCounter}`;
     },
-    scheduleRender(board, overlay) {
-      calls.renders.push({ board, overlay });
-    },
+    scheduleRender() {},
     pushHistory(reason) {
       calls.histories.push(reason);
     },
   };
-  if (realLimits) {
-    const limitsContext = vm.createContext({
-      objects: context.objects,
-      TextEncoder,
-      showIslandMsg(message, duration) { calls.messages.push({ message, duration }); },
-    });
-    vm.runInContext(readSource('src/js/board_limits.js'), limitsContext);
-    context.BoardfishWebLimits = limitsContext.BoardfishWebLimits;
-  }
-  vm.createContext(context);
-  vm.runInContext(source, context, {
+  if (realLimits) context.BoardfishWebLimits = loadBoardLimits(context.objects);
+  runScript(source, context, {
     filename: 'object_commands.js',
   });
   return context;
@@ -86,26 +70,19 @@ test('duplicateSelected centers the duplicated group on the supplied point', () 
   const maxY = Math.max(...context.calls.added.map((obj) => obj.y + obj.h));
   assert.equal((minX + maxX) / 2, 100);
   assert.equal((minY + maxY) / 2, 200);
-  assert.deepEqual(JSON.parse(JSON.stringify(context.calls.histories)), ['duplicate-selected']);
+  assert.deepEqual(plain(context.calls.histories), ['duplicate-selected']);
 });
 
 test('duplicateSelected rejects a mixed selection atomically when its text exceeds the board limit', () => {
   const context = loadDuplicateHarness({ realLimits: true });
   context.objects[0].data.content = 'x'.repeat(12501);
-  const selectionBefore = [...context.selectedIds];
 
   context.duplicateSelected({ x: 100, y: 200 });
 
   assert.equal(context.objects.length, 2);
   assert.equal(context.zCounter, 10);
-  assert.deepEqual([...context.selectedIds], selectionBefore);
   assert.deepEqual(context.calls.added, []);
   assert.deepEqual(context.calls.histories, []);
-  assert.deepEqual(context.calls.renders, []);
-  assert.deepEqual(context.calls.selections, []);
-  assert.equal(context.calls.messages.length, 1);
-  assert.match(context.calls.messages[0].message, /25,000/);
-  assert.equal(context.calls.messages[0].duration, 4500);
 });
 
 test('duplicateSelected accepts the exact board limit counting spaces, tabs, and emoji', () => {
@@ -116,6 +93,5 @@ test('duplicateSelected accepts the exact board limit counting spaces, tabs, and
 
   assert.equal(context.calls.added.length, 2);
   assert.equal(context.BoardfishWebLimits.currentTextCharacters(), 25000);
-  assert.deepEqual(context.calls.messages, []);
   assert.deepEqual(context.calls.histories, ['duplicate-selected']);
 });

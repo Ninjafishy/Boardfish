@@ -109,16 +109,8 @@ function rotateSelectedImages() {
   }, { invalidate: true });
 }
 
-function isMultiSelected() {
-  return selectedIds.size > 1;
-}
-
 function hasSelection() {
   return selectedIds.size > 0;
-}
-
-function isSelected(id) {
-  return selectedIds.has(id);
 }
 
 function getFirstSelectedObject() {

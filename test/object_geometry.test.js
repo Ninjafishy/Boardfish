@@ -3,13 +3,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createObjectGeometry } = require('../src/js/object_geometry.js');
+const { topObjectAtWorldPoint } = require('../src/js/object_geometry.js');
 
-function createGeometry(overrides = {}) {
-  return createObjectGeometry({
-    objects: () => [],
-    ...overrides,
-  });
+function createGeometry({ objects = () => [] } = {}) {
+  return { topObjectAtWorldPoint: (point) => topObjectAtWorldPoint(point, objects()) };
 }
 
 test('finds topmost object using shared hit-testing rules', () => {

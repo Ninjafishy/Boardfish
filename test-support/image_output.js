@@ -17,10 +17,11 @@ function loadReadableImageSourceBlob({ container = WebContainer, decode = async 
   return context.readableImageSourceBlob;
 }
 
-function singleImageBoard() {
+function singleImageBoard(viewport) {
   return {
     version: 3,
     format: 'boardfish-container',
+    ...(viewport ? { viewport } : {}),
     imageStore: {
       'img-1': { path: 'images/img-1.png', mime: 'image/png', ext: 'png' },
     },

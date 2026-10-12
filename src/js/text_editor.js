@@ -293,10 +293,9 @@ const setTextEditMinLinesForSession = (obj, preserveSize = false) => {
 };
 
 const resetTextEditPreservedMinLines = (obj) => {
-  if (!obj || obj.type !== 'text' || !obj._textEditPreservedMinLines) return false;
+  if (!obj || obj.type !== 'text' || !obj._textEditPreservedMinLines) return;
   obj._editMinLines = 1;
   delete obj._textEditPreservedMinLines;
-  return true;
 };
 
 const resetTextEditNavigation = (obj) => {
@@ -397,17 +396,13 @@ const textSelectionPayloadFromBoardfishClipboardValue = (clipboard) => {
   return createTextSelectionClipboardPayload(content, { start: 0, end: content.length });
 };
 
-const currentBoardfishTextSelectionClipboardPayload = () => (
-  textSelectionPayloadFromBoardfishClipboardValue(jsClipboard)
-);
-
 const copyTextEditSelectionFromProxy = async (
   id,
   proxy,
   selection = textEditSelectionState(proxy),
   options = {},
 ) => {
-  if (!selection?.hasSelection) return false;
+  if (!selection?.hasSelection) return;
   const sourceValue = textEditProxyValue(proxy);
 
   const clipboardText = createTextSelectionClipboardPayload(sourceValue, selection).text;
@@ -442,8 +437,6 @@ const copyTextEditSelectionFromProxy = async (
       }
     })
     .catch(() => {});
-
-  return true;
 };
 
 const boardfishTextClipboardStillCurrent = async (event = null) => {
@@ -468,7 +461,7 @@ const boardfishTextClipboardStillCurrent = async (event = null) => {
 };
 
 const readBoardfishTextClipboardPayloadForPaste = async (event = null) => {
-  const payload = currentBoardfishTextSelectionClipboardPayload();
+  const payload = textSelectionPayloadFromBoardfishClipboardValue(jsClipboard);
   if (!payload) return null;
 
   const current = await boardfishTextClipboardStillCurrent(event);
@@ -477,7 +470,7 @@ const readBoardfishTextClipboardPayloadForPaste = async (event = null) => {
 
     return null;
   }
-  return currentBoardfishTextSelectionClipboardPayload();
+  return textSelectionPayloadFromBoardfishClipboardValue(jsClipboard);
 };
 
 const replaceTextEditProxyRange = (proxy, text, start, end, selectionMode = 'end', deferDomValue = false) => {
@@ -511,13 +504,8 @@ const canApplyTextEditReplacement = (obj, value, start, end, text) => {
   return BoardfishWebLimits.canReplaceText(obj, nextValue);
 };
 
-const synchronousBoardfishClipboardTokenFromPasteEvent = (event) => {
-  if (!event?.clipboardData) return '';
-  return BoardfishClipboardIO.readBoardfishClipboardTokenFromEvent(event.clipboardData);
-};
-
 const boardfishPasteEventMatchesCurrentTextSelectionClipboard = (event) => {
-  const eventToken = synchronousBoardfishClipboardTokenFromPasteEvent(event);
+  const eventToken = BoardfishClipboardIO.readBoardfishClipboardTokenFromEvent(event?.clipboardData);
   const currentToken = getJsClipboardWebToken();
   return !!eventToken && !!currentToken && eventToken === currentToken;
 };
@@ -658,7 +646,6 @@ function enterEdit(id, {
   proxy.tabIndex = -1;
   proxy.setAttribute('autocomplete', 'off');
   proxy.setAttribute('autocorrect', 'off');
-  proxy.setAttribute('autocapitalize', 'off');
   proxy.setAttribute('aria-label', 'Boardfish text editor');
   proxy.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;resize:none;overflow:hidden;white-space:pre;contain:strict;transform:translate(-100vw,-100vh)';
   proxy.value = obj.data.content;
@@ -765,7 +752,7 @@ function enterEdit(id, {
 
     // The exact line count reuses the patched layout or builds the wrapped-row
     // index that rendering needs, keeping bounds current for every edit.
-    const heightChanged = syncTextAutoHeight(obj, getTextMinLines(obj));
+    const heightChanged = syncTextAutoHeight(obj, obj && obj.id === editingId ? (obj._editMinLines || 1) : 1);
 
     _textInputSelectionHistorySuppress = textEditSelectionState(proxy);
 
@@ -776,7 +763,7 @@ function enterEdit(id, {
   proxy.addEventListener('paste', (event) => {
     const eventSelection = textEditSelectionState(proxy);
 
-    const candidate = currentBoardfishTextSelectionClipboardPayload();
+    const candidate = textSelectionPayloadFromBoardfishClipboardValue(jsClipboard);
     const fallbackText = BoardfishClipboardIO.readClipboardTextFromEvent(event.clipboardData) || '';
 
     if (!candidate && !fallbackText) {
@@ -1087,7 +1074,6 @@ function exitEdit() {
       delete obj._editMinLines;
       clearTextEditCaretIndex(obj);
       _editHistoryLastContent = null;
-      _editHistoryActionStartState = null;
       scheduleRender(true, true);
 
       pushHistory('delete-empty-text');
@@ -1122,7 +1108,6 @@ function exitEdit() {
   }
 
   _editHistoryLastContent = null;
-  _editHistoryActionStartState = null;
 
   scheduleRender(true, true);
 

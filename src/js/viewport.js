@@ -1,6 +1,5 @@
 // ─── Viewport ─────────────────────────────────────────────────────────────────
 var panX = 0, panY = 0, zoom = 1;
-var drawSingleObj, setWorldCanvasTransform, drawVisibleObjects;
 
 var short_message = 1500;
 var long_message = 3 * short_message;
@@ -161,22 +160,20 @@ function syncBoardCanvasBackingStore(write = true) {
 
 function resizeCanvas(surface = null) {
   _boardSurfaceCssSizeCache = surface?.width > 0 && surface?.height > 0 ? surface : surface?.type === 'resize' && _canvasResizeObserver?.observe && _boardSurfaceCssSizeCache;
-  if (typeof _boardOpening !== 'undefined' && _boardOpening) return false;
-  if (!syncBoardCanvasBackingStore(false)) return false;
+  if (typeof _boardOpening !== 'undefined' && _boardOpening) return;
+  if (!syncBoardCanvasBackingStore(false)) return;
   // Changing a canvas backing dimension clears its visible pixels. Defer that
-  // reset to drawBoard so keyboard-driven resize bursts keep the previous frame
+  // reset to drawBoard so resize bursts keep the previous frame
   // visible and the eventual clear + redraw happen together before paint.
   scheduleRender(true);
-  return true;
 }
 
 function startCanvasSizeTracking() {
   if (_canvasResizeObserver) return;
   _canvasResizeObserver = typeof ResizeObserver === 'function'
     ? new ResizeObserver(entries => resizeCanvas(entries?.[0]?.contentRect))
-    : window.visualViewport || window;
+    : window;
   if (_canvasResizeObserver.observe) _canvasResizeObserver.observe(canvas);
-  else _canvasResizeObserver.addEventListener('resize', resizeCanvas);
   window.addEventListener?.('resize', resizeCanvas);
 }
 
@@ -308,7 +305,7 @@ function drawCaret(context, obj, layout, selStart, viewZoom = zoom) {
     caretLine ||= line;
     if (preferredLineStart == null) break;
   }
-  if (!caretLine) return false;
+  if (!caretLine) return;
   const ls = caretLine.startIndex;
   const off = Math.max(0, selStart - ls);
   const cx = lineCaretXAtOffset(caretLine, obj, off);
@@ -320,7 +317,6 @@ function drawCaret(context, obj, layout, selStart, viewZoom = zoom) {
   const maxCaretX = Math.max(contentLeft, contentRight - caretWidth);
   const caretX = Math.max(contentLeft, Math.min(cx - caretWidth / 2, maxCaretX));
   context.fillRect(caretX, cy, caretWidth, caretHeight);
-  return true;
 }
 
 function drawEditingTextOverlay(context, viewZoom = zoom, viewportRect = viewportWorldRect(0), textSelectionMotions = null) {
@@ -329,7 +325,7 @@ function drawEditingTextOverlay(context, viewZoom = zoom, viewportRect = viewpor
   const copiedSelectionSpec = textSelectionMotions?.get(obj.id) || null;
 
   const motion = BoardfishMotion.objectMotionForDraw(obj, viewZoom);
-  if (motion) viewportRect = BoardfishRenderer.applyObjectMotion(context, obj, viewportRect, motion);
+  if (motion) viewportRect = applyObjectMotion(context, obj, viewportRect, motion);
   try {
     const liveSelStart = _editEl ? _editEl.selectionStart : 0;
     const liveSelEnd   = _editEl ? _editEl.selectionEnd   : 0;
@@ -423,29 +419,6 @@ var _frameRaf = null;
 var _needTransform = false;
 var _needBoardRender = false;
 var _needOverlayRender = false;
-
-const boardRenderer = BoardfishRenderer.createBoardRenderer({
-  objects: () => objects,
-  imageBitmapCache: () => imageBitmapCache,
-  zoom: () => zoom,
-  panX: () => panX,
-  panY: () => panY,
-  dpr: () => window.devicePixelRatio || 1,
-  font: FONT,
-  canvasTextColor,
-  currentViewportWorldRect: viewportWorldRect,
-  drawTextLineRange,
-  getTextLayoutForViewport,
-  objectIntersectsRect,
-  hasObjectMotionsForDraw: BoardfishMotion.hasObjectMotionsForDraw,
-  objectMotionForDraw: BoardfishMotion.objectMotionForDraw,
-  selectImageSourceForDraw,
-});
-({ drawSingleObj, setWorldCanvasTransform, drawVisibleObjects } = boardRenderer);
-
-const BoardObjectGeometry = BoardfishObjectGeometry.createObjectGeometry({
-  objects: () => objects,
-});
 
 var finishMotionViewportRenderFrame = BoardfishMotion.afterViewportRenderFrame;
 
