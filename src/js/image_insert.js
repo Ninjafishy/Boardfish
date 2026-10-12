@@ -94,7 +94,7 @@ async function addImage(src, cx, cy, imgKey, options = {}) {
     if (_bulkImageInsertDepth > 0) {
       _bulkImageInsertAdded++;
     } else {
-      BoardfishEditorState.setSelection([obj.id], { primaryId: obj.id });
+      BoardfishEditorState.setSelection([obj.id]);
       scheduleRender(true, true);
       pushHistory('add-image');
     }
@@ -189,8 +189,7 @@ async function insertImageFiles(files, x, y) {
   } finally {
     if (bulk) {
       const ids = addedIds.filter(Boolean);
-      const primaryId = ids[ids.length - 1];
-      if (primaryId) BoardfishEditorState.setSelection(ids, { primaryId });
+      if (ids.length) BoardfishEditorState.setSelection(ids);
       finishBulkImageInsert();
     }
     releaseInputShield();

@@ -54,7 +54,7 @@ function normalizeAppTheme(value) {
 
 function loadStoredAppTheme() {
   try {
-    return normalizeAppTheme(localStorage.getItem(APP_THEME_STORAGE_KEY));
+    return localStorage.getItem(APP_THEME_STORAGE_KEY);
   } catch {
     return DEFAULT_APP_THEME;
   }
@@ -97,9 +97,7 @@ function toggleAppTheme() {
   });
 }
 
-const startupTheme = loadStoredAppTheme();
-
-applyAppTheme(startupTheme, { render: false });
+applyAppTheme(loadStoredAppTheme(), { render: false });
 
 function canvasTextColor() {
   return _canvasTextColor;

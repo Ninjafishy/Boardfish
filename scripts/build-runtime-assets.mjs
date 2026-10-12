@@ -9,13 +9,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const srcRoot = path.join(root, 'src');
 const jsRoot = path.join(srcRoot, 'js');
 
-const variants = {
-  'web-preview': {
-    outDir: path.join(root, 'dist-web'),
-    scripts: WEB_SCRIPTS,
-    bundle: 'assets/boardfish-web-preview.min.js',
-  },
-};
+const outDir = path.join(root, 'dist-web');
+const bundleTemplate = 'assets/boardfish-web-preview.min.js';
 
 function assertInsideWorkspace(target) {
   const resolved = path.resolve(target);
@@ -88,28 +83,27 @@ function cacheBustedBundlePath(bundle, code) {
   return bundle.replace(/(?:\.min)?\.js$/, `.${hash}.min.js`);
 }
 
-async function buildBundle(variantName, config) {
-  await resetDir(config.outDir);
-  await mkdir(path.join(config.outDir, 'assets'), { recursive: true });
-  await copyStaticAssets(config.outDir);
+async function buildBundle() {
+  await resetDir(outDir);
+  await mkdir(path.join(outDir, 'assets'), { recursive: true });
+  await copyStaticAssets(outDir);
 
-  const concatenated = await concatenateScripts(config.scripts, variantName);
+  const concatenated = await concatenateScripts(WEB_SCRIPTS, 'web-preview');
   const result = await compileProductionBundle(concatenated);
-  const bundle = cacheBustedBundlePath(config.bundle, result.code);
-  const outPath = path.join(config.outDir, bundle);
+  const bundle = cacheBustedBundlePath(bundleTemplate, result.code);
+  const outPath = path.join(outDir, bundle);
   await writeFile(outPath, result.code);
-  await writeIndex(config.outDir, `<script src="${bundle}"></script>`, bundle);
-  await writeServiceWorker(config.outDir, [bundle]);
+  await writeIndex(outDir, `<script src="${bundle}"></script>`, bundle);
+  await writeServiceWorker(outDir, [bundle]);
 }
 
 const requested = process.argv.slice(2);
 const names = requested.length ? requested : ['web-preview'];
 
 for (const name of names) {
-  const config = variants[name];
-  if (!config) {
-    console.error(`Unknown Build Variant: "${name}". Options: ${Object.keys(variants).join(', ')}`);
+  if (name !== 'web-preview') {
+    console.error(`Unknown Build Variant: "${name}". Options: web-preview`);
     process.exit(1);
   }
-  await buildBundle(name, config);
+  await buildBundle();
 }

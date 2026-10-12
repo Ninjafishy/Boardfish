@@ -27,7 +27,7 @@ test('development and release use the same ordered runtime manifest', async () =
     ['motion.js', 'viewport.js'], ['motion.js', 'selection_input.js'],
   ]) assert.ok(scripts.indexOf(dependency) >= 0 && scripts.indexOf(dependency) < scripts.indexOf(consumer));
   assert.match(readSource('src/js/main.web.dev.mjs'), /loadScripts\(WEB_SCRIPTS\)/);
-  assert.match(readSource('scripts/build-runtime-assets.mjs'), /scripts: WEB_SCRIPTS/);
+  assert.match(readSource('scripts/build-runtime-assets.mjs'), /concatenateScripts\(WEB_SCRIPTS, 'web-preview'\)/);
 });
 
 test('release builds a valid cached bundle without runtime logging or diagnostics', () => {
@@ -49,10 +49,10 @@ test('web release preview ships minified PWA assets', () => {
   const readmeSource = readSource('README.md');
   const packageJson = readJson('package.json');
 
-  assert.match(buildSource, /'web-preview'[\s\S]*scripts: WEB_SCRIPTS,[\s\S]*bundle: 'assets\/boardfish-web-preview\.min\.js'/);
-  assert.match(buildSource, /const bundle = cacheBustedBundlePath\(config\.bundle, result\.code\);/);
+  assert.match(buildSource, /const bundleTemplate = 'assets\/boardfish-web-preview\.min\.js'/);
+  assert.match(buildSource, /const bundle = cacheBustedBundlePath\(bundleTemplate, result\.code\);/);
   assert.match(buildSource, /'manifest\.webmanifest'\][\s\S]*loader: 'css', minify: true/);
-  assert.match(buildSource, /writeServiceWorker\(config\.outDir, \[bundle\]\)/);
+  assert.match(buildSource, /writeServiceWorker\(outDir, \[bundle\]\)/);
   assert.match(serverSource, /devMode \? 'src' : 'dist-web'/);
   assert.match(workflowSource, /npm run web:build/);
   assert.match(workflowSource, /path: dist-web/);

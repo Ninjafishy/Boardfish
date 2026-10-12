@@ -399,7 +399,7 @@ const beginSelectionHandleDrag = function beginSelectionHandleDrag(handle, e) {
 // ─── Selection ────────────────────────────────────────────────────────────────
 
 function selectObject(id) {
-  BoardfishEditorState.setSelection([id], { primaryId: id });
+  BoardfishEditorState.setSelection([id]);
   const obj = objectsMap.get(id);
   if (obj) bringObjectToFront(obj);
   scheduleTextMinWidthWarm(obj);
@@ -418,7 +418,7 @@ function selectAllObjects() {
   cancelTextMinWidthWarm();
   const ids = new Array(objects.length);
   for (let i = 0; i < objects.length; i++) ids[i] = objects[i].id;
-  BoardfishEditorState.setSelection(ids, { primaryId: objects[objects.length - 1].id });
+  BoardfishEditorState.setSelection(ids);
   scheduleRender(false, true);
 }
 

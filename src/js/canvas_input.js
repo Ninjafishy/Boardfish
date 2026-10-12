@@ -187,7 +187,7 @@ function toggleAdditiveSelection(obj) {
   const nextSelection = new Set(selectedIds);
   const selecting = !isSelected(obj.id);
   if (selecting) nextSelection.add(obj.id); else nextSelection.delete(obj.id);
-  BoardfishEditorState.setSelection(nextSelection, selecting ? { primaryId: obj.id } : {});
+  BoardfishEditorState.setSelection(nextSelection);
   if (selecting) bringObjectToFront(obj);
   scheduleRender(selecting, true);
 }

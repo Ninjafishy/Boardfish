@@ -244,9 +244,7 @@ async function pasteAtPos(wx, wy, clipboardData = null) {
           BoardfishEditorState.addObject(o);
           pastedIds.push(o.id);
         }
-        BoardfishEditorState.setSelection(pastedIds, {
-          primaryId: pastedIds[pastedIds.length - 1],
-        });
+        BoardfishEditorState.setSelection(pastedIds);
 
         scheduleRender(true, true);
 

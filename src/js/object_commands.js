@@ -78,22 +78,6 @@ function shouldKeepSelectionOverlayWhileBlocked() {
   return false;
 }
 
-async function runShieldedPillTask({
-  releaseInputShield,
-  startMessage = null,
-  successMessage,
-  task,
-}) {
-  try {
-    showIslandMsg(startMessage);
-    await task();
-    finishPillTask({ beforeFinish: releaseInputShield, finalMsg: successMessage });
-  } catch (err) {
-    finishPillTask({ beforeFinish: releaseInputShield });
-    throw err;
-  }
-}
-
 // ─── New board ───────────────────────────────────────────────────────────────
 
 async function newBoard() {
@@ -171,9 +155,7 @@ function duplicateSelected(anchorPoint = null) {
     BoardfishEditorState.addObject(obj);
     duplicatedIds.push(obj.id);
   }
-  BoardfishEditorState.setSelection(duplicatedIds, {
-    primaryId: duplicatedIds[duplicatedIds.length - 1],
-  });
+  BoardfishEditorState.setSelection(duplicatedIds);
   scheduleRender(true, true);
   pushHistory('duplicate-selected');
 }

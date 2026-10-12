@@ -6,7 +6,7 @@
     selectedIds.clear();
   }
 
-  function setSelectionState(ids = [], { primaryId = null } = {}) {
+  function setSelectionState(ids = []) {
     const nextIds = ids || [];
 
     selectedIds.clear();
@@ -16,7 +16,7 @@
       selectedIds.add(id);
       lastExistingId = id;
     }
-    selectedId = primaryId && selectedIds.has(primaryId) ? primaryId : lastExistingId;
+    selectedId = lastExistingId;
     if (editingId && !selectedIds.has(editingId)) exitEdit();
   }
 
@@ -53,10 +53,6 @@
       if (idNumber >= idCounter) idCounter = idNumber + 1;
       if (obj.z >= zCounter) zCounter = obj.z + 1;
     }
-  }
-
-  function setViewportState(viewport) {
-    BoardfishViewportState.setViewport(viewport);
   }
 
   function replaceBoardObjects(nextObjects = [], {
@@ -107,6 +103,5 @@
     restoreObjectCounters,
     setSelection: setSelectionState,
     setBoardOpening,
-    setViewport: setViewportState,
   });
 })(typeof window !== 'undefined' ? window : globalThis);

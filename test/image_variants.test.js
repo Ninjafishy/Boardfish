@@ -274,7 +274,7 @@ test('source-ready images queue the low zoom scaled variant before first draw', 
   const result = context.queueScaledImageVariantForReadyImage('img-1', source);
 
   assert.equal(result, true);
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), true);
 
   assert.equal(context.imageScaledVariantQueue.length, 1);
   assert.equal(context.imageScaledVariantQueue[0].key, 'img-1');
@@ -321,7 +321,6 @@ test('open image cache settle drains every scaled task and drawable warmup', asy
 test('scaled image variants enable resizing when createImageBitmap is available', () => {
   const context = loadImageVariantsWithBitmap();
 
-  assert.equal(context.VIEWPORT_IMAGE_SCALING_SUPPORTED, true);
   assert.equal(context.viewportImageScalingEnabled, true);
 
   const fullSource = { width: 100, height: 100 };
@@ -349,7 +348,7 @@ test('active low-zoom navigation preserves full-size fallback while scaled varia
 
   assert.equal(selected, fullSource);
 
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), true);
 });
 
 test('explicit active image draw preserves full-size fallback while scaled variant is pending', () => {
@@ -368,7 +367,7 @@ test('explicit active image draw preserves full-size fallback while scaled varia
 
   assert.equal(selected, fullSource);
 
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), true);
 });
 
 test('active low-zoom navigation prioritizes visible pending scaled variants', () => {
@@ -557,7 +556,7 @@ test('idle low-zoom drawing preserves full-size fallback until scaled variants a
 
   assert.equal(selected, fullSource);
 
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), true);
 });
 
 test('visible image idle work shares one timer and waits for the latest input', () => {
@@ -651,7 +650,6 @@ test('scaled variant ready render defers when input starts before timer fire', (
 test('scaled image variants stay disabled when createImageBitmap is unavailable', () => {
   const context = loadImageVariantsWithBitmap(false);
 
-  assert.equal(context.VIEWPORT_IMAGE_SCALING_SUPPORTED, false);
   assert.equal(context.viewportImageScalingEnabled, false);
 });
 
@@ -665,15 +663,15 @@ test('stale scaled image variant tasks skip resize work', async () => {
 
   context.queueScaledImageVariant('img-1', { width: 100, height: 100 }, 0.25);
   assert.equal(context.imageScaledVariantQueue.length, 1);
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), true);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), true);
 
   const task = context.imageScaledVariantQueue.shift();
   context._imageStoreGeneration++;
   await task();
 
   assert.equal(resizeCalls, 0);
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), false);
-  assert.equal(context.hasScaledImageVariant('img-1', 0.25), false);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), false);
+  assert.equal(context.imageScaledBitmapCache.has('img-1'), false);
 });
 
 test('clearing scaled variants for one key removes queued work for that key', () => {
@@ -687,8 +685,8 @@ test('clearing scaled variants for one key removes queued work for that key', ()
 
   assert.equal(context.imageScaledVariantQueue.length, 1);
   assert.equal(context.imageScaledVariantQueue[0].key, 'img-2');
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), false);
-  assert.equal(context.isScaledImageVariantPending('img-2', 0.25), true);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), false);
+  assert.equal(context.imageScaledBitmapPending.has('img-2'), true);
 });
 
 test('clearing the final queued scaled variant cancels its delayed timer', () => {
@@ -704,7 +702,7 @@ test('clearing the final queued scaled variant cancels its delayed timer', () =>
   assert.equal(delayedTimer.cleared, true);
   assert.equal(context.imageScaledVariantQueue.length, 0);
   assert.equal(context.imageScaledVariantQueueTimer, null);
-  assert.equal(context.isScaledImageVariantPending('img-1', 0.25), false);
+  assert.equal(context.imageScaledBitmapPending.has('img-1'), false);
 });
 
 test('scaled image variant skips do not create empty cache groups', () => {
@@ -714,7 +712,7 @@ test('scaled image variant skips do not create empty cache groups', () => {
   assert.equal(missing, false);
 
   assert.equal(context.imageScaledBitmapCache.has('img-missing-size'), false);
-  assert.equal(context.isScaledImageVariantPending('img-missing-size', 0.25), false);
+  assert.equal(context.imageScaledBitmapPending.has('img-missing-size'), false);
 
   const tooLarge = context.queueScaledImageVariantForReadyImage(
     'img-too-large',
@@ -723,7 +721,7 @@ test('scaled image variant skips do not create empty cache groups', () => {
   assert.equal(tooLarge, false);
 
   assert.equal(context.imageScaledBitmapCache.has('img-too-large'), false);
-  assert.equal(context.isScaledImageVariantPending('img-too-large', 0.25), false);
+  assert.equal(context.imageScaledBitmapPending.has('img-too-large'), false);
 });
 
 test('image bitmap queue does not wait for animation frames during board open', () => {

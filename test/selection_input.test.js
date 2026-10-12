@@ -110,7 +110,7 @@ function loadSelectionInputHarness(objects, options = {}) {
       setSelection(ids, options = {}) {
         selectedIds.clear();
         for (const id of ids) selectedIds.add(id);
-        context.selectedId = options.primaryId ?? ids[0] ?? null;
+        context.selectedId = ids[ids.length - 1] ?? null;
       },
     },
     beginDocumentDrag(handlers) { context.drag = handlers; },

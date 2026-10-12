@@ -296,7 +296,7 @@ function applyBoardData(data) {
   invalidateOffscreen();
 
   BoardfishEditorState.restoreObjectCounters();
-  BoardfishEditorState.setViewport(data.viewport);
+  BoardfishViewportState.setViewport(data.viewport);
 
   snapshot();
   markSaved();
@@ -331,19 +331,16 @@ const saveBoardImpl = async (saveAs = false) => {
         return false;
       }
     }
-    await runShieldedPillTask({
-      releaseInputShield,
-      startMessage: 'Saving',
-      successMessage: 'Saved',
-      task: async () => {
-        await invokeSaveBoard(fileRef, { sourceFileRef: currentFileRef });
-        if (saveAs) {
-          currentFileRef = fileRef;
-        }
-
-        markSaved();
-      },
-    });
+    try {
+      showIslandMsg('Saving');
+      await invokeSaveBoard(fileRef, { sourceFileRef: currentFileRef });
+      if (saveAs) currentFileRef = fileRef;
+      markSaved();
+      finishPillTask({ beforeFinish: releaseInputShield, finalMsg: 'Saved' });
+    } catch (err) {
+      finishPillTask({ beforeFinish: releaseInputShield });
+      throw err;
+    }
 
     return true;
   } catch (err) {

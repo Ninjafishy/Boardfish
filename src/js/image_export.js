@@ -5,46 +5,30 @@ function finishImageExport(busyPill, releaseInputShield, finalMsg = null) {
   else releaseInputShield();
 }
 
-async function saveSelectedImage(imageObjs) {
-  const releaseInputShield = acquireInputShield({ keepSelectionOverlay: true });
-
-  let busyPill = null;
-  try {
-    const downloadResult = await BoardfishExportUtils.downloadImageObjects(imageObjs, {
-      targetMode: 'file',
-      onStart: () => {
-        busyPill = startIslandBusyMsg('Exporting');
-      },
-      onProgress: ({ phase, preparedCount, finishedCount }) => {
-        if (phase === 'save-progress' && busyPill) busyPill.update(`${finishedCount || preparedCount || 1}/1`);
-      },
-    });
-    const saved = (downloadResult?.downloadedCount || 0) > 0;
-
-    finishImageExport(busyPill, releaseInputShield, saved ? '1 Image Exported' : null);
-  } catch {
-    finishImageExport(busyPill, releaseInputShield);
-  }
-}
-
 async function saveSelectedImages(imageObjs) {
+  const single = imageObjs.length === 1;
   const releaseInputShield = acquireInputShield({ keepSelectionOverlay: true });
 
   let busyPill = null;
   let updateProgress = null;
   try {
     const downloadResult = await BoardfishExportUtils.downloadImageObjects(imageObjs, {
-      targetMode: 'folder',
-      onStart: () => {
+      targetMode: single ? 'file' : 'folder',
+      onStart: single ? () => {
+        busyPill = startIslandBusyMsg('Exporting');
+      } : () => {
         busyPill = startIslandBusyMsg(`0/${imageObjs.length}`);
         updateProgress = BoardfishExportUtils.createProgressUpdater(imageObjs.length, busyPill);
       },
-      onProgress: ({  preparedCount, finishedCount }) => updateProgress?.(preparedCount ?? finishedCount ?? imageObjs.length),
+      onProgress: single ? ({ phase, preparedCount, finishedCount }) => {
+        if (phase === 'save-progress' && busyPill) busyPill.update(`${finishedCount || preparedCount || 1}/1`);
+      } : ({ preparedCount, finishedCount }) => updateProgress?.(preparedCount ?? finishedCount ?? imageObjs.length),
     });
     const downloadedCount = downloadResult?.downloadedCount || 0;
-    const saved = downloadedCount > 0;
-
-    finishImageExport(busyPill, releaseInputShield, saved ? `${downloadedCount} Image${downloadedCount === 1 ? '' : 's'} Exported` : null);
+    const finalMsg = downloadedCount > 0
+      ? (single ? '1 Image Exported' : `${downloadedCount} Image${downloadedCount === 1 ? '' : 's'} Exported`)
+      : null;
+    finishImageExport(busyPill, releaseInputShield, finalMsg);
   } catch {
     finishImageExport(busyPill, releaseInputShield);
   }
@@ -52,6 +36,5 @@ async function saveSelectedImages(imageObjs) {
 
 function exportSelectedImages() {
   const imageObjs = BoardfishExportUtils.selectedImageObjects();
-  if (imageObjs.length === 1) saveSelectedImage(imageObjs);
-  else if (imageObjs.length) saveSelectedImages(imageObjs);
+  if (imageObjs.length) saveSelectedImages(imageObjs);
 }

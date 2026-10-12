@@ -195,10 +195,6 @@
     }
   }
 
-  async function writeEntryToDirectory(directoryHandle, entry) {
-    await writeFileHandle(await directoryHandle.getFileHandle(entry.name, { create: true }), entry.data);
-  }
-
   async function saveImageObjectsToDirectory(imageObjs, directoryHandle, options = {}) {
     const progress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const usedNames = new Set();
@@ -223,7 +219,7 @@
       });
 
       try {
-        await writeEntryToDirectory(directoryHandle, entry);
+        await writeFileHandle(await directoryHandle.getFileHandle(entry.name, { create: true }), entry.data);
         savedCount++;
       } catch {}
 
