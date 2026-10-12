@@ -79,7 +79,7 @@ test('dirty tracking treats net-empty boards as clean only against an empty save
   assert.match(io, /function isCleanDefaultEmptyBoardState\(\) \{\s*return savedDefaultEmptyBoard && isDefaultEmptyBoardState\(objects\);\s*\}/);
   assert.match(match[1], /revision !== savedHistoryRevision/);
   assert.match(history, /revision: reason === 'text-edit-enter' && !contentChanged \? prevEntry\?\.revision : \+\+_historyRevision/);
-  assert.match(objectCommands, /if \(isCleanDefaultEmptyBoardState\(\) && !currentFilePath && !currentFileRef\) \{\s*return;\s*\}/);
+  assert.match(objectCommands, /if \(isCleanDefaultEmptyBoardState\(\) && !currentFileRef\) \{\s*return;\s*\}/);
 });
 
 test('startup marks the initial empty board snapshot clean', () => {

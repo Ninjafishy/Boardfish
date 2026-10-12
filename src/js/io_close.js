@@ -2,7 +2,6 @@
 
 var savedHistoryRevision;
 var savedDefaultEmptyBoard = false;
-var currentFilePath = null;
 var currentFileRef = null;
 
 function isDefaultEmptyBoardState(objectList = objects) {
@@ -340,7 +339,6 @@ const saveBoardImpl = async (saveAs = false) => {
         await invokeSaveBoard(fileRef, { sourceFileRef: currentFileRef });
         if (saveAs) {
           currentFileRef = fileRef;
-          currentFilePath = BoardfishRuntime.describeFileRef(fileRef);
         }
 
         markSaved();

@@ -97,7 +97,7 @@ async function runShieldedPillTask({
 // ─── New board ───────────────────────────────────────────────────────────────
 
 async function newBoard() {
-  if (isCleanDefaultEmptyBoardState() && !currentFilePath && !currentFileRef) {
+  if (isCleanDefaultEmptyBoardState() && !currentFileRef) {
     return;
   }
   if (isDirty()) {
@@ -115,7 +115,6 @@ async function newBoard() {
   clearJsClipboard();
   invalidateOffscreen();
 
-  currentFilePath = null;
   currentFileRef = null;
   BoardfishViewportState.reset();
   clearImageStore();

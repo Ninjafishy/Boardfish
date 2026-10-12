@@ -60,9 +60,7 @@ function loadOpenHarness({ readBoard = async () => ({ objects: [] }), finishOpen
     document: {},
     _boardOpening: false,
     currentFileRef: null,
-    currentFilePath: '',
     startCanvasSizeTracking() {}, resizeCanvas() {}, snapshot() {}, markSaved() {},
-    BoardfishRuntime: { describeFileRef() { return 'board.bf'; } },
     beginOpeningFreeze() { events.push('freeze'); },
     showIslandMsg(message) { events.push(message); return new Promise(() => {}); },
     endOpeningFreeze() { events.push('release'); },
@@ -100,7 +98,6 @@ test('opening starts immediately and retains the file target before hydration fi
     readBoard: async received => { assert.equal(received, file); return board; },
     finishOpen: async state => {
       assert.equal(state.currentFileRef, file);
-      assert.equal(state.currentFilePath, 'board.bf');
       await pending;
     },
   });

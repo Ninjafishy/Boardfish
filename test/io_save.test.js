@@ -29,7 +29,6 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     },
     BoardfishRuntime: {
       canSaveToExistingTarget(ref) { return ref?.kind === 'web-file-handle'; },
-      describeFileRef(ref) { return ref.name; },
       async saveFileDialog(defaultName) {
         assert.equal(defaultName, '3ca6d7.bf');
         calls.pickers++;
@@ -44,7 +43,6 @@ function loadSaveHarness({ existing = true, outcome = 'saved' } = {}) {
     vm.runInContext(source, context, { filename: file });
   }
   context.currentFileRef = sourceRef;
-  context.currentFilePath = sourceRef?.name || null;
   context.acquireInputShield = (options) => {
     assert.equal(options.visual, false);
     assert.equal(options.keepSelectionOverlay, true);
@@ -79,7 +77,6 @@ test('save commands preserve file identity, dirty state and pill cleanup across 
       assert.equal(calls.pickers, Number(picksTarget), `${label}: picker must start synchronously`);
       assert.equal(await pending, saved, label);
       assert.equal(context.currentFileRef, saved ? target : sourceRef, label);
-      assert.equal(context.currentFilePath, (saved ? target : sourceRef)?.name || null, label);
       assert.equal(context.isDirty(), !saved, label);
       assert.deepEqual(calls.writes, writes ? [target] : [], label);
       assert.deepEqual(calls.messages, outcome === 'cancelled' ? []

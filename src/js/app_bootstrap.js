@@ -30,14 +30,12 @@ var finishFailedOpen;
 
   openBoardFromPath = async function openBoardFromPath(filePath) {
     try {
-      const fileLabel = BoardfishRuntime.describeFileRef(filePath);
       _boardOpening = true;
       beginOpeningFreeze();
       showIslandMsg('Opening');
       const data = await invokeReadBoard(filePath);
       applyBoardData(data);
       currentFileRef = filePath;
-      currentFilePath = fileLabel;
       await finishOpenedBoard();
     } catch (err) {
       finishFailedOpen(err);
